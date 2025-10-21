@@ -5,62 +5,104 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Download, FileSpreadsheet, FileText, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ExportDashboard } from "./ExportDashboard";
+import { jsPDF } from "jspdf";
 
 interface ExportModalProps {
   onClose: () => void;
+  projectName: string;
   divisions: Division[];
   items: Item[];
   summary: ProjectSummary | undefined;
 }
 
-export function ExportModal({ onClose, divisions, items, summary }: ExportModalProps) {
+export function ExportModal({ onClose, projectName, divisions, items, summary }: ExportModalProps) {
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | "jpeg">("excel");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
+
+  if (!summary) {
+    return null;
+  }
 
   const handleExport = async () => {
     setIsExporting(true);
     
     try {
-      if (exportFormat === "jpeg") {
+      if (exportFormat === "jpeg" || exportFormat === "pdf") {
         const html2canvas = (await import("html2canvas")).default;
-        const dashboardElement = document.getElementById("root");
+        const exportElement = document.getElementById("export-dashboard");
         
-        if (!dashboardElement) {
-          throw new Error("Dashboard element not found");
+        if (!exportElement) {
+          throw new Error("Export dashboard element not found");
         }
 
-        const canvas = await html2canvas(dashboardElement, {
-          backgroundColor: "#0d1117",
+        // Temporarily move the element into view for capture
+        exportElement.style.left = '0';
+        exportElement.style.top = '0';
+
+        const canvas = await html2canvas(exportElement, {
+          backgroundColor: null,
           scale: 2,
+          logging: false,
+          width: 1920,
+          height: 1080,
         });
 
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            throw new Error("Failed to create image");
-          }
+        // Move it back off-screen
+        exportElement.style.left = '-9999px';
 
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `arka-project-${new Date().toISOString().split('T')[0]}.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+        if (exportFormat === "jpeg") {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              throw new Error("Failed to create image");
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            toast({
+              title: "Export successful",
+              description: "Your JPEG file has been downloaded.",
+            });
+
+            onClose();
+            setIsExporting(false);
+          }, "image/jpeg", 0.95);
+
+          return;
+        }
+
+        if (exportFormat === "pdf") {
+          // Create PDF with the canvas image
+          const imgData = canvas.toDataURL("image/jpeg", 0.95);
+          const pdf = new jsPDF({
+            orientation: "landscape",
+            unit: "px",
+            format: [1920, 1080],
+          });
+
+          pdf.addImage(imgData, "JPEG", 0, 0, 1920, 1080);
+          pdf.save(`${projectName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
 
           toast({
             title: "Export successful",
-            description: "Your JPEG file has been downloaded.",
+            description: "Your PDF file has been downloaded.",
           });
 
           onClose();
           setIsExporting(false);
-        }, "image/jpeg", 0.95);
-
-        return;
+          return;
+        }
       }
 
+      // Excel export - use API
       const response = await fetch(`/api/export/${exportFormat}`, {
         method: "POST",
         headers: {
@@ -78,8 +120,7 @@ export function ExportModal({ onClose, divisions, items, summary }: ExportModalP
       const a = document.createElement("a");
       a.href = url;
       
-      const extension = exportFormat === "excel" ? "xlsx" : "pdf";
-      a.download = `arka-project-${new Date().toISOString().split('T')[0]}.${extension}`;
+      a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
       
       document.body.appendChild(a);
       a.click();
@@ -93,6 +134,7 @@ export function ExportModal({ onClose, divisions, items, summary }: ExportModalP
 
       onClose();
     } catch (error) {
+      console.error("Export error:", error);
       toast({
         title: "Export failed",
         description: "There was an error exporting your data. Please try again.",
@@ -104,10 +146,19 @@ export function ExportModal({ onClose, divisions, items, summary }: ExportModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden border-primary/30 bg-card">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+    <>
+      {/* Hidden export dashboard for rendering */}
+      <ExportDashboard
+        projectName={projectName}
+        divisions={divisions}
+        items={items}
+        summary={summary}
+      />
+      
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden border-primary/30 bg-card">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
             <h2 className="text-2xl font-display font-bold text-foreground">
               Export Project Data
@@ -124,10 +175,10 @@ export function ExportModal({ onClose, divisions, items, summary }: ExportModalP
           >
             <X className="w-5 h-5" />
           </Button>
-        </div>
+          </div>
 
-        {/* Content */}
-        <div className="p-6">
+          {/* Content */}
+          <div className="p-6">
           <Tabs value={exportFormat} onValueChange={(v) => setExportFormat(v as any)}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="excel" className="gap-2" data-testid="tab-excel">
@@ -236,10 +287,10 @@ export function ExportModal({ onClose, divisions, items, summary }: ExportModalP
               </div>
             </Card>
           )}
-        </div>
+          </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
           <Button
             variant="outline"
             onClick={onClose}
@@ -255,8 +306,9 @@ export function ExportModal({ onClose, divisions, items, summary }: ExportModalP
             <Download className="w-4 h-4 mr-2" />
             {isExporting ? "Exporting..." : `Download ${exportFormat.toUpperCase()}`}
           </Button>
-        </div>
-      </Card>
-    </div>
+          </div>
+        </Card>
+      </div>
+    </>
   );
 }

@@ -168,9 +168,10 @@ export default function Dashboard() {
       </div>
 
       {/* Export Modal */}
-      {showExport && (
+      {showExport && selectedProject && (
         <ExportModal
           onClose={() => setShowExport(false)}
+          projectName={selectedProject.name}
           divisions={divisions}
           items={items}
           summary={summary}
