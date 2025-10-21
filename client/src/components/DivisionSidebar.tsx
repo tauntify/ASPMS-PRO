@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface DivisionSidebarProps {
+  projectId: string;
   divisions: Division[];
   items: Item[];
   selectedDivisionId: string | null;
@@ -27,6 +28,7 @@ interface DivisionSidebarProps {
 }
 
 export function DivisionSidebar({
+  projectId,
   divisions,
   items,
   selectedDivisionId,
@@ -93,6 +95,7 @@ export function DivisionSidebar({
   const handleCreate = () => {
     if (newDivisionName.trim()) {
       createMutation.mutate({
+        projectId,
         name: newDivisionName.trim(),
         order: divisions.length,
       });
