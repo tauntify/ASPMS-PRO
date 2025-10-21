@@ -7,6 +7,10 @@ export const priorityLevels = ["High", "Mid", "Low"] as const;
 export const priorityEnum = z.enum(priorityLevels);
 export type Priority = z.infer<typeof priorityEnum>;
 
+export const itemStatuses = ["Not Started", "Purchased", "In Installation Phase", "Installed", "Delivered"] as const;
+export const itemStatusEnum = z.enum(itemStatuses);
+export type ItemStatus = z.infer<typeof itemStatusEnum>;
+
 export const unitTypes = [
   "number",
   "rft",
@@ -25,6 +29,10 @@ export type Unit = z.infer<typeof unitEnum>;
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  clientName: text("client_name"),
+  projectTitle: text("project_title"),
+  startDate: timestamp("start_date"),
+  deliveryDate: timestamp("delivery_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -44,6 +52,7 @@ export const items = pgTable("items", {
   quantity: numeric("quantity", { precision: 18, scale: 2 }).notNull(),
   rate: numeric("rate", { precision: 18, scale: 2 }).notNull(),
   priority: text("priority").notNull(),
+  status: text("status").notNull().default("Not Started"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -53,6 +62,10 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   createdAt: true,
 }).extend({
   name: z.string().min(1, "Project name is required"),
+  clientName: z.string().optional(),
+  projectTitle: z.string().optional(),
+  startDate: z.date().optional(),
+  deliveryDate: z.date().optional(),
 });
 
 export const insertDivisionSchema = createInsertSchema(divisions).omit({
@@ -74,11 +87,16 @@ export const insertItemSchema = createInsertSchema(items).omit({
   quantity: z.number().min(0, "Quantity must be positive"),
   rate: z.number().min(0, "Rate must be positive"),
   priority: priorityEnum,
+  status: itemStatusEnum.optional(),
 });
 
 export const updateProjectSchema = z.object({
   id: z.string(),
   name: z.string().min(1).optional(),
+  clientName: z.string().optional(),
+  projectTitle: z.string().optional(),
+  startDate: z.date().optional(),
+  deliveryDate: z.date().optional(),
 });
 
 export const updateDivisionSchema = z.object({
@@ -96,6 +114,7 @@ export const updateItemSchema = z.object({
   quantity: z.number().min(0).optional(),
   rate: z.number().min(0).optional(),
   priority: priorityEnum.optional(),
+  status: itemStatusEnum.optional(),
 });
 
 // Types
@@ -122,6 +141,7 @@ export interface ProjectSummary {
   lowPriorityCost: number;
   totalItems: number;
   totalDivisions: number;
+  overallProgress: number;
   divisionBreakdown: {
     divisionId: string;
     divisionName: string;
@@ -132,5 +152,10 @@ export interface ProjectSummary {
     priority: Priority;
     cost: number;
     itemCount: number;
+  }[];
+  statusBreakdown: {
+    status: ItemStatus;
+    itemCount: number;
+    cost: number;
   }[];
 }

@@ -10,12 +10,21 @@ import {
   UpdateItem,
   ProjectSummary,
   Priority,
+  ItemStatus,
   projects,
   divisions,
   items,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, asc, inArray } from "drizzle-orm";
+
+const STATUS_WEIGHTS: Record<ItemStatus, number> = {
+  "Not Started": 0,
+  "Purchased": 25,
+  "In Installation Phase": 50,
+  "Installed": 75,
+  "Delivered": 100,
+};
 
 export interface IStorage {
   // Projects
@@ -171,11 +180,36 @@ export class DatabaseStorage implements IStorage {
       Low: 0,
     };
 
+    const statusCosts: Record<ItemStatus, number> = {
+      "Not Started": 0,
+      "Purchased": 0,
+      "In Installation Phase": 0,
+      "Installed": 0,
+      "Delivered": 0,
+    };
+
+    const statusCounts: Record<ItemStatus, number> = {
+      "Not Started": 0,
+      "Purchased": 0,
+      "In Installation Phase": 0,
+      "Installed": 0,
+      "Delivered": 0,
+    };
+
+    let totalProgress = 0;
+
     allItems.forEach((item) => {
       const itemTotal = Number(item.quantity) * Number(item.rate);
       priorityCosts[item.priority as Priority] += itemTotal;
       priorityCounts[item.priority as Priority]++;
+
+      const itemStatus = item.status as ItemStatus;
+      statusCosts[itemStatus] += itemTotal;
+      statusCounts[itemStatus]++;
+      totalProgress += STATUS_WEIGHTS[itemStatus];
     });
+
+    const overallProgress = allItems.length > 0 ? totalProgress / allItems.length : 0;
 
     const divisionBreakdown = allDivisions.map((division) => {
       const divisionItems = allItems.filter((item) => item.divisionId === division.id);
@@ -198,6 +232,14 @@ export class DatabaseStorage implements IStorage {
       { priority: "Low", cost: priorityCosts.Low, itemCount: priorityCounts.Low },
     ];
 
+    const statusBreakdown: { status: ItemStatus; itemCount: number; cost: number }[] = [
+      { status: "Not Started", itemCount: statusCounts["Not Started"], cost: statusCosts["Not Started"] },
+      { status: "Purchased", itemCount: statusCounts["Purchased"], cost: statusCosts["Purchased"] },
+      { status: "In Installation Phase", itemCount: statusCounts["In Installation Phase"], cost: statusCosts["In Installation Phase"] },
+      { status: "Installed", itemCount: statusCounts["Installed"], cost: statusCosts["Installed"] },
+      { status: "Delivered", itemCount: statusCounts["Delivered"], cost: statusCosts["Delivered"] },
+    ];
+
     return {
       totalCost,
       highPriorityCost: priorityCosts.High,
@@ -205,8 +247,10 @@ export class DatabaseStorage implements IStorage {
       lowPriorityCost: priorityCosts.Low,
       totalItems: allItems.length,
       totalDivisions: allDivisions.length,
+      overallProgress,
       divisionBreakdown,
       priorityBreakdown,
+      statusBreakdown,
     };
   }
 }
