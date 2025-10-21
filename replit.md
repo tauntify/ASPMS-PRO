@@ -28,13 +28,19 @@ Preferred communication style: Simple, everyday language.
 - Cache invalidation uses predicate functions to handle query variations
 - End-to-end tested: project creation, data isolation, navigation, and CRUD operations
 
-**Export System Enhancements:**
-- Created professional ExportDashboard component (1920x1080) with cyberpunk design
-- JPEG export now captures complete styled dashboard with all charts and data
-- PDF export embeds the styled dashboard image for professional reports
-- Export dashboard includes: project header, stats grid, priority pie chart, division bar chart, detailed table
+**Export System with Multiple Templates:**
+- Implemented three professional export templates for different use cases:
+  1. **Standard**: Cyberpunk-themed dashboard (1920x1080) with interactive charts and complete project visualization
+  2. **BOQ (Bill of Quantities)**: Clean professional layout with division-wise tables, subtotals, and grand total
+  3. **Progress Report**: Comprehensive report with client info, timeline, circular progress indicator, and division progress bars
+- ExportModal includes template selector dropdown to choose export format
+- ExportDashboard component conditionally renders based on templateType ('standard', 'boq', 'progress-report')
+- All templates support JPEG, PDF, and Excel export formats
+- BOQ and Progress Report templates use clean white backgrounds for professional printing
+- Progress Report includes client name, project title, start/delivery dates when available
+- Progress calculation based on item status weights: Not Started (0%), Purchased (25%), In Installation (50%), Installed (75%), Delivered (100%)
 - All exports use project name in filename: `{project-name}-{date}.{extension}`
-- Consistent branding and styling across all export formats
+- End-to-end tested: all three templates export successfully via JPEG and PDF
 
 ## System Architecture
 
@@ -106,14 +112,31 @@ Preferred communication style: Simple, everyday language.
 - **Excel Export**: ExcelJS generates spreadsheets with multiple sheets (Summary, Divisions, Items)
 - **PDF Export**: html2canvas captures styled dashboard → jsPDF embeds image in landscape PDF
 - **JPEG Export**: html2canvas captures 1920x1080 styled dashboard with complete project visualization
-- **ExportDashboard Component**: Hidden off-screen render (left: -9999px) with:
-  - Cyberpunk-themed header with project name and logo
-  - Summary statistics grid (total cost, items, divisions)
-  - Interactive charts (priority pie chart, division bar chart)
-  - Complete items table with priority color coding
-  - Professional footer with branding
-- All exports maintain consistent priority colors and cyberpunk styling
+- **Export Templates**: Three distinct templates for different professional needs:
+  - **Standard Template**: Cyberpunk-themed dashboard with interactive charts
+    - Futuristic design with neon accents and gradient backgrounds
+    - Priority pie chart, division bar chart, status distribution chart
+    - Complete items table with priority color coding
+    - Visual metrics grid showing progress, costs, and statistics
+  - **BOQ Template**: Professional Bill of Quantities for formal documentation
+    - Clean white background optimized for printing
+    - Division-wise tables with item details (description, unit, quantity, rate, priority, amount)
+    - Subtotals for each division and grand total
+    - Priority-based color badges for High/Mid/Low items
+    - Professional header with client name and generation date
+  - **Progress Report Template**: Comprehensive project status report
+    - Client information section (name, project title)
+    - Timeline section with start date and expected delivery
+    - Circular progress indicator showing overall completion percentage
+    - Status distribution breakdown (Not Started, Purchased, In Installation, Installed, Delivered)
+    - Financial summary with priority-based cost allocation
+    - Division-wise progress bars with completion percentages
+    - Professional layout optimized for client presentations
+- **ExportDashboard Component**: Hidden off-screen render (left: -9999px) with conditional template rendering
+- **ExportModal Component**: Template selector dropdown for choosing export format
+- All templates support JPEG, PDF, and Excel formats
 - Filenames follow pattern: `{project-name}-{date}.{extension}`
+- Progress calculation uses weighted status values: Not Started (0%), Purchased (25%), In Installation (50%), Installed (75%), Delivered (100%)
 
 ### State Management
 
