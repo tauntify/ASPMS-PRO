@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, integer, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, numeric, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -34,8 +34,8 @@ export const items = pgTable("items", {
   divisionId: varchar("division_id").notNull().references(() => divisions.id, { onDelete: "cascade" }),
   description: text("description").notNull(),
   unit: text("unit").notNull(),
-  quantity: real("quantity").notNull(),
-  rate: real("rate").notNull(),
+  quantity: numeric("quantity", { precision: 18, scale: 2 }).notNull(),
+  rate: numeric("rate", { precision: 18, scale: 2 }).notNull(),
   priority: text("priority").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

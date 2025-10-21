@@ -108,7 +108,7 @@ export function DivisionSidebar({
   const getDivisionTotal = (divisionId: string) => {
     return items
       .filter((item) => item.divisionId === divisionId)
-      .reduce((sum, item) => sum + item.quantity * item.rate, 0);
+      .reduce((sum, item) => sum + Number(item.quantity) * Number(item.rate), 0);
   };
 
   const getDivisionItemCount = (divisionId: string) => {

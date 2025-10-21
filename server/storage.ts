@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
     const allDivisions = await this.getDivisions();
     const allItems = await this.getItems();
 
-    const totalCost = allItems.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+    const totalCost = allItems.reduce((sum, item) => sum + Number(item.quantity) * Number(item.rate), 0);
     
     const priorityCosts = {
       High: 0,
@@ -118,7 +118,7 @@ export class DatabaseStorage implements IStorage {
     };
 
     allItems.forEach((item) => {
-      const itemTotal = item.quantity * item.rate;
+      const itemTotal = Number(item.quantity) * Number(item.rate);
       priorityCosts[item.priority as Priority] += itemTotal;
       priorityCounts[item.priority as Priority]++;
     });
@@ -126,7 +126,7 @@ export class DatabaseStorage implements IStorage {
     const divisionBreakdown = allDivisions.map((division) => {
       const divisionItems = allItems.filter((item) => item.divisionId === division.id);
       const totalCost = divisionItems.reduce(
-        (sum, item) => sum + item.quantity * item.rate,
+        (sum, item) => sum + Number(item.quantity) * Number(item.rate),
         0
       );
 

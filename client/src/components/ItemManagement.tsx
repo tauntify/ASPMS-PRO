@@ -145,7 +145,7 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
     ? items 
     : items.filter(item => item.priority === selectedPriority);
 
-  const divisionTotal = items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+  const divisionTotal = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.rate), 0);
 
   if (!division) {
     return (
@@ -379,10 +379,10 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
                     <TableCell className="text-muted-foreground">{item.unit}</TableCell>
                     <TableCell className="text-right font-mono">{item.quantity}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {item.rate.toLocaleString('en-PK')}
+                      {Number(item.rate).toLocaleString('en-PK')}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold text-primary">
-                      {(item.quantity * item.rate).toLocaleString('en-PK')}
+                      {(Number(item.quantity) * Number(item.rate)).toLocaleString('en-PK')}
                     </TableCell>
                     <TableCell>
                       <Badge className={priorityColors[item.priority as Priority]} data-testid={`badge-priority-${item.id}`}>
