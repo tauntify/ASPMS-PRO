@@ -64,8 +64,12 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   name: z.string().min(1, "Project name is required"),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
-  startDate: z.date().optional(),
-  deliveryDate: z.date().optional(),
+  startDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  deliveryDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
 });
 
 export const insertDivisionSchema = createInsertSchema(divisions).omit({
@@ -95,8 +99,12 @@ export const updateProjectSchema = z.object({
   name: z.string().min(1).optional(),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
-  startDate: z.date().optional(),
-  deliveryDate: z.date().optional(),
+  startDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  deliveryDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
 });
 
 export const updateDivisionSchema = z.object({

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Division, Item, InsertItem, Priority, Unit, priorityLevels, unitTypes } from "@shared/schema";
+import { Division, Item, InsertItem, Priority, Unit, ItemStatus, priorityLevels, unitTypes, itemStatuses } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ interface ItemFormData {
   quantity: string;
   rate: string;
   priority: Priority;
+  status: ItemStatus;
 }
 
 const initialFormData: ItemFormData = {
@@ -54,12 +55,21 @@ const initialFormData: ItemFormData = {
   quantity: "",
   rate: "",
   priority: "Mid",
+  status: "Not Started",
 };
 
 const priorityColors: Record<Priority, string> = {
   High: "bg-destructive/20 text-destructive border-destructive/50",
   Mid: "bg-chart-4/20 text-chart-4 border-chart-4/50",
   Low: "bg-chart-5/20 text-chart-5 border-chart-5/50",
+};
+
+const statusColors: Record<ItemStatus, string> = {
+  "Not Started": "bg-muted text-muted-foreground border-muted-foreground/50",
+  "Purchased": "bg-chart-4/20 text-chart-4 border-chart-4/50",
+  "In Installation Phase": "bg-accent/20 text-accent-foreground border-accent/50",
+  "Installed": "bg-chart-5/20 text-chart-5 border-chart-5/50",
+  "Delivered": "bg-primary/20 text-primary border-primary/50",
 };
 
 export function ItemManagement({ division, items, isLoading }: ItemManagementProps) {
@@ -150,6 +160,7 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       quantity,
       rate,
       priority: formData.priority,
+      status: formData.status,
     });
   };
 
@@ -291,9 +302,9 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
               </div>
             </div>
 
-            <div className="flex items-center justify-between mt-3">
+            <div className="grid grid-cols-2 gap-4 mt-3">
               <div className="flex gap-2">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Priority:</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider self-center">Priority:</span>
                 {priorityLevels.map((priority) => (
                   <Button
                     key={priority}
@@ -308,30 +319,51 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
                 ))}
               </div>
 
-              <div className="flex gap-2">
-                {formData.quantity && formData.rate && (
-                  <div className="text-sm font-mono font-semibold text-primary">
-                    Total: {(parseFloat(formData.quantity) * parseFloat(formData.rate)).toLocaleString('en-PK')} PKR
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsAdding(false);
-                    setFormData(initialFormData);
-                  }}
-                  data-testid="button-cancel-add"
+              <div>
+                <label className="text-xs text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Status
+                </label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: ItemStatus) => setFormData({ ...formData, status: value })}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreate}
-                  disabled={createMutation.isPending}
-                  data-testid="button-save-item"
-                >
-                  Save Item
-                </Button>
+                  <SelectTrigger data-testid="select-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {itemStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-3">
+              {formData.quantity && formData.rate && (
+                <div className="text-sm font-mono font-semibold text-primary">
+                  Total: {(parseFloat(formData.quantity) * parseFloat(formData.rate)).toLocaleString('en-PK')} PKR
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAdding(false);
+                  setFormData(initialFormData);
+                }}
+                data-testid="button-cancel-add"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreate}
+                disabled={createMutation.isPending}
+                data-testid="button-save-item"
+              >
+                Save Item
+              </Button>
             </div>
           </Card>
         )}
@@ -375,6 +407,9 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
                   <TableHead className="font-display font-semibold uppercase text-xs tracking-wider">
                     Priority
                   </TableHead>
+                  <TableHead className="font-display font-semibold uppercase text-xs tracking-wider">
+                    Status
+                  </TableHead>
                   <TableHead className="font-display font-semibold uppercase text-xs tracking-wider text-right">
                     Actions
                   </TableHead>
@@ -400,6 +435,27 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
                       <Badge className={priorityColors[item.priority as Priority]} data-testid={`badge-priority-${item.id}`}>
                         {item.priority}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={item.status}
+                        onValueChange={(value: ItemStatus) => {
+                          updateMutation.mutate({ id: item.id, status: value });
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-40" data-testid={`select-status-${item.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {itemStatuses.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              <Badge className={statusColors[status]}>
+                                {status}
+                              </Badge>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">

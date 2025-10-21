@@ -1,5 +1,6 @@
 import { Division, Item, ProjectSummary } from "@shared/schema";
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -8,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, TrendingUp } from "lucide-react";
+import { FileText, TrendingUp, CheckCircle } from "lucide-react";
 
 interface MasterSummaryProps {
   summary: ProjectSummary | undefined;
@@ -45,6 +46,32 @@ export function MasterSummary({ summary, divisions, items }: MasterSummaryProps)
             Complete breakdown of all divisions and budget allocation
           </p>
         </div>
+
+        {/* Overall Progress */}
+        <Card className="p-6 border-primary/50 bg-gradient-to-br from-primary/20 to-transparent">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-8 h-8 text-primary" />
+              <div>
+                <h3 className="text-lg font-display font-bold text-foreground">
+                  Overall Project Progress
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Based on item status completion
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-4xl font-mono font-bold text-primary" data-testid="text-overall-progress">
+                {Math.round(summary.overallProgress)}%
+              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Complete
+              </p>
+            </div>
+          </div>
+          <Progress value={summary.overallProgress} className="h-3" />
+        </Card>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-4 gap-4">
