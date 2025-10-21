@@ -1,15 +1,71 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertDivisionSchema, insertItemSchema, updateDivisionSchema, updateItemSchema } from "@shared/schema";
+import { insertProjectSchema, updateProjectSchema, insertDivisionSchema, insertItemSchema, updateDivisionSchema, updateItemSchema } from "@shared/schema";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Division routes
-  app.get("/api/divisions", async (_req, res) => {
+  // Project routes
+  app.get("/api/projects", async (_req, res) => {
     try {
-      const divisions = await storage.getDivisions();
+      const projects = await storage.getProjects();
+      res.json(projects);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const parsed = insertProjectSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid project data", details: parsed.error });
+      }
+
+      const project = await storage.createProject(parsed.data);
+      res.status(201).json(project);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create project" });
+    }
+  });
+
+  app.patch("/api/projects/:id", async (req, res) => {
+    try {
+      const parsed = updateProjectSchema.safeParse({ ...req.body, id: req.params.id });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid project data", details: parsed.error });
+      }
+
+      const project = await storage.updateProject(parsed.data);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update project" });
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteProject(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete project" });
+    }
+  });
+
+  // Division routes
+  app.get("/api/divisions", async (req, res) => {
+    try {
+      const projectId = req.query.projectId as string | undefined;
+      const divisions = await storage.getDivisions(projectId);
       res.json(divisions);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch divisions" });
@@ -62,9 +118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Item routes
-  app.get("/api/items", async (_req, res) => {
+  app.get("/api/items", async (req, res) => {
     try {
-      const items = await storage.getItems();
+      const projectId = req.query.projectId as string | undefined;
+      const items = await storage.getItems(projectId);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch items" });
@@ -117,9 +174,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Summary route
-  app.get("/api/summary", async (_req, res) => {
+  app.get("/api/summary", async (req, res) => {
     try {
-      const summary = await storage.getProjectSummary();
+      const projectId = req.query.projectId as string | undefined;
+      const summary = await storage.getProjectSummary(projectId);
       res.json(summary);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch summary" });
