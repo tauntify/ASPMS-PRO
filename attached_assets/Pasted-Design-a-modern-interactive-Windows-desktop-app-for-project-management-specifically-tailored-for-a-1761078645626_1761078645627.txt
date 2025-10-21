@@ -1,0 +1,49 @@
+Design a modern, interactive Windows desktop app for project management, specifically tailored for architecture and interior design professionals. The app should be installable with a setup file and offer a futuristic, cyborg-inspired interface with rich, interactive infographics such as circular graphs and summaries.
+
+Core functional requirements:
+
+Allow users to create unlimited divisions (or categories), with each division containing multiple customizable items.
+
+For each item, enable input of:
+
+Detailed description
+
+Unit of measure (support all commonly used in architecture: number, rft, sft, meter, meter square, gallons, drums, coils, length, etc.)
+
+Quantity
+
+Rate per unit
+
+Automatically calculate the total amount for each item by multiplying quantity with rate, and display running totals for each division.
+
+At the end of all divisions, provide a master summary page that sums all divisions and offers a breakdown of total values.
+
+Enable users to mark each item (or division) with configurable priority levels (High, Mid, Low).
+
+Present a funds summary based on priority categories (e.g., show required funds for all high-priority items separately).
+
+Allow complete flexibility to edit, rename, add, or delete divisions and items as needed.
+
+Implement a dashboard with:
+
+Interactive visual summaries (circular and bar graphs, infographics for costs, quantities, priorities, etc.)
+
+Tables and lists updated live as data is entered.
+
+Support exporting all structured data and visuals in various formats such as Excel sheets, JPEG images, and PDF files.
+
+Ensure the UI is highly modern using cyborg/sci-fi design elements, with smooth interactivity and attractive graphical transitions.
+
+Technical considerations:
+
+The app must be optimized for Windows PC environments (Windows 10 and above).
+
+Include robust data validation and an intuitive workflow for first-time users.
+
+Backend should be efficient enough to handle large data sets (hundreds of items per project).
+
+Exported files must retain all custom field names, summaries, priorities, and graphical elements.
+
+Name the ap ARKA SERVICES PROJECT MANAGMENT
+IT sHOULD BE IN PKR 
+iNTERFACE MUST BE IN lANDSCAPE AND HAVE DIFFRENT BOXES INCLUDEING INFOGRAFICS WHICH WILL BE DYNAMIC AND CHAHGES ACCORDING TO VALUES THAT ARE CHANGED  AND GIVE ME DOWNLOADBALE .EXE FILE SO THAT I CAN INTAL IT IN MY COMPUTER
