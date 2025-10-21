@@ -22,8 +22,15 @@ export const unitEnum = z.enum(unitTypes);
 export type Unit = z.infer<typeof unitEnum>;
 
 // Database Tables
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const divisions = pgTable("divisions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   order: integer("order").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -41,10 +48,18 @@ export const items = pgTable("items", {
 });
 
 // Zod Schemas
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1, "Project name is required"),
+});
+
 export const insertDivisionSchema = createInsertSchema(divisions).omit({
   id: true,
   createdAt: true,
 }).extend({
+  projectId: z.string(),
   name: z.string().min(1, "Division name is required"),
   order: z.number(),
 });
@@ -61,8 +76,14 @@ export const insertItemSchema = createInsertSchema(items).omit({
   priority: priorityEnum,
 });
 
+export const updateProjectSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).optional(),
+});
+
 export const updateDivisionSchema = z.object({
   id: z.string(),
+  projectId: z.string().optional(),
   name: z.string().min(1).optional(),
   order: z.number().optional(),
 });
@@ -78,6 +99,10 @@ export const updateItemSchema = z.object({
 });
 
 // Types
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type UpdateProject = z.infer<typeof updateProjectSchema>;
+
 export type Division = typeof divisions.$inferSelect;
 export type InsertDivision = z.infer<typeof insertDivisionSchema>;
 export type UpdateDivision = z.infer<typeof updateDivisionSchema>;
