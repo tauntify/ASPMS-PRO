@@ -190,6 +190,7 @@ export default function Dashboard() {
       {showExport && selectedProject && (
         <ExportModal
           onClose={() => setShowExport(false)}
+          project={selectedProject}
           projectName={selectedProject.name}
           divisions={divisions}
           items={items}

@@ -1,15 +1,18 @@
-import { Division, Item, ProjectSummary } from "@shared/schema";
-import { BarChart3, Building2, TrendingUp } from "lucide-react";
+import { Division, Item, ProjectSummary, Project } from "@shared/schema";
+import { BarChart3, Building2, TrendingUp, CheckCircle, Calendar } from "lucide-react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import type { ExportTemplateType } from "./ExportModal";
 
 interface ExportDashboardProps {
+  project: Project;
   projectName: string;
   divisions: Division[];
   items: Item[];
   summary: ProjectSummary;
+  templateType: ExportTemplateType;
 }
 
-export function ExportDashboard({ projectName, divisions, items, summary }: ExportDashboardProps) {
+export function ExportDashboard({ project, projectName, divisions, items, summary, templateType }: ExportDashboardProps) {
   const priorityData = [
     { name: "High Priority", value: Number(summary.highPriorityCost), color: "#ff3366" },
     { name: "Mid Priority", value: Number(summary.midPriorityCost), color: "#ffaa00" },
