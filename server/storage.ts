@@ -7,8 +7,11 @@ import {
   UpdateItem,
   ProjectSummary,
   Priority,
+  divisions,
+  items,
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Divisions
@@ -25,101 +28,82 @@ export interface IStorage {
   createItem(item: InsertItem): Promise<Item>;
   updateItem(item: UpdateItem): Promise<Item | undefined>;
   deleteItem(id: string): Promise<boolean>;
-  deleteItemsByDivision(divisionId: string): Promise<void>;
 
   // Summary
   getProjectSummary(): Promise<ProjectSummary>;
 }
 
-export class MemStorage implements IStorage {
-  private divisions: Map<string, Division>;
-  private items: Map<string, Item>;
-
-  constructor() {
-    this.divisions = new Map();
-    this.items = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   // Divisions
   async getDivisions(): Promise<Division[]> {
-    return Array.from(this.divisions.values()).sort((a, b) => a.order - b.order);
+    return await db.select().from(divisions).orderBy(asc(divisions.order));
   }
 
   async getDivision(id: string): Promise<Division | undefined> {
-    return this.divisions.get(id);
+    const result = await db.select().from(divisions).where(eq(divisions.id, id));
+    return result[0];
   }
 
   async createDivision(insertDivision: InsertDivision): Promise<Division> {
-    const id = randomUUID();
-    const division: Division = { ...insertDivision, id };
-    this.divisions.set(id, division);
-    return division;
+    const result = await db.insert(divisions).values(insertDivision).returning();
+    return result[0];
   }
 
   async updateDivision(updateDivision: UpdateDivision): Promise<Division | undefined> {
-    const existing = this.divisions.get(updateDivision.id);
-    if (!existing) return undefined;
-
-    const updated: Division = { ...existing, ...updateDivision };
-    this.divisions.set(updateDivision.id, updated);
-    return updated;
+    const { id, ...updates } = updateDivision;
+    const result = await db
+      .update(divisions)
+      .set(updates)
+      .where(eq(divisions.id, id))
+      .returning();
+    return result[0];
   }
 
   async deleteDivision(id: string): Promise<boolean> {
-    const exists = this.divisions.has(id);
-    if (exists) {
-      this.divisions.delete(id);
-      await this.deleteItemsByDivision(id);
-    }
-    return exists;
+    const result = await db.delete(divisions).where(eq(divisions.id, id)).returning();
+    return result.length > 0;
   }
 
   // Items
   async getItems(): Promise<Item[]> {
-    return Array.from(this.items.values());
+    return await db.select().from(items);
   }
 
   async getItem(id: string): Promise<Item | undefined> {
-    return this.items.get(id);
+    const result = await db.select().from(items).where(eq(items.id, id));
+    return result[0];
   }
 
   async getItemsByDivision(divisionId: string): Promise<Item[]> {
-    return Array.from(this.items.values()).filter(
-      (item) => item.divisionId === divisionId
-    );
+    return await db.select().from(items).where(eq(items.divisionId, divisionId));
   }
 
   async createItem(insertItem: InsertItem): Promise<Item> {
-    const id = randomUUID();
-    const item: Item = { ...insertItem, id };
-    this.items.set(id, item);
-    return item;
+    const result = await db.insert(items).values(insertItem).returning();
+    return result[0];
   }
 
   async updateItem(updateItem: UpdateItem): Promise<Item | undefined> {
-    const existing = this.items.get(updateItem.id);
-    if (!existing) return undefined;
-
-    const updated: Item = { ...existing, ...updateItem };
-    this.items.set(updateItem.id, updated);
-    return updated;
+    const { id, ...updates } = updateItem;
+    const result = await db
+      .update(items)
+      .set(updates)
+      .where(eq(items.id, id))
+      .returning();
+    return result[0];
   }
 
   async deleteItem(id: string): Promise<boolean> {
-    return this.items.delete(id);
-  }
-
-  async deleteItemsByDivision(divisionId: string): Promise<void> {
-    const items = await this.getItemsByDivision(divisionId);
-    items.forEach((item) => this.items.delete(item.id));
+    const result = await db.delete(items).where(eq(items.id, id)).returning();
+    return result.length > 0;
   }
 
   // Summary
   async getProjectSummary(): Promise<ProjectSummary> {
-    const divisions = await this.getDivisions();
-    const items = await this.getItems();
+    const allDivisions = await this.getDivisions();
+    const allItems = await this.getItems();
 
-    const totalCost = items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+    const totalCost = allItems.reduce((sum, item) => sum + item.quantity * item.rate, 0);
     
     const priorityCosts = {
       High: 0,
@@ -133,14 +117,14 @@ export class MemStorage implements IStorage {
       Low: 0,
     };
 
-    items.forEach((item) => {
+    allItems.forEach((item) => {
       const itemTotal = item.quantity * item.rate;
-      priorityCosts[item.priority] += itemTotal;
-      priorityCounts[item.priority]++;
+      priorityCosts[item.priority as Priority] += itemTotal;
+      priorityCounts[item.priority as Priority]++;
     });
 
-    const divisionBreakdown = divisions.map((division) => {
-      const divisionItems = items.filter((item) => item.divisionId === division.id);
+    const divisionBreakdown = allDivisions.map((division) => {
+      const divisionItems = allItems.filter((item) => item.divisionId === division.id);
       const totalCost = divisionItems.reduce(
         (sum, item) => sum + item.quantity * item.rate,
         0
@@ -165,12 +149,12 @@ export class MemStorage implements IStorage {
       highPriorityCost: priorityCosts.High,
       midPriorityCost: priorityCosts.Mid,
       lowPriorityCost: priorityCosts.Low,
-      totalItems: items.length,
-      totalDivisions: divisions.length,
+      totalItems: allItems.length,
+      totalDivisions: allDivisions.length,
       divisionBreakdown,
       priorityBreakdown,
     };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

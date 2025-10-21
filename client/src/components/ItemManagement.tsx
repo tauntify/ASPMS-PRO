@@ -385,7 +385,7 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
                       {(item.quantity * item.rate).toLocaleString('en-PK')}
                     </TableCell>
                     <TableCell>
-                      <Badge className={priorityColors[item.priority]} data-testid={`badge-priority-${item.id}`}>
+                      <Badge className={priorityColors[item.priority as Priority]} data-testid={`badge-priority-${item.id}`}>
                         {item.priority}
                       </Badge>
                     </TableCell>

@@ -1,4 +1,7 @@
+import { pgTable, text, varchar, integer, real, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 export const priorityLevels = ["High", "Mid", "Low"] as const;
 export const priorityEnum = z.enum(priorityLevels);
@@ -18,18 +21,38 @@ export const unitTypes = [
 export const unitEnum = z.enum(unitTypes);
 export type Unit = z.infer<typeof unitEnum>;
 
-export const divisionSchema = z.object({
-  id: z.string(),
+// Database Tables
+export const divisions = pgTable("divisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  order: integer("order").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const items = pgTable("items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  divisionId: varchar("division_id").notNull().references(() => divisions.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  unit: text("unit").notNull(),
+  quantity: real("quantity").notNull(),
+  rate: real("rate").notNull(),
+  priority: text("priority").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Zod Schemas
+export const insertDivisionSchema = createInsertSchema(divisions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
   name: z.string().min(1, "Division name is required"),
   order: z.number(),
 });
 
-export const insertDivisionSchema = divisionSchema.omit({ id: true });
-export type Division = z.infer<typeof divisionSchema>;
-export type InsertDivision = z.infer<typeof insertDivisionSchema>;
-
-export const itemSchema = z.object({
-  id: z.string(),
+export const insertItemSchema = createInsertSchema(items).omit({
+  id: true,
+  createdAt: true,
+}).extend({
   divisionId: z.string(),
   description: z.string().min(1, "Description is required"),
   unit: unitEnum,
@@ -38,14 +61,29 @@ export const itemSchema = z.object({
   priority: priorityEnum,
 });
 
-export const insertItemSchema = itemSchema.omit({ id: true });
-export type Item = z.infer<typeof itemSchema>;
-export type InsertItem = z.infer<typeof insertItemSchema>;
+export const updateDivisionSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).optional(),
+  order: z.number().optional(),
+});
 
-export const updateDivisionSchema = divisionSchema.partial().required({ id: true });
+export const updateItemSchema = z.object({
+  id: z.string(),
+  divisionId: z.string().optional(),
+  description: z.string().min(1).optional(),
+  unit: unitEnum.optional(),
+  quantity: z.number().min(0).optional(),
+  rate: z.number().min(0).optional(),
+  priority: priorityEnum.optional(),
+});
+
+// Types
+export type Division = typeof divisions.$inferSelect;
+export type InsertDivision = z.infer<typeof insertDivisionSchema>;
 export type UpdateDivision = z.infer<typeof updateDivisionSchema>;
 
-export const updateItemSchema = itemSchema.partial().required({ id: true });
+export type Item = typeof items.$inferSelect;
+export type InsertItem = z.infer<typeof insertItemSchema>;
 export type UpdateItem = z.infer<typeof updateItemSchema>;
 
 export interface DivisionWithItems extends Division {
