@@ -1,0 +1,201 @@
+Web Application Development Prompt: ARKA Multi-Role Management System
+Objective: Develop a comprehensive web application for ARKA Services (arka.pk) with strict role-based access control and integrated procurement management.
+
+1. Application Branding & Reporting
+Website Integration: Prominently display "arka.pk" on all pages and reports
+
+Report Generation: All JPEG and PDF exports must include:
+
+ARKA SERVICES branding
+
+Project details
+
+arka.pk website link
+
+Professional dark background with white text
+
+2. Role-Based Dashboard System
+A. PRINCIPLE DASHBOARD (Full Access)
+
+Complete main dashboard with all system modules
+
+Access to: Projects, Employees, Clients, Procurement, Accounts
+
+Can open any user account without passwords
+
+Default login: Username ZARA, Password saroshahsanto
+
+Can change any username and password
+
+B. EMPLOYEE DASHBOARD (Restricted Access)
+
+Projects Assigned: View and update assigned tasks
+
+Salary Details: View salary breakdown, tax calculations, deductions
+
+Attendance: Mark daily attendance
+
+Documents: Access to appointment letter, joining letter, resignation letter
+
+C. CLIENT DASHBOARD (Project-Specific Only)
+
+View only assigned project(s)
+
+Track project progress and payments
+
+See employee site visits
+
+No access to other projects or financial details
+
+D. PROCUREMENT/ACCOUNTANT DASHBOARD
+
+Upload purchased items with costs
+
+Mark items as purchased/not purchased
+
+Add bill numbers and rental items (RFT, SFT, etc.)
+
+Update procurement status
+
+3. Employee Management Module
+Employee Profile (Principle Only):
+
+Create and update employee accounts
+
+Fields: Name, ID Card, WhatsApp, Home Address, Joining Date
+
+Upload profile picture from computer
+
+Manage all employee information
+
+Salary System:
+
+Salary table with: Basic, Incentives, Medical, Tax, Deductions, Net Salary
+
+Status: Paid/Not Paid (managed by Principle)
+
+Downloadable monthly salary slips
+
+Automatic tax calculations
+
+Document Templates:
+
+Appointment, Joining, Resignation letters
+
+Principle can edit templates and replace names
+
+Employees can view/download their documents
+
+4. Project Management System
+Task Assignment:
+
+Principle assigns tasks: Design CAD, IFCs, 3D Rendering, Procurement, Site Visits
+
+Daily progress tracking: Done/Undone/In Progress
+
+Monthly progress evaluation algorithm
+
+Employees see their progress evaluations
+
+Client Project Access:
+
+Principle assigns specific projects to clients
+
+Clients see only their assigned project
+
+Project progress tracking with payment status
+
+Site visit logs linked to employee check-ins
+
+5. Procurement & Cost Management
+Dual Cost Structure:
+
+Project Cost (Visible to Client)
+
+Execution Cost (Visible only to Principle)
+
+Cost Categories:
+
+Procured Items: Materials, equipment, rentals
+
+Labor Cost:
+
+Daily Wage: Set wage rate + number of workers
+
+Contract: Lump sum amount
+
+Financial Impact:
+
+Real-time profit/loss calculation (Principle only)
+
+Procurement cost changes automatically update project cost
+
+Client sees fixed project cost only
+
+Procurement Workflow:
+
+Principle marks items for procurement
+
+Items appear in Procurement account
+
+Procurement marks items as purchased with:
+
+Actual cost
+
+Bill number
+
+Rental details (RFT, SFT, etc.)
+
+System auto-updates project financials
+
+6. Additional Features
+Project Completion:
+
+Principle marks projects as completed
+
+Completed projects move to archive section
+
+Comment System:
+
+Clients and employees can leave comments
+
+Only Principle can read all comments
+
+Authentication:
+
+Username and password only
+
+No additional security questions
+
+Principle has override access to all accounts
+
+Technical Requirements
+Database Structure:
+
+Users with role-based permissions
+
+Projects with client associations
+
+Employee profiles and attendance
+
+Procurement items and costs
+
+Financial records and calculations
+
+User Interface:
+
+Responsive design for all devices
+
+Role-specific navigation
+
+Real-time updates
+
+Professional ARKA branding throughout
+
+Security:
+
+Role-based access control
+
+Data isolation between clients
+
+Financial data protection
