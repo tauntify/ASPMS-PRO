@@ -75,8 +75,12 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       return await apiRequest("POST", "/api/items", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/summary"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/items')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/summary')
+      });
       setIsAdding(false);
       setFormData(initialFormData);
       toast({
@@ -91,8 +95,12 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       return await apiRequest("PATCH", `/api/items/${data.id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/summary"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/items')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/summary')
+      });
       setEditingId(null);
       toast({
         title: "Item updated",
@@ -106,8 +114,12 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       return await apiRequest("DELETE", `/api/items/${id}`, undefined);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/summary"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/items')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/summary')
+      });
       setDeletingId(null);
       toast({
         title: "Item deleted",

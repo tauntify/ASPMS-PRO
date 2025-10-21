@@ -21,17 +21,17 @@ export default function Dashboard() {
   });
 
   const { data: divisions = [], isLoading: divisionsLoading } = useQuery<Division[]>({
-    queryKey: ["/api/divisions", selectedProjectId],
+    queryKey: [`/api/divisions?projectId=${selectedProjectId}`],
     enabled: !!selectedProjectId,
   });
 
   const { data: items = [], isLoading: itemsLoading } = useQuery<Item[]>({
-    queryKey: ["/api/items", selectedProjectId],
+    queryKey: [`/api/items?projectId=${selectedProjectId}`],
     enabled: !!selectedProjectId,
   });
 
   const { data: summary } = useQuery<ProjectSummary>({
-    queryKey: ["/api/summary", selectedProjectId],
+    queryKey: [`/api/summary?projectId=${selectedProjectId}`],
     enabled: !!selectedProjectId,
   });
 

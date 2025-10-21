@@ -47,8 +47,12 @@ export function DivisionSidebar({
       return await apiRequest("POST", "/api/divisions", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/summary"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/divisions')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/summary')
+      });
       setIsAdding(false);
       setNewDivisionName("");
       toast({
@@ -63,8 +67,12 @@ export function DivisionSidebar({
       return await apiRequest("PATCH", `/api/divisions/${id}`, { name });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/summary"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/divisions')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/summary')
+      });
       setEditingId(null);
       toast({
         title: "Division updated",
@@ -78,9 +86,15 @@ export function DivisionSidebar({
       return await apiRequest("DELETE", `/api/divisions/${id}`, undefined);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/summary"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/divisions')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/items')
+      });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/summary')
+      });
       setDeletingId(null);
       if (selectedDivisionId === deletingId) {
         onSelectDivision(null);
