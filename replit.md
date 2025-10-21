@@ -2,11 +2,31 @@
 
 ## Overview
 
-ARKA Services Project Management is a modern web application designed for architecture and interior design professionals to manage project budgets, track costs, and visualize financial data. The application features a futuristic cyberpunk-inspired UI with real-time analytics, allowing users to create divisions (categories), manage items with detailed cost breakdowns, and generate comprehensive project summaries with priority-based fund allocation tracking. All monetary values are displayed in PKR (Pakistani Rupees).
+ARKA Services Project Management is a modern web application designed for architecture and interior design professionals to manage multiple project budgets, track costs, and visualize financial data. The application features a futuristic cyberpunk-inspired UI with real-time analytics, allowing users to create unlimited projects, each containing divisions (categories) and items with detailed cost breakdowns. The system generates comprehensive project summaries with priority-based fund allocation tracking. All monetary values are displayed in PKR (Pakistani Rupees).
+
+**Key Features:**
+- **Multi-Project Management**: Create unlimited projects with complete data isolation
+- **Division & Item Tracking**: Organize costs by divisions with detailed item breakdowns
+- **Priority-Based Tracking**: High/Mid/Low priority classification for budget allocation
+- **Real-time Analytics**: Interactive charts showing cost distribution and priority breakdowns
+- **Export Capabilities**: Generate Excel, PDF, and JPEG exports for project reports
+- **PKR Currency Precision**: Database-backed NUMERIC type ensures accurate calculations without floating-point errors
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+**October 21, 2025 - Multi-Project System Implementation**
+- Added complete project management system with unlimited projects support
+- Each project maintains independent divisions and items with proper data isolation
+- Implemented ProjectSelector component for creating, renaming, and deleting projects
+- Database schema updated with projects table and proper cascade delete relationships
+- Query system refactored to use query string parameters for proper project scoping
+- All API endpoints (divisions, items, summary) now accept projectId query parameter
+- Cache invalidation uses predicate functions to handle query variations
+- End-to-end tested: project creation, data isolation, navigation, and CRUD operations
 
 ## System Architecture
 
@@ -67,10 +87,12 @@ Preferred communication style: Simple, everyday language.
 - POST /api/export/[excel|pdf] - Generate export files
 
 **Data Model:**
-- Division: id, name, order (for custom sorting)
-- Item: id, divisionId, description, unit, quantity, rate, priority
+- Project: id (UUID), name, createdAt
+- Division: id (UUID), projectId (FK), name, order (for custom sorting)
+- Item: id (UUID), divisionId (FK), description, unit, quantity (NUMERIC), rate (NUMERIC), priority
 - Computed fields: totalCost = quantity × rate
-- ProjectSummary: aggregated costs by priority and division
+- ProjectSummary: aggregated costs by priority and division per project
+- Database relationships: Projects → Divisions (cascade delete) → Items (cascade delete)
 
 **Export Functionality:**
 - ExcelJS for generating Excel spreadsheets with formatted data
@@ -82,8 +104,10 @@ Preferred communication style: Simple, everyday language.
 
 **Client-Side State:**
 - TanStack React Query for API data caching and synchronization
-- Query invalidation on mutations for optimistic updates
-- Local component state via React hooks for UI interactions
+- Query keys use query string format: `/api/divisions?projectId=${id}`
+- Cache invalidation uses predicate functions to handle query parameter variations
+- Query invalidation on mutations ensures UI stays synchronized across project switches
+- Local component state via React hooks for UI interactions and project selection
 - No global state management library required due to simple data flow
 
 **Server-Side State:**
