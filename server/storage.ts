@@ -144,6 +144,12 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Helper function to convert numeric values to strings for Drizzle numeric columns
+  private toNumericString(value: number | undefined | null): string | undefined {
+    if (value === undefined || value === null) return undefined;
+    return value.toString();
+  }
+
   // Projects
   async getProjects(): Promise<Project[]> {
     return await db.select().from(projects).orderBy(asc(projects.createdAt));
@@ -232,15 +238,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createItem(insertItem: InsertItem): Promise<Item> {
-    const result = await db.insert(items).values(insertItem).returning();
+    const result = await db.insert(items).values({
+      ...insertItem,
+      quantity: this.toNumericString(insertItem.quantity),
+      rate: this.toNumericString(insertItem.rate),
+    }).returning();
     return result[0];
   }
 
   async updateItem(updateItem: UpdateItem): Promise<Item | undefined> {
     const { id, ...updates } = updateItem;
+    const convertedUpdates: any = { ...updates };
+    if (updates.quantity !== undefined) {
+      convertedUpdates.quantity = this.toNumericString(updates.quantity);
+    }
+    if (updates.rate !== undefined) {
+      convertedUpdates.rate = this.toNumericString(updates.rate);
+    }
     const result = await db
       .update(items)
-      .set(updates)
+      .set(convertedUpdates)
       .where(eq(items.id, id))
       .returning();
     return result[0];
