@@ -98,9 +98,6 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Seed database before starting server
-  await seedDatabase();
-
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
@@ -112,5 +109,11 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Seed database AFTER server is listening (non-blocking for health checks)
+    seedDatabase().catch((error) => {
+      console.error('⚠️ Database seeding failed (non-fatal):', error);
+      // Don't crash the server - seeding failures shouldn't take down production
+    });
   });
 })();

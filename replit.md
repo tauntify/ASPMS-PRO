@@ -2,253 +2,60 @@
 
 ## Overview
 
-ARKA Services Project Management is a modern web application designed for architecture and interior design professionals to manage multiple project budgets, track costs, and visualize financial data. The application features a futuristic cyberpunk-inspired UI with real-time analytics, allowing users to create unlimited projects, each containing divisions (categories) and items with detailed cost breakdowns. The system generates comprehensive project summaries with priority-based fund allocation tracking. All monetary values are displayed in PKR (Pakistani Rupees).
-
-**Key Features:**
-- **Multi-Project Management**: Create unlimited projects with complete data isolation
-- **Division & Item Tracking**: Organize costs by divisions with detailed item breakdowns
-- **Priority-Based Tracking**: High/Mid/Low priority classification for budget allocation
-- **Real-time Analytics**: Interactive charts showing cost distribution and priority breakdowns
-- **Export Capabilities**: Generate Excel, PDF, and JPEG exports for project reports
-- **PKR Currency Precision**: Database-backed NUMERIC type ensures accurate calculations without floating-point errors
+ARKA Services Project Management is a web application for architecture and interior design professionals. It enables managing multiple project budgets, tracking costs, and visualizing financial data with a futuristic cyberpunk-inspired UI. Key capabilities include creating unlimited projects with divisions and items, priority-based fund allocation, real-time analytics, and comprehensive export options (Excel, PDF, JPEG). All monetary values are handled in PKR. The project's ambition is to provide a robust, secure, and intuitive platform for financial project oversight in the design industry.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes
-
-**October 22, 2025 - Comprehensive Multi-Role Security Implementation**
-- **CRITICAL SECURITY FIXES IMPLEMENTED:**
-  - Replaced insecure Base64 password encoding with bcrypt hashing (10 salt rounds)
-  - Added requireAuth middleware to ALL API endpoints except /api/auth/login
-  - Implemented comprehensive role-based access control (RBAC) across entire application
-  - Removed hard-coded session secret fallback to prevent session forgery
-  - Added startup check: server refuses to boot without SESSION_SECRET environment variable
-
-- **Complete Role-Based Data Isolation:**
-  - **Principle Role**: Full access to all data and operations (god mode)
-  - **Employee Role**: Can only view own salary, attendance, tasks, and documents
-  - **Client Role**: Can only see assigned projects with filtered data (no execution costs visible)
-  - **Procurement Role**: Can manage procurement items, sees all projects but no employee directory
-
-- **Budget Tool Security (Projects, Divisions, Items):**
-  - GET endpoints: Filtered by assigned projects for clients/employees, full access for principle/procurement
-  - POST/PATCH/DELETE: Restricted to principle role only
-  - Summary endpoint: Filtered by assigned projects with proper access control
-
-- **Multi-Role System Endpoint Security:**
-  - Users: Principle-only CRUD operations
-  - Employees: Principle-only create/update, employees can view own data only
-  - Tasks: Principle creates/deletes, principle OR assigned employee can update, filtered views by role
-  - Procurement: Clients see project_cost only (execution_cost hidden), principle/procurement can modify
-  - Salaries/Attendance: Employees view own data, principle views all, principle-only mutations
-  - Project Assignments: Principle-only create/delete, filtered views by role
-  - Comments: All authenticated users can create, principle OR author can delete, filtered by assigned projects
-  - Financials: Principle-only create/update/delete, filtered views by assigned projects for clients
-
-- **Authentication & Session Management:**
-  - Bcrypt password hashing with 10 salt rounds for all user credentials
-  - Express-session with secure session secret (no fallback allowed)
-  - Updated all existing user passwords in database to bcrypt hashes
-  - Default credentials: ZARA/saroshahsanto (principle), procurement/procurement123 (procurement)
-
-- **Testing & Verification:**
-  - End-to-end tests passed for all roles (principle, procurement, unauthenticated)
-  - Verified principle can access all features (employees, projects creation)
-  - Verified procurement has restricted access (403 on employee directory and project creation)
-  - Verified unauthenticated requests properly blocked with 401
-  - Architect security audit PASSED with zero vulnerabilities found
-
-**October 21, 2025 - Multi-Project System & Enhanced Export Implementation**
-- Added complete project management system with unlimited projects support
-- Each project maintains independent divisions and items with proper data isolation
-- Implemented ProjectSelector component for creating, renaming, and deleting projects
-- Database schema updated with projects table and proper cascade delete relationships
-- Query system refactored to use query string parameters for proper project scoping
-- All API endpoints (divisions, items, summary) now accept projectId query parameter
-- Cache invalidation uses predicate functions to handle query variations
-- End-to-end tested: project creation, data isolation, navigation, and CRUD operations
-
-**Export System with Multiple Templates:**
-- Implemented three professional export templates for different use cases:
-  1. **Standard**: Cyberpunk-themed dashboard (1920x1080) with interactive charts and complete project visualization
-  2. **BOQ (Bill of Quantities)**: Clean professional layout with division-wise tables, subtotals, and grand total
-  3. **Progress Report**: Comprehensive report with client info, timeline, circular progress indicator, and division progress bars
-- ExportModal includes template selector dropdown to choose export format
-- ExportDashboard component conditionally renders based on templateType ('standard', 'boq', 'progress-report')
-- All templates support JPEG, PDF, and Excel export formats
-- BOQ and Progress Report templates use clean white backgrounds for professional printing
-- Progress Report includes client name, project title, start/delivery dates when available
-- Progress calculation based on item status weights: Not Started (0%), Purchased (25%), In Installation (50%), Installed (75%), Delivered (100%)
-- All exports use project name in filename: `{project-name}-{date}.{extension}`
-- End-to-end tested: all three templates export successfully via JPEG and PDF
-
 ## System Architecture
 
 ### Frontend Architecture
 
-**Framework & Build System:**
-- React 18 with TypeScript for type-safe component development
-- Vite as the build tool and development server
-- Wouter for lightweight client-side routing
-- TanStack React Query for server state management and caching
-
-**UI Component System:**
-- Radix UI primitives for accessible, unstyled components
-- shadcn/ui component library with custom cyberpunk/sci-fi theming
-- Tailwind CSS for utility-first styling with custom design tokens
-- Class Variance Authority (CVA) for component variant management
-
-**Design System:**
-- Dark-mode-first interface with cyberpunk aesthetic
-- Custom color palette: deep blue-black backgrounds with neon cyan, purple, and orange accents
-- Custom fonts: Orbitron (headings), Rajdhani (body text), Fira Code (numeric data)
-- Priority-based color coding (High: neon red, Mid: amber, Low: green)
-- Landscape-optimized layout for desktop use
-
-**Data Visualization:**
-- Recharts library for interactive charts and graphs
-- Real-time updating pie charts for priority breakdown
-- Bar charts for division-wise cost analysis
-- Dynamic infographics that update as data changes
-
-**Form Management:**
-- React Hook Form for performant form handling
-- Zod for schema validation with Drizzle integration
-- Custom resolvers via @hookform/resolvers
+The frontend uses React 18 with TypeScript and Vite. It features a dark-mode-first cyberpunk aesthetic with custom fonts (Orbitron, Rajdhani, Fira Code) and a specific color palette. UI components are built with Radix UI primitives and shadcn/ui, styled using Tailwind CSS and Class Variance Authority. Data visualization is handled by Recharts, providing interactive charts for cost distribution and priority breakdowns. Form management utilizes React Hook Form and Zod for validation. TanStack React Query manages server state and caching.
 
 ### Backend Architecture
 
-**Server Framework:**
-- Express.js with TypeScript for the REST API
-- Modular route registration pattern
-- Request/response logging middleware
-- JSON body parsing with raw body preservation for webhooks
+The backend is an Express.js application written in TypeScript, following a modular RESTful API design. It currently uses an in-memory storage (MemStorage) with an interface defined for future PostgreSQL integration via Drizzle ORM. The API supports CRUD operations for projects, divisions, and items, with endpoints for fetching summaries and generating exports. A robust multi-role security system is implemented with bcrypt hashing, `requireAuth` middleware, and comprehensive role-based access control (RBAC) covering data isolation for Principle, Employee, Client, and Procurement roles.
 
-**Data Storage Strategy:**
-- In-memory storage implementation (MemStorage class) as primary data layer
-- Storage interface (IStorage) defined for future database integration
-- Drizzle ORM configured for PostgreSQL migration path
-- Schema definitions shared between frontend and backend via TypeScript
+### Data Model
 
-**API Design:**
-- RESTful endpoints for divisions and items CRUD operations
-- GET /api/divisions - Fetch all divisions
-- POST /api/divisions - Create new division
-- PATCH /api/divisions/:id - Update division
-- DELETE /api/divisions/:id - Delete division
-- Similar pattern for /api/items endpoints
-- GET /api/summary - Computed project summary with priority breakdown
-- POST /api/export/[excel|pdf] - Generate export files
+The core data model includes `Project` (id, name), `Division` (projectId, name, order), and `Item` (divisionId, description, unit, quantity, rate, priority). Relationships are set up for cascade deletion.
 
-**Data Model:**
-- Project: id (UUID), name, createdAt
-- Division: id (UUID), projectId (FK), name, order (for custom sorting)
-- Item: id (UUID), divisionId (FK), description, unit, quantity (NUMERIC), rate (NUMERIC), priority
-- Computed fields: totalCost = quantity × rate
-- ProjectSummary: aggregated costs by priority and division per project
-- Database relationships: Projects → Divisions (cascade delete) → Items (cascade delete)
+### Export Functionality
 
-**Export Functionality:**
-- **Excel Export**: ExcelJS generates spreadsheets with multiple sheets (Summary, Divisions, Items)
-- **PDF Export**: html2canvas captures styled dashboard → jsPDF embeds image in landscape PDF
-- **JPEG Export**: html2canvas captures 1920x1080 styled dashboard with complete project visualization
-- **Export Templates**: Three distinct templates for different professional needs:
-  - **Standard Template**: Cyberpunk-themed dashboard with interactive charts
-    - Futuristic design with neon accents and gradient backgrounds
-    - Priority pie chart, division bar chart, status distribution chart
-    - Complete items table with priority color coding
-    - Visual metrics grid showing progress, costs, and statistics
-  - **BOQ Template**: Professional Bill of Quantities for formal documentation
-    - Clean white background optimized for printing
-    - Division-wise tables with item details (description, unit, quantity, rate, priority, amount)
-    - Subtotals for each division and grand total
-    - Priority-based color badges for High/Mid/Low items
-    - Professional header with client name and generation date
-  - **Progress Report Template**: Comprehensive project status report
-    - Client information section (name, project title)
-    - Timeline section with start date and expected delivery
-    - Circular progress indicator showing overall completion percentage
-    - Status distribution breakdown (Not Started, Purchased, In Installation, Installed, Delivered)
-    - Financial summary with priority-based cost allocation
-    - Division-wise progress bars with completion percentages
-    - Professional layout optimized for client presentations
-- **ExportDashboard Component**: Hidden off-screen render (left: -9999px) with conditional template rendering
-- **ExportModal Component**: Template selector dropdown for choosing export format
-- All templates support JPEG, PDF, and Excel formats
-- Filenames follow pattern: `{project-name}-{date}.{extension}`
-- Progress calculation uses weighted status values: Not Started (0%), Purchased (25%), In Installation (50%), Installed (75%), Delivered (100%)
-
-### State Management
-
-**Client-Side State:**
-- TanStack React Query for API data caching and synchronization
-- Query keys use query string format: `/api/divisions?projectId=${id}`
-- Cache invalidation uses predicate functions to handle query parameter variations
-- Query invalidation on mutations ensures UI stays synchronized across project switches
-- Local component state via React hooks for UI interactions and project selection
-- No global state management library required due to simple data flow
-
-**Server-Side State:**
-- In-memory Map structures for divisions and items
-- Automatic ID generation using crypto.randomUUID()
-- Order tracking for divisions to maintain user-defined sequence
-- Real-time summary calculations on demand
-
-### Development & Build
-
-**Development Environment:**
-- Vite HMR for instant feedback during development
-- TypeScript strict mode enabled for type safety
-- ESM module system throughout the stack
-- Path aliases configured (@/, @shared/, @assets/)
-
-**Build Process:**
-- Vite builds the React frontend to dist/public
-- esbuild bundles the Express server to dist/index.js
-- Shared schema folder for type definitions used by both client and server
-- Production-ready with environment-based configuration
-
-**Code Quality:**
-- TypeScript compilation checks via `npm run check`
-- Consistent file structure with clear separation of concerns
-- Component-based architecture with reusable UI elements
+The application offers three professional export templates:
+- **Standard**: A cyberpunk-themed dashboard visualization (1920x1080).
+- **BOQ (Bill of Quantities)**: A clean, professional layout with division-wise tables and totals.
+- **Progress Report**: A comprehensive report including client info, timeline, overall progress, and division-wise progress bars.
+All templates support JPEG, PDF, and Excel formats. Progress calculation is based on item status weights.
 
 ## External Dependencies
 
-**Database (Configured but not yet connected):**
-- Neon Serverless PostgreSQL driver (@neondatabase/serverless)
-- Drizzle ORM for type-safe database queries
-- Connection string expected via DATABASE_URL environment variable
-- Migration files configured to output to ./migrations directory
+**Database (Configured for future use):**
+- Neon Serverless PostgreSQL driver
+- Drizzle ORM
 
 **UI Component Libraries:**
-- Radix UI component primitives (accordion, dialog, dropdown, select, tabs, toast, tooltip, etc.)
-- Recharts for data visualization
-- Embla Carousel for potential carousel implementations
-- Lucide React for consistent iconography
+- Radix UI
+- Recharts
+- Embla Carousel
+- Lucide React (icons)
 
 **Form & Validation:**
-- React Hook Form for form state management
-- Zod for runtime type validation
-- @hookform/resolvers for validation integration
+- React Hook Form
+- Zod
+- @hookform/resolvers
 
 **Utilities:**
-- clsx and tailwind-merge for className composition
-- date-fns for date manipulation
-- nanoid for unique ID generation (used in logging)
-
-**Development Tools:**
-- @replit/vite-plugin-runtime-error-modal for error overlay
-- @replit/vite-plugin-cartographer for code mapping (development only)
-- @replit/vite-plugin-dev-banner for development banner (development only)
+- clsx, tailwind-merge
+- date-fns
+- nanoid
 
 **Export Libraries:**
-- ExcelJS for Excel file generation
-- jsPDF for PDF document creation
-- html2canvas for screenshot/image exports
+- ExcelJS
+- jsPDF
+- html2canvas
 
-**Session Management (Configured):**
-- connect-pg-simple for PostgreSQL session storage (when database is connected)
-- Express session middleware ready for implementation
+**Session Management (Configured for future use):**
+- connect-pg-simple
