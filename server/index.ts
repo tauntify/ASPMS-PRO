@@ -2,28 +2,32 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "@neondatabase/serverless";
-import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { attachUser } from "./auth";
-import { seedDatabase } from "./seed";
 
-// Security check: Ensure SESSION_SECRET is set
+const app = express();
+
+// Health check endpoint - ABSOLUTE FIRST - No dependencies, no imports, no async operations
+// This MUST respond immediately for deployment platform health checks
+app.get('/', (req, res, next) => {
+  // Health check: requests without cookies are health checks from deployment platform
+  if (!req.headers.cookie) {
+    return res.status(200).send('OK');
+  }
+  // Regular requests with cookies proceed to the app
+  next();
+});
+
+// Security check: Ensure SESSION_SECRET is set (after health check)
 if (!process.env.SESSION_SECRET) {
   console.error("FATAL: SESSION_SECRET environment variable is not set!");
   console.error("Server will not start without a secure session secret.");
   process.exit(1);
 }
 
-const app = express();
-
-// Root endpoint for health checks - MUST be first before ALL middleware
-// Responds immediately to deployment platform health checks
-app.use((req, res, next) => {
-  if (req.method === 'GET' && req.path === '/' && !req.headers.cookie) {
-    return res.status(200).send('OK');
-  }
-  next();
-});
+// Import routes and auth AFTER health check is established
+// This prevents any database initialization from blocking the health check
+import { registerRoutes } from "./routes";
+import { attachUser } from "./auth";
 
 declare module 'http' {
   interface IncomingMessage {
@@ -121,11 +125,11 @@ registerRoutes(app).then((server) => {
     
     server.listen(port, "0.0.0.0", () => {
       log(`serving on port ${port}`);
+      log(`Health check endpoint ready at /`);
       
-      // Seed database asynchronously after server starts
-      seedDatabase().catch((error) => {
-        console.error('⚠️ Database seeding failed (non-fatal):', error);
-      });
+      // Database seeding has been removed from server startup
+      // Run seeding manually as a separate one-time setup:
+      // npm run db:seed (or tsx server/seed.ts)
     });
 
     // Handle server errors without exiting
