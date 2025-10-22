@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
 import { useAuth, logout } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Task, Attendance, Salary, Project, Employee } from "@shared/schema";
+import { Task, Attendance, Salary, Project, Employee, EmployeeDocument } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +77,17 @@ export default function EmployeeDashboard() {
     queryFn: async () => {
       const res = await fetch(`/api/salaries?employeeId=${user?.id}`);
       if (!res.ok) throw new Error("Failed to fetch salaries");
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch employee documents
+  const { data: documents = [] } = useQuery<EmployeeDocument[]>({
+    queryKey: ["/api/documents", user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/documents?employeeId=${user?.id}`);
+      if (!res.ok) throw new Error("Failed to fetch documents");
       return res.json();
     },
     enabled: !!user?.id,
@@ -193,7 +204,7 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const downloadSalarySlip = () => {
+  const downloadSalarySlip = async () => {
     if (!currentSalary) {
       toast({
         title: "No salary data",
@@ -203,42 +214,132 @@ export default function EmployeeDashboard() {
       return;
     }
 
-    // Create a simple text-based salary slip
-    const slipContent = `
-ARKA SERVICES - SALARY SLIP
-============================
-Employee: ${user?.fullName}
-Month: ${currentSalary.month}
-
-EARNINGS:
-Basic Salary:    PKR ${Number(currentSalary.basicSalary).toLocaleString()}
-Incentives:      PKR ${Number(currentSalary.incentives).toLocaleString()}
-Medical:         PKR ${Number(currentSalary.medical).toLocaleString()}
-
-DEDUCTIONS:
-Tax:             PKR ${Number(currentSalary.tax).toLocaleString()}
-Deductions:      PKR ${Number(currentSalary.deductions).toLocaleString()}
-
-NET SALARY:      PKR ${Number(currentSalary.netSalary).toLocaleString()}
-
-Payment Status: ${currentSalary.isPaid ? 'PAID' : 'NOT PAID'}
-${currentSalary.paidDate ? `Payment Date: ${format(parseISO(currentSalary.paidDate as any), 'dd MMM yyyy')}` : ''}
-    `.trim();
-
-    const blob = new Blob([slipContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `salary-slip-${currentSalary.month}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Downloaded",
-      description: "Salary slip has been downloaded.",
-    });
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      
+      // Set colors
+      const primaryColor = [0, 188, 212]; // Cyan
+      const darkBg = [18, 24, 38];
+      const textColor = [255, 255, 255];
+      
+      // Header - ARKA Services branding
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.text("ARKA SERVICES", 105, 20, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("arka.pk", 105, 28, { align: "center" });
+      doc.text("Architecture & Interior Design", 105, 34, { align: "center" });
+      
+      // Salary Slip Title
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("SALARY SLIP", 105, 55, { align: "center" });
+      
+      // Employee Details
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Employee Name: ${user?.fullName}`, 20, 70);
+      doc.text(`Month: ${format(parseISO(`${currentSalary.month}-01`), "MMMM yyyy")}`, 20, 78);
+      
+      // Earnings Section
+      let yPos = 95;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("EARNINGS", 20, yPos);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      yPos += 10;
+      doc.text("Basic Salary", 25, yPos);
+      doc.text(`PKR ${Number(currentSalary.basicSalary).toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      yPos += 8;
+      doc.text("Incentives", 25, yPos);
+      doc.text(`PKR ${Number(currentSalary.incentives).toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      yPos += 8;
+      doc.text("Medical Allowances", 25, yPos);
+      doc.text(`PKR ${Number(currentSalary.medical).toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      // Total Earnings
+      const totalEarnings = Number(currentSalary.basicSalary) + Number(currentSalary.incentives) + Number(currentSalary.medical);
+      yPos += 12;
+      doc.setFont("helvetica", "bold");
+      doc.text("Total Earnings", 25, yPos);
+      doc.text(`PKR ${totalEarnings.toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      // Deductions Section
+      yPos += 20;
+      doc.setFontSize(13);
+      doc.text("DEDUCTIONS", 20, yPos);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      yPos += 10;
+      doc.text("Tax", 25, yPos);
+      doc.text(`PKR ${Number(currentSalary.tax).toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      yPos += 8;
+      doc.text("Other Deductions", 25, yPos);
+      doc.text(`PKR ${Number(currentSalary.deductions).toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      // Total Deductions
+      const totalDeductions = Number(currentSalary.tax) + Number(currentSalary.deductions);
+      yPos += 12;
+      doc.setFont("helvetica", "bold");
+      doc.text("Total Deductions", 25, yPos);
+      doc.text(`PKR ${totalDeductions.toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      // Net Salary (highlighted)
+      yPos += 20;
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(15, yPos - 8, 180, 15, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.text("NET SALARY", 25, yPos);
+      doc.text(`PKR ${Number(currentSalary.netSalary).toLocaleString()}`, 160, yPos, { align: "right" });
+      
+      // Payment Status
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      yPos += 20;
+      doc.text(`Payment Status: ${currentSalary.isPaid ? 'PAID' : 'NOT PAID'}`, 20, yPos);
+      
+      if (currentSalary.paidDate) {
+        yPos += 8;
+        doc.text(`Payment Date: ${format(parseISO(currentSalary.paidDate as any), 'dd MMM yyyy')}`, 20, yPos);
+      }
+      
+      // Footer
+      doc.setFontSize(9);
+      doc.setTextColor(128, 128, 128);
+      doc.text("This is a computer-generated salary slip and does not require a signature.", 105, 270, { align: "center" });
+      doc.text("For queries, please contact ARKA Services at arka.pk", 105, 277, { align: "center" });
+      
+      // Save PDF
+      doc.save(`ARKA-Salary-Slip-${currentSalary.month}.pdf`);
+      
+      toast({
+        title: "Downloaded",
+        description: "Salary slip PDF has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -737,53 +838,60 @@ ${currentSalary.paidDate ? `Payment Date: ${format(parseISO(currentSalary.paidDa
                 <CardTitle>My Documents</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-4 rounded-md bg-card border border-border">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="font-semibold text-foreground">Appointment Letter</p>
-                        <p className="text-xs text-muted-foreground">Official appointment document</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" disabled data-testid="button-download-appointment">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-md bg-card border border-border">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="font-semibold text-foreground">Joining Letter</p>
-                        <p className="text-xs text-muted-foreground">Joining confirmation document</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" disabled data-testid="button-download-joining">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-md bg-card border border-border">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="font-semibold text-foreground">Resignation Letter</p>
-                        <p className="text-xs text-muted-foreground">Resignation document (if applicable)</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" disabled data-testid="button-download-resignation">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground text-center pt-4">
-                    Contact HR to access your documents
+                {documents.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8" data-testid="text-no-documents">
+                    No documents available yet. Contact HR to generate your documents.
                   </p>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    {documents.map(doc => {
+                      const downloadDocument = () => {
+                        if (doc.generatedDocument) {
+                          const blob = new Blob([doc.generatedDocument], { type: "text/plain" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `${doc.documentType.replace(/ /g, "-")}-${user?.fullName}.txt`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+
+                          toast({
+                            title: "Downloaded",
+                            description: `${doc.documentType} has been downloaded.`,
+                          });
+                        }
+                      };
+
+                      return (
+                        <div key={doc.id} className="flex items-center justify-between p-4 rounded-md bg-card border border-border" data-testid={`card-document-${doc.id}`}>
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-primary" />
+                            <div>
+                              <p className="font-semibold text-foreground" data-testid={`text-document-type-${doc.id}`}>
+                                {doc.documentType}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Generated on {format(parseISO(doc.createdAt as any), "dd MMM yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={downloadDocument}
+                            disabled={!doc.generatedDocument}
+                            data-testid={`button-download-${doc.documentType.replace(/ /g, "-").toLowerCase()}`}
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -25,6 +25,7 @@ import {
   InsertSalary,
   Attendance,
   InsertAttendance,
+  EmployeeDocument,
   ProjectAssignment,
   InsertProjectAssignment,
   Comment,
@@ -41,6 +42,7 @@ import {
   procurementItems,
   salaries,
   attendance,
+  employeeDocuments,
   projectAssignments,
   comments,
   projectFinancials,
@@ -126,6 +128,9 @@ export interface IStorage {
   createAttendance(attendance: InsertAttendance): Promise<Attendance>;
   updateAttendance(id: string, updates: Partial<Attendance>): Promise<Attendance | undefined>;
   deleteAttendance(id: string): Promise<boolean>;
+
+  // Employee Documents
+  getEmployeeDocuments(employeeId?: string): Promise<EmployeeDocument[]>;
 
   // Project Assignments
   getProjectAssignments(userId?: string, projectId?: string): Promise<ProjectAssignment[]>;
@@ -658,6 +663,21 @@ export class DatabaseStorage implements IStorage {
   async deleteAttendance(id: string): Promise<boolean> {
     const result = await db.delete(attendance).where(eq(attendance.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Employee Documents
+  async getEmployeeDocuments(employeeId?: string): Promise<EmployeeDocument[]> {
+    if (employeeId) {
+      return await db
+        .select()
+        .from(employeeDocuments)
+        .where(eq(employeeDocuments.employeeId, employeeId))
+        .orderBy(asc(employeeDocuments.createdAt));
+    }
+    return await db
+      .select()
+      .from(employeeDocuments)
+      .orderBy(asc(employeeDocuments.createdAt));
   }
 
   // Project Assignments

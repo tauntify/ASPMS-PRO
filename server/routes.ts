@@ -1273,6 +1273,76 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     }
   });
 
+  // Create employee with user account (atomic operation)
+  app.post("/api/employees/create", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const employeeSchema = insertUserSchema.extend({
+        password: insertUserSchema.shape.password,
+        idCard: z.string().min(1, "ID Card is required"),
+        whatsapp: z.string().min(1, "WhatsApp number is required"),
+        homeAddress: z.string().min(1, "Home address is required"),
+        joiningDate: z.string().min(1, "Joining date is required"),
+        profilePicture: z.string().optional(),
+      });
+
+      const parsed = employeeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid employee data", details: parsed.error });
+      }
+
+      const data = parsed.data;
+
+      // Create user
+      const hashedPassword = hashPassword(data.password);
+      const user = await storage.createUser({
+        username: data.username,
+        password: hashedPassword,
+        fullName: data.fullName,
+        role: data.role,
+        isActive: data.isActive || 1,
+      });
+
+      try {
+        // Create employee profile
+        const employee = await storage.createEmployee({
+          userId: user.id,
+          idCard: data.idCard,
+          whatsapp: data.whatsapp,
+          homeAddress: data.homeAddress,
+          joiningDate: new Date(data.joiningDate),
+          profilePicture: data.profilePicture || null,
+        });
+
+        res.status(201).json({ user: { ...user, password: undefined }, employee });
+      } catch (employeeError) {
+        // Rollback: delete the created user if employee creation fails
+        await storage.deleteUser(user.id);
+        throw employeeError;
+      }
+    } catch (error) {
+      console.error("Employee creation error:", error);
+      res.status(500).json({ error: "Failed to create employee" });
+    }
+  });
+
+  // Employee Documents routes
+  app.get("/api/documents", requireAuth, async (req, res) => {
+    try {
+      const employeeId = req.query.employeeId as string | undefined;
+      const user = req.user!;
+
+      // Employees can only see their own documents
+      if (user.role === "employee" && employeeId && employeeId !== user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const documents = await storage.getEmployeeDocuments(employeeId);
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
   // Use provided server or create a new one
   const httpServer = server || createServer(app);
 

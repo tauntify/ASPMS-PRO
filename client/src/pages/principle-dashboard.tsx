@@ -12,6 +12,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Briefcase,
   Users,
@@ -31,12 +33,15 @@ import {
   LogOut,
   ExternalLink,
   TrendingUp,
+  CalendarIcon,
+  Upload,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -863,31 +868,68 @@ function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 // Add Employee Dialog Component
 function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
-  const form = useForm<InsertUser>({
+  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string>("");
+  
+  const form = useForm({
     resolver: zodResolver(insertUserSchema.extend({
       password: insertUserSchema.shape.password,
+      idCard: z.string().min(1, "ID Card is required"),
+      whatsapp: z.string().min(1, "WhatsApp number is required"),
+      homeAddress: z.string().min(1, "Home address is required"),
+      joiningDate: z.date({ required_error: "Joining date is required" }),
     })),
     defaultValues: {
       username: "",
       password: "",
       fullName: "",
-      role: "employee",
+      role: "employee" as const,
       isActive: 1,
+      idCard: "",
+      whatsapp: "",
+      homeAddress: "",
+      joiningDate: new Date(),
     },
   });
 
   const addEmployeeMutation = useMutation({
-    mutationFn: async (data: InsertUser) => {
-      const res = await apiRequest("POST", "/api/users", data);
+    mutationFn: async (data: any) => {
+      // Convert profile picture to base64 if exists
+      let profilePictureBase64 = "";
+      if (profilePictureFile) {
+        const reader = new FileReader();
+        profilePictureBase64 = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(profilePictureFile);
+        });
+      }
+
+      // Create employee with user account in a single atomic operation
+      const res = await apiRequest("POST", "/api/employees/create", {
+        username: data.username,
+        password: data.password,
+        fullName: data.fullName,
+        role: data.role,
+        isActive: data.isActive,
+        idCard: data.idCard,
+        whatsapp: data.whatsapp,
+        homeAddress: data.homeAddress,
+        joiningDate: data.joiningDate.toISOString(),
+        profilePicture: profilePictureBase64 || undefined,
+      });
+      
       return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       toast({
         title: "Success",
         description: "Employee added successfully!",
       });
       form.reset();
+      setProfilePictureFile(null);
+      setProfilePicturePreview("");
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -899,71 +941,204 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     },
   });
 
-  const onSubmit = (data: InsertUser) => {
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePictureFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onSubmit = (data: any) => {
     addEmployeeMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Employee</DialogTitle>
           <DialogDescription>
-            Create a new employee account
+            Create a new employee account with profile details
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter full name" {...field} data-testid="input-employee-fullname" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter username" {...field} data-testid="input-employee-username" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Enter password" 
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-employee-password" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="idCard"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ID Card Number *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter ID card number" {...field} data-testid="input-employee-idcard" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp Number *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+92 xxx xxxxxxx" {...field} data-testid="input-employee-whatsapp" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="joiningDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Joining Date *</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className="w-full pl-3 text-left font-normal"
+                            data-testid="button-joining-date"
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="fullName"
+              name="homeAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name</FormLabel>
+                  <FormLabel>Home Address *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter full name" {...field} data-testid="input-employee-fullname" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter username" {...field} data-testid="input-employee-username" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder="Enter password" 
-                      {...field}
-                      value={field.value || ""}
-                      data-testid="input-employee-password" 
+                    <Textarea 
+                      placeholder="Enter complete home address" 
+                      className="resize-none"
+                      {...field} 
+                      data-testid="input-employee-address" 
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="flex justify-end gap-3">
+
+            <div>
+              <FormLabel>Profile Picture</FormLabel>
+              <div className="mt-2 flex items-center gap-4">
+                {profilePicturePreview && (
+                  <div className="w-24 h-24 rounded-md border-2 border-primary/50 overflow-hidden">
+                    <img src={profilePicturePreview} alt="Profile preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className="cursor-pointer"
+                    data-testid="input-employee-photo"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload a profile picture (JPG, PNG, max 5MB)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => {
+                  form.reset();
+                  setProfilePictureFile(null);
+                  setProfilePicturePreview("");
+                  onOpenChange(false);
+                }}
                 data-testid="button-cancel-add-employee"
               >
                 Cancel
