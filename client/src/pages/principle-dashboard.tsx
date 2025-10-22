@@ -878,7 +878,7 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", data);
+      const res = await apiRequest("POST", "/api/users", data);
       return await res.json();
     },
     onSuccess: () => {
