@@ -673,12 +673,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       let tasks;
       
       if (user.role === "employee") {
-        // Employees only see tasks assigned to them
-        const employee = await storage.getEmployeeByUserId(user.id);
-        if (!employee) {
-          return res.status(404).json({ error: "Employee profile not found" });
-        }
-        tasks = await storage.getTasks(projectId, employee.id);
+        // Employees only see tasks assigned to them (tasks store user ID, not employee table ID)
+        tasks = await storage.getTasks(projectId, user.id);
       } else if (user.role === "client") {
         // Clients only see tasks for their assigned projects
         const assignments = await storage.getProjectAssignments(user.id);
@@ -718,6 +714,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         taskType: z.enum(["Design CAD", "IFCs", "3D Rendering", "Procurement", "Site Visits"]).optional(),
         description: z.string().optional(),
         status: z.enum(["Done", "Undone", "In Progress"]).optional(),
+        remarks: z.string().optional(),
         dueDate: z.union([z.string(), z.date()]).transform(val => 
           typeof val === 'string' ? new Date(val) : val
         ).optional(),
@@ -736,8 +733,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       // Allow principle to update any task OR employee to update their own task
       if (user.role !== 'principle') {
         if (user.role === "employee") {
-          const employee = await storage.getEmployeeByUserId(user.id);
-          if (!employee || task.employeeId !== employee.id) {
+          // Check if task is assigned to this employee (tasks store user ID, not employee table ID)
+          if (task.employeeId !== user.id) {
             return res.status(403).json({ error: "Forbidden: You can only update your own tasks" });
           }
         } else {
@@ -767,6 +764,57 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete task" });
+    }
+  });
+
+  // Task Statistics Endpoint (monthly progress tracking)
+  app.get("/api/tasks/stats/monthly", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      const month = req.query.month as string; // Format: YYYY-MM
+      const employeeId = req.query.employeeId as string | undefined;
+      
+      if (!month) {
+        return res.status(400).json({ error: "month query parameter is required (format: YYYY-MM)" });
+      }
+
+      // Get all tasks for the specified month
+      let allTasks = await storage.getTasks();
+      
+      // Filter by month (tasks created in this month)
+      const [year, monthNum] = month.split('-').map(Number);
+      allTasks = allTasks.filter(task => {
+        const taskDate = new Date(task.createdAt);
+        return taskDate.getFullYear() === year && taskDate.getMonth() + 1 === monthNum;
+      });
+
+      // Apply role-based filtering
+      if (user.role === "employee") {
+        // Filter tasks assigned to this employee (tasks store user ID, not employee table ID)
+        allTasks = allTasks.filter(task => task.employeeId === user.id);
+      } else if (employeeId && user.role === "principle") {
+        // Principle can filter by specific employee (using user ID)
+        allTasks = allTasks.filter(task => task.employeeId === employeeId);
+      }
+
+      // Calculate statistics
+      const total = allTasks.length;
+      const done = allTasks.filter(t => t.status === "Done").length;
+      const inProgress = allTasks.filter(t => t.status === "In Progress").length;
+      const undone = allTasks.filter(t => t.status === "Undone").length;
+      const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      res.json({
+        month,
+        total,
+        done,
+        inProgress,
+        undone,
+        completionRate,
+        tasks: allTasks
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch task statistics" });
     }
   });
 

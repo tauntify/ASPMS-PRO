@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
 import { useAuth, logout } from "@/lib/auth";
@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { TaskProgressGraph } from "@/components/TaskProgressGraph";
 import { useToast } from "@/hooks/use-toast";
 import {
   LogOut,
@@ -32,6 +35,8 @@ export default function EmployeeDashboard() {
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
+  const [updateTaskOpen, setUpdateTaskOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Fetch employee details
   const { data: employee } = useQuery<Employee>({
@@ -95,8 +100,8 @@ export default function EmployeeDashboard() {
 
   // Update task status mutation
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await apiRequest("PATCH", `/api/tasks/${id}`, { status });
+    mutationFn: async ({ id, status, remarks }: { id: string; status: string; remarks?: string }) => {
+      const res = await apiRequest("PATCH", `/api/tasks/${id}`, { status, remarks });
       return res.json();
     },
     onSuccess: () => {
@@ -105,6 +110,8 @@ export default function EmployeeDashboard() {
         title: "Task updated",
         description: "Task status has been updated successfully.",
       });
+      setUpdateTaskOpen(false);
+      setSelectedTask(null);
     },
     onError: () => {
       toast({
@@ -457,6 +464,9 @@ export default function EmployeeDashboard() {
               </Card>
             </div>
 
+            {/* Task Progress Graph */}
+            <TaskProgressGraph />
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between gap-4">
@@ -501,6 +511,11 @@ export default function EmployeeDashboard() {
                                     {task.description}
                                   </p>
                                 )}
+                                {task.remarks && (
+                                  <p className="text-sm text-blue-500 italic" data-testid={`text-task-remarks-${task.id}`}>
+                                    Remarks: {task.remarks}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <Badge variant="outline" data-testid={`badge-project-${task.id}`}>
                                     {project?.name || "Unknown Project"}
@@ -513,20 +528,22 @@ export default function EmployeeDashboard() {
                                 </div>
                               </div>
                               <div className="flex flex-col gap-2">
-                                <Select
-                                  value={task.status}
-                                  onValueChange={(value) => updateTaskMutation.mutate({ id: task.id, status: value })}
-                                  disabled={updateTaskMutation.isPending}
+                                <Badge 
+                                  variant={task.status === "Done" ? "default" : task.status === "In Progress" ? "secondary" : "outline"}
+                                  data-testid={`badge-status-${task.id}`}
                                 >
-                                  <SelectTrigger className="w-40" data-testid={`select-status-${task.id}`}>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Undone">Undone</SelectItem>
-                                    <SelectItem value="In Progress">In Progress</SelectItem>
-                                    <SelectItem value="Done">Done</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                  {task.status}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedTask(task);
+                                    setUpdateTaskOpen(true);
+                                  }}
+                                  data-testid={`button-update-task-${task.id}`}
+                                >
+                                  Update
+                                </Button>
                               </div>
                             </div>
                           </Card>
@@ -897,6 +914,106 @@ export default function EmployeeDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Update Task Dialog */}
+      <UpdateTaskDialog 
+        open={updateTaskOpen}
+        onOpenChange={setUpdateTaskOpen}
+        task={selectedTask}
+        onUpdate={(status, remarks) => {
+          if (selectedTask) {
+            updateTaskMutation.mutate({ id: selectedTask.id, status, remarks });
+          }
+        }}
+        isUpdating={updateTaskMutation.isPending}
+      />
     </div>
+  );
+}
+
+// Update Task Dialog Component
+function UpdateTaskDialog({
+  open,
+  onOpenChange,
+  task,
+  onUpdate,
+  isUpdating
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task: Task | null;
+  onUpdate: (status: string, remarks?: string) => void;
+  isUpdating: boolean;
+}) {
+  const [status, setStatus] = useState(task?.status || "Undone");
+  const [remarks, setRemarks] = useState(task?.remarks || "");
+
+  // Update local state when task changes
+  useEffect(() => {
+    if (task) {
+      setStatus(task.status);
+      setRemarks(task.remarks || "");
+    }
+  }, [task]);
+
+  const handleUpdate = () => {
+    onUpdate(status, remarks);
+  };
+
+  if (!task) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Update Task</DialogTitle>
+          <DialogDescription>
+            Update the status and add remarks for {task.taskType}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block">Status *</label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger data-testid="select-update-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Undone">Undone</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Done">Done</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-2 block">Remarks / Comments</label>
+            <Textarea
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Add remarks or comments about the task progress..."
+              className="resize-none h-32"
+              data-testid="input-task-remarks"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isUpdating}
+              data-testid="button-cancel-update"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={isUpdating}
+              data-testid="button-confirm-update"
+            >
+              {isUpdating ? "Updating..." : "Update Task"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

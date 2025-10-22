@@ -124,6 +124,7 @@ export const tasks = pgTable("tasks", {
   taskType: text("task_type").notNull(), // Design CAD, IFCs, 3D Rendering, Procurement, Site Visits
   description: text("description"),
   status: text("status").notNull().default("Undone"), // Done, Undone, In Progress
+  remarks: text("remarks"), // Comments/remarks on task progress
   dueDate: timestamp("due_date"),
   assignedBy: varchar("assigned_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -21,13 +21,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 export function AssignTaskDialog({ 
   open, 
   onOpenChange, 
-  projects, 
-  employees 
+  projects 
 }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
   projects: Project[]; 
-  employees: User[];
 }) {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState("");
@@ -35,6 +33,45 @@ export function AssignTaskDialog({
   const [taskType, setTaskType] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [projectEmployees, setProjectEmployees] = useState<User[]>([]);
+
+  // Fetch employees assigned to the selected project
+  useEffect(() => {
+    if (!selectedProject) {
+      setProjectEmployees([]);
+      setSelectedEmployee("");
+      return;
+    }
+
+    const fetchProjectEmployees = async () => {
+      try {
+        const assignmentsRes = await fetch(`/api/assignments?projectId=${selectedProject}`);
+        if (!assignmentsRes.ok) throw new Error("Failed to fetch assignments");
+        const assignments = await assignmentsRes.json();
+        
+        const employeeIds = assignments.map((a: any) => a.userId);
+        
+        const usersRes = await fetch("/api/users");
+        if (!usersRes.ok) throw new Error("Failed to fetch users");
+        const allUsers = await usersRes.json();
+        
+        const employees = allUsers.filter((u: User) => 
+          employeeIds.includes(u.id) && u.role === "employee"
+        );
+        
+        setProjectEmployees(employees);
+      } catch (error) {
+        console.error("Error fetching project employees:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch employees for this project",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchProjectEmployees();
+  }, [selectedProject, toast]);
 
   const assignTaskMutation = useMutation({
     mutationFn: async () => {
@@ -110,16 +147,26 @@ export function AssignTaskDialog({
           </div>
           <div>
             <label className="text-sm font-medium mb-2 block">Employee *</label>
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+            <Select 
+              value={selectedEmployee} 
+              onValueChange={setSelectedEmployee}
+              disabled={!selectedProject}
+            >
               <SelectTrigger data-testid="select-task-employee">
-                <SelectValue placeholder="Select an employee" />
+                <SelectValue placeholder={selectedProject ? "Select an employee" : "Select a project first"} />
               </SelectTrigger>
               <SelectContent>
-                {employees.map(employee => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.fullName}
-                  </SelectItem>
-                ))}
+                {projectEmployees.length === 0 && selectedProject ? (
+                  <div className="p-2 text-sm text-muted-foreground text-center">
+                    No employees assigned to this project
+                  </div>
+                ) : (
+                  projectEmployees.map(employee => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.fullName}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

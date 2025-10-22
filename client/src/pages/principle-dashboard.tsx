@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { AssignTaskDialog, EditUserDialog } from "./principle-dashboard-dialogs";
+import { TaskProgressGraph } from "@/components/TaskProgressGraph";
 import {
   Briefcase,
   Users,
@@ -755,7 +756,11 @@ export default function PrincipleDashboard() {
                   Assign Task
                 </Button>
               </div>
-              <div className="space-y-4">
+              
+              {/* Task Progress Graph */}
+              <TaskProgressGraph />
+              
+              <div className="space-y-4 mt-6">
                 {allTasks.length === 0 ? (
                   <div className="text-center py-12">
                     <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -892,7 +897,6 @@ export default function PrincipleDashboard() {
         open={assignTaskOpen} 
         onOpenChange={setAssignTaskOpen}
         projects={projects}
-        employees={users.filter(u => u.role === "employee")}
       />
 
       {/* Edit User Dialog */}
