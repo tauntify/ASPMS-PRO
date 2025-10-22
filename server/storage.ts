@@ -511,14 +511,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProcurementItem(insertItem: InsertProcurementItem): Promise<ProcurementItem> {
-    const result = await db.insert(procurementItems).values(insertItem).returning();
+    const result = await db.insert(procurementItems).values({
+      ...insertItem,
+      quantity: this.toNumericString(insertItem.quantity),
+      projectCost: this.toNumericString(insertItem.projectCost),
+      executionCost: this.toNumericString(insertItem.executionCost),
+    }).returning();
     return result[0];
   }
 
   async updateProcurementItem(id: string, updates: Partial<ProcurementItem>): Promise<ProcurementItem | undefined> {
+    const convertedUpdates: any = { ...updates };
+    if (updates.quantity !== undefined) {
+      convertedUpdates.quantity = this.toNumericString(Number(updates.quantity));
+    }
+    if (updates.projectCost !== undefined) {
+      convertedUpdates.projectCost = this.toNumericString(Number(updates.projectCost));
+    }
+    if (updates.executionCost !== undefined) {
+      convertedUpdates.executionCost = this.toNumericString(Number(updates.executionCost));
+    }
     const result = await db
       .update(procurementItems)
-      .set(updates)
+      .set(convertedUpdates)
       .where(eq(procurementItems.id, id))
       .returning();
     return result[0];
@@ -539,14 +554,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSalary(insertSalary: InsertSalary): Promise<Salary> {
-    const result = await db.insert(salaries).values(insertSalary).returning();
+    const result = await db.insert(salaries).values({
+      ...insertSalary,
+      basicSalary: this.toNumericString(insertSalary.basicSalary),
+      incentives: this.toNumericString(insertSalary.incentives),
+      medical: this.toNumericString(insertSalary.medical),
+      tax: this.toNumericString(insertSalary.tax),
+      deductions: this.toNumericString(insertSalary.deductions),
+      netSalary: this.toNumericString(insertSalary.netSalary),
+    }).returning();
     return result[0];
   }
 
   async updateSalary(id: string, updates: Partial<Salary>): Promise<Salary | undefined> {
+    const convertedUpdates: any = { ...updates };
+    if (updates.basicSalary !== undefined) {
+      convertedUpdates.basicSalary = this.toNumericString(Number(updates.basicSalary));
+    }
+    if (updates.incentives !== undefined) {
+      convertedUpdates.incentives = this.toNumericString(Number(updates.incentives));
+    }
+    if (updates.medical !== undefined) {
+      convertedUpdates.medical = this.toNumericString(Number(updates.medical));
+    }
+    if (updates.tax !== undefined) {
+      convertedUpdates.tax = this.toNumericString(Number(updates.tax));
+    }
+    if (updates.deductions !== undefined) {
+      convertedUpdates.deductions = this.toNumericString(Number(updates.deductions));
+    }
+    if (updates.netSalary !== undefined) {
+      convertedUpdates.netSalary = this.toNumericString(Number(updates.netSalary));
+    }
     const result = await db
       .update(salaries)
-      .set(updates)
+      .set(convertedUpdates)
       .where(eq(salaries.id, id))
       .returning();
     return result[0];
@@ -667,14 +709,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProjectFinancials(insertFinancials: InsertProjectFinancials): Promise<ProjectFinancials> {
-    const result = await db.insert(projectFinancials).values(insertFinancials).returning();
+    const result = await db.insert(projectFinancials).values({
+      ...insertFinancials,
+      contractValue: this.toNumericString(insertFinancials.contractValue),
+      amountReceived: this.toNumericString(insertFinancials.amountReceived),
+      workCompleted: this.toNumericString(insertFinancials.workCompleted),
+    }).returning();
     return result[0];
   }
 
   async updateProjectFinancials(projectId: string, updates: Partial<ProjectFinancials>): Promise<ProjectFinancials | undefined> {
+    const convertedUpdates: any = { ...updates, updatedAt: new Date() };
+    if (updates.contractValue !== undefined) {
+      convertedUpdates.contractValue = this.toNumericString(Number(updates.contractValue));
+    }
+    if (updates.amountReceived !== undefined) {
+      convertedUpdates.amountReceived = this.toNumericString(Number(updates.amountReceived));
+    }
+    if (updates.workCompleted !== undefined) {
+      convertedUpdates.workCompleted = this.toNumericString(Number(updates.workCompleted));
+    }
     const result = await db
       .update(projectFinancials)
-      .set({ ...updates, updatedAt: new Date() })
+      .set(convertedUpdates)
       .where(eq(projectFinancials.projectId, projectId))
       .returning();
     return result[0];
