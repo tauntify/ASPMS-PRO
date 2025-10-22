@@ -78,7 +78,8 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 **Database Seeding:**
 - **REMOVED from server startup** to prevent blocking health checks
 - Must be run manually as a one-time setup: `tsx server/seed.ts`
-- Run in development before publishing or in production after first deployment
+- **IMPORTANT**: Run in workspace BEFORE publishing (no shell access in deployed apps)
+- Since dev and prod share the same database, seeding once persists to both environments
 - Existence checks prevent duplicate user errors
 - Default users created: ZARA (principle), procurement (procurement)
 - Safe for production (idempotent - can be run multiple times)

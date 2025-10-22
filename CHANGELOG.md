@@ -91,34 +91,31 @@ localPort = 5000
 externalPort = 80
 ```
 
-#### 2. Seed the Database (First Time Only)
+#### 2. Seed the Database (First Time Only - BEFORE Publishing)
 
-After the port configuration fix, you need to seed the database to create default users. This is a **one-time setup** that should be done before or after first deployment.
+You need to seed the database to create default users. This is a **one-time setup** that must be done **before publishing**.
 
-**In Development (before publishing):**
-```bash
-tsx server/seed.ts
-```
-
-**In Production (after first deployment):**
-Use the Replit Shell in your deployment and run:
+**Run this in your workspace shell:**
 ```bash
 tsx server/seed.ts
 ```
 
 This creates the default users:
-- **Principle**: username `ZARA` / password `saroshahsanto`
+- **Principle**: username `ZARA` / password `saroshahsato`
 - **Procurement**: username `procurement` / password `procurement123`
+
+**Important:** Since your development and production use the same PostgreSQL database, seeding once in your workspace will make the users available in both environments. There is no shell access in deployed apps, so you must seed before publishing.
 
 ### Publishing Steps
 
-1. Fix the `.replit` port configuration (see above)
-2. Save the `.replit` file
-3. Click the **Publish** button in your Replit workspace
-4. Choose **Autoscale** deployment
-5. Wait for deployment to complete (~30 seconds)
-6. Once deployed, seed the production database using the Replit Shell
-7. Your application is now live and ready to use!
+1. **Seed the database first** (run `tsx server/seed.ts` in workspace shell)
+2. Fix the `.replit` port configuration (see above)
+3. Save the `.replit` file
+4. Click the **Publish** button in your Replit workspace
+5. Choose **Autoscale** deployment
+6. If you get environment variable errors, manually add `SESSION_SECRET` and `DATABASE_URL` in deployment settings
+7. Wait for deployment to complete (~30 seconds)
+8. Your application is now live with default users ready!
 
 ### Deployment Verification
 
@@ -140,7 +137,7 @@ This creates the default users:
 5. Server starts **instantly** without database seeding
 6. Session store uses PostgreSQL for persistence
 7. Application becomes available at your `.replit.app` domain
-8. You run `tsx server/seed.ts` manually to create default users (one-time)
+8. Default users (seeded before publishing) are ready for login
 
 ### Performance Optimizations
 
