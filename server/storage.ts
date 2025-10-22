@@ -46,7 +46,7 @@ import {
   projectFinancials,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, asc, inArray, and, gte } from "drizzle-orm";
+import { eq, asc, inArray, and, gte, sql as sqlFunc } from "drizzle-orm";
 
 const STATUS_WEIGHTS: Record<ItemStatus, number> = {
   "Not Started": 0,
@@ -377,7 +377,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username));
+    const result = await db.select().from(users).where(sqlFunc`LOWER(${users.username}) = LOWER(${username})`);
     return result[0];
   }
 
