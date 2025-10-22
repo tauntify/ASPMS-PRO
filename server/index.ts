@@ -9,11 +9,20 @@ const app = express();
 // Health check endpoint - ABSOLUTE FIRST - No dependencies, no imports, no async operations
 // This MUST respond immediately for deployment platform health checks
 app.get('/', (req, res, next) => {
-  // Health check: requests without cookies are health checks from deployment platform
-  if (!req.headers.cookie) {
+  // Health check: detect deployment platform probes by checking for browser-specific headers
+  // Real browsers send Accept header with text/html, health checks typically don't
+  const accept = req.headers.accept || '';
+  const userAgent = req.headers['user-agent'] || '';
+  
+  // If it looks like a health check (no Accept header for HTML, or simple user agent)
+  // respond immediately with OK
+  const isHealthCheck = !accept.includes('text/html') && !userAgent.includes('Mozilla');
+  
+  if (isHealthCheck) {
     return res.status(200).send('OK');
   }
-  // Regular requests with cookies proceed to the app
+  
+  // Regular browser requests proceed to the app
   next();
 });
 
