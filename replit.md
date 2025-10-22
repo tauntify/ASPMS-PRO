@@ -65,7 +65,10 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 
 **Health Checks:**
 - `/health` endpoint returns 200 OK immediately
-- Root `/` endpoint serves the application
+- Root `/` endpoint has intelligent health check detection:
+  - GET requests with no cookies and no/health/check user-agent get instant "OK" response
+  - Normal browser requests get full application (based on cookie presence)
+  - Bypasses all middleware for deployment platform health checks
 - No blocking operations on health check endpoints
 
 **Session Store (Production):**

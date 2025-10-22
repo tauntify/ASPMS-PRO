@@ -16,10 +16,29 @@ if (!process.env.SESSION_SECRET) {
 
 const app = express();
 
-// Health check endpoint - MUST be first, before any middleware
+// Health check endpoints - MUST be first, before any middleware
 // This ensures deployment health checks pass immediately
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// Root endpoint health check for deployment platforms that check /
+// Only respond with health status if it's a simple GET with no session/auth
+app.use("/", (req, res, next) => {
+  // Fast health check: if GET request to / with specific health check headers or no cookies
+  const isHealthCheck = 
+    req.method === "GET" && 
+    req.path === "/" &&
+    !req.headers.cookie &&
+    (req.headers['user-agent']?.includes('health') || 
+     req.headers['user-agent']?.includes('check') ||
+     !req.headers['user-agent']); // Some health checkers have no user-agent
+  
+  if (isHealthCheck && !req.query.force) {
+    // Respond immediately for health checks
+    return res.status(200).send("OK");
+  }
+  next();
 });
 
 declare module 'http' {
