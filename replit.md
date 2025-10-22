@@ -18,6 +18,48 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 22, 2025 - Comprehensive Multi-Role Security Implementation**
+- **CRITICAL SECURITY FIXES IMPLEMENTED:**
+  - Replaced insecure Base64 password encoding with bcrypt hashing (10 salt rounds)
+  - Added requireAuth middleware to ALL API endpoints except /api/auth/login
+  - Implemented comprehensive role-based access control (RBAC) across entire application
+  - Removed hard-coded session secret fallback to prevent session forgery
+  - Added startup check: server refuses to boot without SESSION_SECRET environment variable
+
+- **Complete Role-Based Data Isolation:**
+  - **Principle Role**: Full access to all data and operations (god mode)
+  - **Employee Role**: Can only view own salary, attendance, tasks, and documents
+  - **Client Role**: Can only see assigned projects with filtered data (no execution costs visible)
+  - **Procurement Role**: Can manage procurement items, sees all projects but no employee directory
+
+- **Budget Tool Security (Projects, Divisions, Items):**
+  - GET endpoints: Filtered by assigned projects for clients/employees, full access for principle/procurement
+  - POST/PATCH/DELETE: Restricted to principle role only
+  - Summary endpoint: Filtered by assigned projects with proper access control
+
+- **Multi-Role System Endpoint Security:**
+  - Users: Principle-only CRUD operations
+  - Employees: Principle-only create/update, employees can view own data only
+  - Tasks: Principle creates/deletes, principle OR assigned employee can update, filtered views by role
+  - Procurement: Clients see project_cost only (execution_cost hidden), principle/procurement can modify
+  - Salaries/Attendance: Employees view own data, principle views all, principle-only mutations
+  - Project Assignments: Principle-only create/delete, filtered views by role
+  - Comments: All authenticated users can create, principle OR author can delete, filtered by assigned projects
+  - Financials: Principle-only create/update/delete, filtered views by assigned projects for clients
+
+- **Authentication & Session Management:**
+  - Bcrypt password hashing with 10 salt rounds for all user credentials
+  - Express-session with secure session secret (no fallback allowed)
+  - Updated all existing user passwords in database to bcrypt hashes
+  - Default credentials: ZARA/saroshahsanto (principle), procurement/procurement123 (procurement)
+
+- **Testing & Verification:**
+  - End-to-end tests passed for all roles (principle, procurement, unauthenticated)
+  - Verified principle can access all features (employees, projects creation)
+  - Verified procurement has restricted access (403 on employee directory and project creation)
+  - Verified unauthenticated requests properly blocked with 401
+  - Architect security audit PASSED with zero vulnerabilities found
+
 **October 21, 2025 - Multi-Project System & Enhanced Export Implementation**
 - Added complete project management system with unlimited projects support
 - Each project maintains independent divisions and items with proper data isolation

@@ -11,12 +11,42 @@ import {
   ProjectSummary,
   Priority,
   ItemStatus,
+  User,
+  InsertUser,
+  Employee,
+  InsertEmployee,
+  Client,
+  InsertClient,
+  Task,
+  InsertTask,
+  ProcurementItem,
+  InsertProcurementItem,
+  Salary,
+  InsertSalary,
+  Attendance,
+  InsertAttendance,
+  ProjectAssignment,
+  InsertProjectAssignment,
+  Comment,
+  InsertComment,
+  ProjectFinancials,
+  InsertProjectFinancials,
   projects,
   divisions,
   items,
+  users,
+  employees,
+  clients,
+  tasks,
+  procurementItems,
+  salaries,
+  attendance,
+  projectAssignments,
+  comments,
+  projectFinancials,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc, inArray, and, gte } from "drizzle-orm";
 
 const STATUS_WEIGHTS: Record<ItemStatus, number> = {
   "Not Started": 0,
@@ -51,6 +81,66 @@ export interface IStorage {
 
   // Summary
   getProjectSummary(projectId?: string): Promise<ProjectSummary>;
+
+  // User Management
+  getUsers(): Promise<User[]>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
+
+  // Employee Management
+  getEmployees(): Promise<Employee[]>;
+  getEmployee(id: string): Promise<Employee | undefined>;
+  getEmployeeByUserId(userId: string): Promise<Employee | undefined>;
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  updateEmployee(id: string, updates: Partial<Employee>): Promise<Employee | undefined>;
+
+  // Client Management
+  getClients(): Promise<Client[]>;
+  getClient(id: string): Promise<Client | undefined>;
+  getClientByUserId(userId: string): Promise<Client | undefined>;
+  createClient(client: InsertClient): Promise<Client>;
+  updateClient(id: string, updates: Partial<Client>): Promise<Client | undefined>;
+
+  // Task Management
+  getTasks(projectId?: string, employeeId?: string): Promise<Task[]>;
+  getTask(id: string): Promise<Task | undefined>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, updates: Partial<Task>): Promise<Task | undefined>;
+  deleteTask(id: string): Promise<boolean>;
+
+  // Procurement
+  getProcurementItems(projectId: string): Promise<ProcurementItem[]>;
+  createProcurementItem(item: InsertProcurementItem): Promise<ProcurementItem>;
+  updateProcurementItem(id: string, updates: Partial<ProcurementItem>): Promise<ProcurementItem | undefined>;
+  deleteProcurementItem(id: string): Promise<boolean>;
+
+  // Salaries & Attendance
+  getSalaries(employeeId: string): Promise<Salary[]>;
+  createSalary(salary: InsertSalary): Promise<Salary>;
+  updateSalary(id: string, updates: Partial<Salary>): Promise<Salary | undefined>;
+  deleteSalary(id: string): Promise<boolean>;
+  getAttendance(employeeId: string, month?: string): Promise<Attendance[]>;
+  createAttendance(attendance: InsertAttendance): Promise<Attendance>;
+  updateAttendance(id: string, updates: Partial<Attendance>): Promise<Attendance | undefined>;
+  deleteAttendance(id: string): Promise<boolean>;
+
+  // Project Assignments
+  getProjectAssignments(userId?: string, projectId?: string): Promise<ProjectAssignment[]>;
+  createProjectAssignment(assignment: InsertProjectAssignment): Promise<ProjectAssignment>;
+  deleteProjectAssignment(id: string): Promise<boolean>;
+
+  // Comments & Financials
+  getComments(projectId: string): Promise<Comment[]>;
+  getComment(id: string): Promise<Comment | undefined>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  deleteComment(id: string): Promise<boolean>;
+  getProjectFinancials(projectId: string): Promise<ProjectFinancials | undefined>;
+  createProjectFinancials(financials: InsertProjectFinancials): Promise<ProjectFinancials>;
+  updateProjectFinancials(projectId: string, updates: Partial<ProjectFinancials>): Promise<ProjectFinancials | undefined>;
+  deleteProjectFinancials(projectId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -252,6 +342,330 @@ export class DatabaseStorage implements IStorage {
       priorityBreakdown,
       statusBreakdown,
     };
+  }
+
+  // User Management
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(asc(users.createdAt));
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Employee Management
+  async getEmployees(): Promise<Employee[]> {
+    return await db.select().from(employees).orderBy(asc(employees.createdAt));
+  }
+
+  async getEmployee(id: string): Promise<Employee | undefined> {
+    const result = await db.select().from(employees).where(eq(employees.id, id));
+    return result[0];
+  }
+
+  async getEmployeeByUserId(userId: string): Promise<Employee | undefined> {
+    const result = await db.select().from(employees).where(eq(employees.userId, userId));
+    return result[0];
+  }
+
+  async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
+    const result = await db.insert(employees).values(insertEmployee).returning();
+    return result[0];
+  }
+
+  async updateEmployee(id: string, updates: Partial<Employee>): Promise<Employee | undefined> {
+    const result = await db
+      .update(employees)
+      .set(updates)
+      .where(eq(employees.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Client Management
+  async getClients(): Promise<Client[]> {
+    return await db.select().from(clients).orderBy(asc(clients.createdAt));
+  }
+
+  async getClient(id: string): Promise<Client | undefined> {
+    const result = await db.select().from(clients).where(eq(clients.id, id));
+    return result[0];
+  }
+
+  async getClientByUserId(userId: string): Promise<Client | undefined> {
+    const result = await db.select().from(clients).where(eq(clients.userId, userId));
+    return result[0];
+  }
+
+  async createClient(insertClient: InsertClient): Promise<Client> {
+    const result = await db.insert(clients).values(insertClient).returning();
+    return result[0];
+  }
+
+  async updateClient(id: string, updates: Partial<Client>): Promise<Client | undefined> {
+    const result = await db
+      .update(clients)
+      .set(updates)
+      .where(eq(clients.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Task Management
+  async getTasks(projectId?: string, employeeId?: string): Promise<Task[]> {
+    if (projectId && employeeId) {
+      return await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.projectId, projectId), eq(tasks.employeeId, employeeId)))
+        .orderBy(asc(tasks.createdAt));
+    } else if (projectId) {
+      return await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.projectId, projectId))
+        .orderBy(asc(tasks.createdAt));
+    } else if (employeeId) {
+      return await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.employeeId, employeeId))
+        .orderBy(asc(tasks.createdAt));
+    }
+    return await db.select().from(tasks).orderBy(asc(tasks.createdAt));
+  }
+
+  async getTask(id: string): Promise<Task | undefined> {
+    const result = await db.select().from(tasks).where(eq(tasks.id, id));
+    return result[0];
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const result = await db.insert(tasks).values(insertTask).returning();
+    return result[0];
+  }
+
+  async updateTask(id: string, updates: Partial<Task>): Promise<Task | undefined> {
+    const result = await db
+      .update(tasks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Procurement
+  async getProcurementItems(projectId: string): Promise<ProcurementItem[]> {
+    return await db
+      .select()
+      .from(procurementItems)
+      .where(eq(procurementItems.projectId, projectId))
+      .orderBy(asc(procurementItems.createdAt));
+  }
+
+  async createProcurementItem(insertItem: InsertProcurementItem): Promise<ProcurementItem> {
+    const result = await db.insert(procurementItems).values(insertItem).returning();
+    return result[0];
+  }
+
+  async updateProcurementItem(id: string, updates: Partial<ProcurementItem>): Promise<ProcurementItem | undefined> {
+    const result = await db
+      .update(procurementItems)
+      .set(updates)
+      .where(eq(procurementItems.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProcurementItem(id: string): Promise<boolean> {
+    const result = await db.delete(procurementItems).where(eq(procurementItems.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Salaries & Attendance
+  async getSalaries(employeeId: string): Promise<Salary[]> {
+    return await db
+      .select()
+      .from(salaries)
+      .where(eq(salaries.employeeId, employeeId))
+      .orderBy(asc(salaries.month));
+  }
+
+  async createSalary(insertSalary: InsertSalary): Promise<Salary> {
+    const result = await db.insert(salaries).values(insertSalary).returning();
+    return result[0];
+  }
+
+  async updateSalary(id: string, updates: Partial<Salary>): Promise<Salary | undefined> {
+    const result = await db
+      .update(salaries)
+      .set(updates)
+      .where(eq(salaries.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSalary(id: string): Promise<boolean> {
+    const result = await db.delete(salaries).where(eq(salaries.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAttendance(employeeId: string, month?: string): Promise<Attendance[]> {
+    if (month) {
+      // Filter attendance records for a specific month (YYYY-MM format)
+      const startDate = new Date(`${month}-01`);
+      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+      
+      return await db
+        .select()
+        .from(attendance)
+        .where(
+          and(
+            eq(attendance.employeeId, employeeId),
+            gte(attendance.attendanceDate, startDate)
+          )
+        )
+        .orderBy(asc(attendance.attendanceDate));
+    }
+    return await db
+      .select()
+      .from(attendance)
+      .where(eq(attendance.employeeId, employeeId))
+      .orderBy(asc(attendance.attendanceDate));
+  }
+
+  async createAttendance(insertAttendance: InsertAttendance): Promise<Attendance> {
+    const result = await db.insert(attendance).values(insertAttendance).returning();
+    return result[0];
+  }
+
+  async updateAttendance(id: string, updates: Partial<Attendance>): Promise<Attendance | undefined> {
+    const result = await db
+      .update(attendance)
+      .set(updates)
+      .where(eq(attendance.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAttendance(id: string): Promise<boolean> {
+    const result = await db.delete(attendance).where(eq(attendance.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Project Assignments
+  async getProjectAssignments(userId?: string, projectId?: string): Promise<ProjectAssignment[]> {
+    if (userId && projectId) {
+      return await db
+        .select()
+        .from(projectAssignments)
+        .where(and(eq(projectAssignments.userId, userId), eq(projectAssignments.projectId, projectId)))
+        .orderBy(asc(projectAssignments.createdAt));
+    } else if (userId) {
+      return await db
+        .select()
+        .from(projectAssignments)
+        .where(eq(projectAssignments.userId, userId))
+        .orderBy(asc(projectAssignments.createdAt));
+    } else if (projectId) {
+      return await db
+        .select()
+        .from(projectAssignments)
+        .where(eq(projectAssignments.projectId, projectId))
+        .orderBy(asc(projectAssignments.createdAt));
+    }
+    return await db.select().from(projectAssignments).orderBy(asc(projectAssignments.createdAt));
+  }
+
+  async createProjectAssignment(insertAssignment: InsertProjectAssignment): Promise<ProjectAssignment> {
+    const result = await db.insert(projectAssignments).values(insertAssignment).returning();
+    return result[0];
+  }
+
+  async deleteProjectAssignment(id: string): Promise<boolean> {
+    const result = await db.delete(projectAssignments).where(eq(projectAssignments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Comments & Financials
+  async getComments(projectId: string): Promise<Comment[]> {
+    return await db
+      .select()
+      .from(comments)
+      .where(eq(comments.projectId, projectId))
+      .orderBy(asc(comments.createdAt));
+  }
+
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const result = await db.insert(comments).values(insertComment).returning();
+    return result[0];
+  }
+
+  async getComment(id: string): Promise<Comment | undefined> {
+    const result = await db.select().from(comments).where(eq(comments.id, id));
+    return result[0];
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    const result = await db.delete(comments).where(eq(comments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getProjectFinancials(projectId: string): Promise<ProjectFinancials | undefined> {
+    const result = await db
+      .select()
+      .from(projectFinancials)
+      .where(eq(projectFinancials.projectId, projectId));
+    return result[0];
+  }
+
+  async createProjectFinancials(insertFinancials: InsertProjectFinancials): Promise<ProjectFinancials> {
+    const result = await db.insert(projectFinancials).values(insertFinancials).returning();
+    return result[0];
+  }
+
+  async updateProjectFinancials(projectId: string, updates: Partial<ProjectFinancials>): Promise<ProjectFinancials | undefined> {
+    const result = await db
+      .update(projectFinancials)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(projectFinancials.projectId, projectId))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProjectFinancials(projectId: string): Promise<boolean> {
+    const result = await db.delete(projectFinancials).where(eq(projectFinancials.projectId, projectId)).returning();
+    return result.length > 0;
   }
 }
 

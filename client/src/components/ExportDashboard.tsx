@@ -209,6 +209,9 @@ export function ExportDashboard({ project, projectName, divisions, items, summar
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>ARKA SERVICES</div>
           <div>Professional Architecture & Interior Design Budget Management</div>
+          <div style={{ marginTop: '8px' }}>
+            <a href="https://arka.pk" target="_blank" rel="noopener noreferrer" style={{ color: '#2c3e50', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px' }}>arka.pk</a>
+          </div>
         </div>
       </div>
     );
@@ -426,6 +429,9 @@ export function ExportDashboard({ project, projectName, divisions, items, summar
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>ARKA SERVICES</div>
           <div>Professional Architecture & Interior Design Budget Management</div>
+          <div style={{ marginTop: '8px' }}>
+            <a href="https://arka.pk" target="_blank" rel="noopener noreferrer" style={{ color: '#2c3e50', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px' }}>arka.pk</a>
+          </div>
         </div>
       </div>
     );
@@ -784,6 +790,9 @@ export function ExportDashboard({ project, projectName, divisions, items, summar
           ARKA SERVICES PROJECT MANAGEMENT
         </div>
         <div>Professional Architecture & Interior Design Budget Management System</div>
+        <div style={{ marginTop: '5px', fontSize: '16px', color: '#00d9ff', fontWeight: 'bold' }}>
+          <a href="https://arka.pk" target="_blank" rel="noopener noreferrer" style={{ color: '#00d9ff', textDecoration: 'none' }}>arka.pk</a>
+        </div>
       </div>
     </div>
   );

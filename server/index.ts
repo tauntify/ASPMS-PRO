@@ -1,6 +1,16 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { attachUser } from "./auth";
+import { seedDatabase } from "./seed";
+
+// Security check: Ensure SESSION_SECRET is set
+if (!process.env.SESSION_SECRET) {
+  console.error("FATAL: SESSION_SECRET environment variable is not set!");
+  console.error("Server will not start without a secure session secret.");
+  process.exit(1);
+}
 
 const app = express();
 
@@ -9,12 +19,34 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+// Session typing
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+  }
+}
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+// Session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+  }
+}));
+
+// Attach user to request if session exists
+app.use(attachUser);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -65,6 +97,9 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // Seed database before starting server
+  await seedDatabase();
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
