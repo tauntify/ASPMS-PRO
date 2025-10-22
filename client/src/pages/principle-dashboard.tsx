@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { AssignTaskDialog, EditUserDialog } from "./principle-dashboard-dialogs";
 import {
   Briefcase,
   Users,
@@ -62,7 +63,7 @@ interface ProjectHealth {
   issues: string[];
 }
 
-type ActiveTab = "projects" | "employees" | "clients" | "procurement" | "accounts";
+type ActiveTab = "projects" | "employees" | "clients" | "procurement" | "accounts" | "tasks" | "users";
 
 export default function PrincipleDashboard() {
   const { user } = useAuth();
@@ -71,6 +72,9 @@ export default function PrincipleDashboard() {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [assignProjectOpen, setAssignProjectOpen] = useState(false);
+  const [assignTaskOpen, setAssignTaskOpen] = useState(false);
+  const [editUserOpen, setEditUserOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Fetch all data
   const { data: projects = [] } = useQuery<Project[]>({
@@ -323,6 +327,26 @@ export default function PrincipleDashboard() {
           >
             <DollarSign className="w-4 h-4" />
             Accounts
+          </Button>
+          <Button
+            variant={activeTab === "tasks" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setActiveTab("tasks")}
+            data-testid="button-nav-tasks"
+          >
+            <ClipboardList className="w-4 h-4" />
+            Tasks
+          </Button>
+          <Button
+            variant={activeTab === "users" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setActiveTab("users")}
+            data-testid="button-nav-users"
+          >
+            <UserPlus className="w-4 h-4" />
+            Users
           </Button>
           <Link href="/budget">
             <Button
@@ -716,6 +740,130 @@ export default function PrincipleDashboard() {
               </div>
             </Card>
           )}
+
+          {activeTab === "tasks" && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-display font-bold text-foreground">
+                    Task Management
+                  </h2>
+                </div>
+                <Button onClick={() => setAssignTaskOpen(true)} data-testid="button-assign-task">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Assign Task
+                </Button>
+              </div>
+              <div className="space-y-4">
+                {allTasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-semibold text-foreground mb-2">No Tasks Yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      Start by assigning tasks to your employees
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {allTasks.map((task: any) => {
+                      const employee = users.find(u => u.id === task.employeeId);
+                      const project = projects.find(p => p.id === task.projectId);
+                      return (
+                        <Card key={task.id} className="p-4 hover-elevate" data-testid={`card-task-${task.id}`}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant={
+                                  task.status === "Done" ? "default" : 
+                                  task.status === "In Progress" ? "secondary" : "outline"
+                                }>
+                                  {task.status}
+                                </Badge>
+                                <Badge variant="outline">{task.taskType}</Badge>
+                              </div>
+                              <p className="font-semibold text-foreground">{task.description || task.taskType}</p>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                <span>Assigned to: {employee?.fullName || "Unknown"}</span>
+                                <span>Project: {project?.name || "Unknown"}</span>
+                                {task.dueDate && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {format(new Date(task.dueDate), "MMM dd, yyyy")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {activeTab === "users" && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-display font-bold text-foreground">
+                    User Management
+                  </h2>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {users.map((u: User) => (
+                  <Card key={u.id} className="p-4 hover-elevate" data-testid={`card-user-${u.id}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                            {u.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-foreground">{u.fullName}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{u.username}</span>
+                            <span>•</span>
+                            <Badge variant="outline" className="text-xs">
+                              {u.role}
+                            </Badge>
+                            <span>•</span>
+                            {u.isActive === 1 ? (
+                              <span className="text-green-500 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Active
+                              </span>
+                            ) : (
+                              <span className="text-red-500 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(u);
+                          setEditUserOpen(true);
+                        }}
+                        data-testid={`button-edit-user-${u.id}`}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -737,6 +885,21 @@ export default function PrincipleDashboard() {
         onOpenChange={setAssignProjectOpen}
         projects={projects}
         employees={users.filter(u => u.role === "employee")}
+      />
+
+      {/* Assign Task Dialog */}
+      <AssignTaskDialog 
+        open={assignTaskOpen} 
+        onOpenChange={setAssignTaskOpen}
+        projects={projects}
+        employees={users.filter(u => u.role === "employee")}
+      />
+
+      {/* Edit User Dialog */}
+      <EditUserDialog 
+        open={editUserOpen} 
+        onOpenChange={setEditUserOpen}
+        user={selectedUser}
       />
     </div>
   );

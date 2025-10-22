@@ -42,11 +42,31 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
   - Profile Picture (file upload with preview, optional)
 - **Document Management**: Employees can view and download employment documents (Appointment Letter, Joining Letter, Resignation Letter) from their dashboard.
 - **Enhanced Salary Slips**: Professional PDF generation with ARKA branding, arka.pk website reference, and proper formatting with earnings, deductions, and net salary sections.
+- **Attendance Marking Fixed**: Employees can now successfully mark their own attendance (fixed authentication check bug)
+
+### Task Assignment System
+- **Principle Dashboard**: New "Tasks" tab allows principle to assign tasks to employees
+- **Task Types**: Design CAD, IFCs, 3D Rendering, Procurement, Site Visits
+- **Task Assignment**: Assign tasks with project, employee, task type, description, and due date
+- **Task Tracking**: View all tasks with status, assigned employee, project, and timeline
+- **Employee Dashboard**: Employees can view assigned tasks and update status (Undone, In Progress, Done)
+- **Task Statistics**: Dashboard shows total, completed, in-progress, and pending tasks
+
+### User Management System (Principle Dashboard)
+- **New "Users" Tab**: Comprehensive user management interface
+- **View All Users**: List of all system users with role and status indicators
+- **Edit User Accounts**: Principle can:
+  - Change username
+  - Update full name
+  - Reset passwords
+  - Activate/deactivate user accounts
+- **Role-Based Access**: Only principle can access user management features
 
 ### Security & Data Integrity
 - Role-based access control ensures employees can only view their own documents
 - Form validation enforces all required fields before submission
 - Transaction-based employee creation prevents partial data states
+- Principle has full administrative access to all user accounts and system modules
 
 ## External Dependencies
 

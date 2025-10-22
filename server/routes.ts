@@ -1003,13 +1003,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       // Employees can only mark their own attendance
       if (user.role === "employee") {
-        const employee = await storage.getEmployeeByUserId(user.id);
-        if (!employee) {
-          return res.status(404).json({ error: "Employee profile not found" });
-        }
-        
-        // Verify employee is marking their own attendance
-        if (parsed.data.employeeId !== employee.id) {
+        // Verify employee is marking their own attendance (employeeId in attendance table references users.id)
+        if (parsed.data.employeeId !== user.id) {
           return res.status(403).json({ error: "Forbidden: You can only mark your own attendance" });
         }
       }
