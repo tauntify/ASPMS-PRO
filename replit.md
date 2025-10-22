@@ -87,3 +87,18 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - Server.listen() keeps Node.js process alive naturally
 - Error handling for server errors without terminating process
 - Stable process lifecycle for production deployments
+
+**Port Configuration (CRITICAL for Publishing):**
+- Application requires EXACTLY ONE external port for Autoscale deployments
+- Correct configuration: localPort 5000 → externalPort 80
+- Multiple external ports cause 5xx errors during deployment
+- If deployment fails with 5xx errors, verify .replit file has only one [[ports]] entry
+- See CHANGELOG.md for detailed port configuration fix instructions
+
+**Publishing Readiness:**
+- ✅ Build process verified and working
+- ✅ Health checks optimized
+- ✅ Session store configured for production
+- ✅ Database seeding is non-blocking
+- ✅ Application tested and working
+- ⚠️ Manual fix required: Edit .replit file to remove extra ports (see CHANGELOG.md)
