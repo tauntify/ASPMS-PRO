@@ -6,6 +6,10 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
+// Trust proxy - Required for apps behind reverse proxies (like Replit deployments)
+// This ensures secure cookies work properly in production
+app.set('trust proxy', 1);
+
 // Health check endpoint - ABSOLUTE FIRST - No dependencies, no imports, no async operations
 // Dedicated /health endpoint for deployment platform health checks
 app.get('/health', (req, res) => {
