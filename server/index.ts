@@ -122,17 +122,23 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-    
-    // Seed database AFTER server is listening (non-blocking for health checks)
-    seedDatabase().catch((error) => {
-      console.error('⚠️ Database seeding failed (non-fatal):', error);
-      // Don't crash the server - seeding failures shouldn't take down production
+  
+  // Await server.listen() to prevent process from exiting in production
+  await new Promise<void>((resolve) => {
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`serving on port ${port}`);
+      
+      // Seed database AFTER server is listening (non-blocking for health checks)
+      seedDatabase().catch((error) => {
+        console.error('⚠️ Database seeding failed (non-fatal):', error);
+        // Don't crash the server - seeding failures shouldn't take down production
+      });
+      
+      resolve();
     });
   });
 })();

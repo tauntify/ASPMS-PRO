@@ -80,3 +80,9 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - Failures are non-fatal (won't crash production)
 - Existence checks prevent duplicate user errors
 - Default users created: ZARA (principle), procurement (procurement)
+
+**Process Management:**
+- Server startup wrapped in async IIFE with awaited server.listen()
+- Prevents Node.js process from exiting in production builds
+- Ensures health checks can be answered before process completes
+- Server stays alive to handle requests indefinitely
