@@ -122,23 +122,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// Create HTTP server and start listening IMMEDIATELY
-// This allows health checks to respond instantly without waiting for async route registration
+// Create HTTP server and start listening IMMEDIATELY for instant health checks
 import { createServer } from "http";
 const server = createServer(app);
 const port = parseInt(process.env.PORT || '5000', 10);
 
-// Start listening immediately - health check will work right away
+// Start listening immediately - health check endpoints work right away
 server.listen(port, "0.0.0.0", () => {
   log(`serving on port ${port}`);
-  log(`Health check endpoint ready at /`);
+  log(`Health check endpoints ready at /health and /`);
   
-  // Database seeding has been removed from server startup
-  // Run seeding manually as a separate one-time setup:
-  // tsx server/seed.ts
-  
-  // Register routes and setup Vite/static serving in the background
-  // This happens AFTER the server is listening, so health checks aren't blocked
+  // Register routes in background - health checks don't need to wait for this
   registerRoutes(app, server).then(() => {
     // Error handler middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -153,13 +147,11 @@ server.listen(port, "0.0.0.0", () => {
       ? setupVite(app, server)
       : Promise.resolve(serveStatic(app));
 
-    setupPromise.then(() => {
-      log(`Application fully initialized and ready`);
-    }).catch((error) => {
-      console.error('Failed to setup Vite/static serving:', error);
-    });
+    return setupPromise;
+  }).then(() => {
+    log(`Application fully initialized and ready`);
   }).catch((error) => {
-    console.error('Failed to register routes:', error);
+    console.error('Failed to initialize application:', error);
   });
 });
 

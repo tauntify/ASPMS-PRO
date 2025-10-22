@@ -24,8 +24,7 @@ import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 
 export async function registerRoutes(app: Express, server?: Server): Promise<Server> {
-  // Attach user middleware to all routes
-  app.use(attachUser);
+  // Note: attachUser middleware is already attached in index.ts, no need to add it here
 
   // Project routes - requireAuth for all authenticated users
   app.get("/api/projects", requireAuth, async (req, res) => {
