@@ -123,8 +123,8 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
   
-  // Await server.listen() to prevent process from exiting in production
-  await new Promise<void>((resolve) => {
+  // Start server and await a Promise that never resolves to keep process alive
+  await new Promise<void>((resolve, reject) => {
     server.listen({
       port,
       host: "0.0.0.0",
@@ -138,7 +138,14 @@ app.use((req, res, next) => {
         // Don't crash the server - seeding failures shouldn't take down production
       });
       
-      resolve();
+      // DO NOT resolve() - keep the Promise pending to prevent process exit
+      // The server will stay alive handling requests indefinitely
+    });
+    
+    // Handle server errors
+    server.on('error', (error) => {
+      console.error('Server error:', error);
+      reject(error);
     });
   });
 })();

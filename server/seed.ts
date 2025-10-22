@@ -43,16 +43,24 @@ export async function seedDatabase() {
   }
 }
 
-// Run seed if called directly
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-if (isMainModule) {
-  seedDatabase()
-    .then(() => {
-      console.log('✅ Seeding complete');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('❌ Seeding failed:', error);
-      process.exit(1);
-    });
+// Run seed if called directly (only in development/manual execution)
+// Note: Never call process.exit() when imported as a module to prevent server termination
+if (typeof process !== 'undefined' && process.argv && process.argv[1]) {
+  const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+  if (isMainModule) {
+    seedDatabase()
+      .then(() => {
+        console.log('✅ Seeding complete');
+        // Only exit if run directly as a script, not when imported
+        if (typeof process !== 'undefined' && process.exit) {
+          process.exit(0);
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Seeding failed:', error);
+        if (typeof process !== 'undefined' && process.exit) {
+          process.exit(1);
+        }
+      });
+  }
 }

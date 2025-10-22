@@ -82,7 +82,8 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - Default users created: ZARA (principle), procurement (procurement)
 
 **Process Management:**
-- Server startup wrapped in async IIFE with awaited server.listen()
-- Prevents Node.js process from exiting in production builds
-- Ensures health checks can be answered before process completes
+- Server startup wrapped in async IIFE with awaited Promise that never resolves
+- Promise stays pending indefinitely to keep process alive
+- Prevents Node.js from exiting after startup completes
 - Server stays alive to handle requests indefinitely
+- Error handling for server errors without terminating process
