@@ -76,11 +76,12 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - Falls back to MemoryStore in development
 
 **Database Seeding:**
-- Runs asynchronously AFTER server starts listening
-- Non-blocking for health checks (prevents deployment timeouts)
-- Failures are non-fatal (won't crash production)
+- **REMOVED from server startup** to prevent blocking health checks
+- Must be run manually as a one-time setup: `tsx server/seed.ts`
+- Run in development before publishing or in production after first deployment
 - Existence checks prevent duplicate user errors
 - Default users created: ZARA (principle), procurement (procurement)
+- Safe for production (idempotent - can be run multiple times)
 
 **Process Management:**
 - Server uses Promise chain pattern instead of async IIFE to prevent early exit

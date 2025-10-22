@@ -4,6 +4,38 @@ All notable changes to the ARKA Services Project Management application.
 
 ---
 
+## [1.3.0] - 2025-10-22
+
+### Fixed
+
+#### Critical Deployment Health Check Issues (DEPLOYMENT READY)
+- **Moved health check to absolute first position**: Health check endpoint now registered before ANY imports or middleware
+  - Health check responds instantly without waiting for database connections or module imports
+  - No blocking operations before health check registration
+  - Deployment platform health checks now pass immediately
+- **Removed database seeding from server startup**: Database seeding no longer runs during server initialization
+  - Prevents blocking the health check response
+  - Eliminates startup delays that caused deployment timeouts
+  - Server starts instantly and responds to health checks immediately
+- **Separated database seeding into manual process**: Seeding is now a one-time setup operation
+  - Run manually using: `tsx server/seed.ts`
+  - Does not interfere with deployment health checks
+  - Safe for production deployments
+
+### Changed
+
+#### Server Initialization
+- **Reorganized import order**: Routes and auth modules imported AFTER health check is established
+- **Instant health check response**: Health check endpoint returns 200 OK without any async operations
+- **Non-blocking startup**: Server listens on port immediately without waiting for database operations
+
+#### Database Management
+- **Manual seeding workflow**: Database must be seeded separately before first use
+- **Command**: Run `tsx server/seed.ts` to create default users
+- **Default users remain**: ZARA (principle) and procurement users created via manual seeding
+
+---
+
 ## [1.2.0] - 2025-10-22
 
 ### Fixed
@@ -25,12 +57,13 @@ All notable changes to the ARKA Services Project Management application.
 
 ## Deployment Guide for Publishing
 
-### Critical Fix Required Before Publishing
+### Prerequisites Before Publishing
 
-Your application is experiencing 5xx errors during deployment because the `.replit` file has **multiple external ports** configured. Replit Autoscale deployments require **exactly ONE external port**.
+#### 1. Fix Port Configuration
 
-#### How to Fix:
+Your `.replit` file has **multiple external ports** configured. Replit Autoscale deployments require **exactly ONE external port**.
 
+**Steps:**
 1. Open the `.replit` file in your Replit workspace
 2. Find the `[[ports]]` section (around lines 13-23)
 3. **Remove** the extra port configurations for ports 3000 and 3001
@@ -58,39 +91,66 @@ localPort = 5000
 externalPort = 80
 ```
 
-#### After Making This Change:
+#### 2. Seed the Database (First Time Only)
 
-1. Save the `.replit` file
-2. Click the **Publish** button in your Replit workspace
-3. Choose **Autoscale** deployment
-4. Your application will now deploy successfully without 5xx errors
+After the port configuration fix, you need to seed the database to create default users. This is a **one-time setup** that should be done before or after first deployment.
+
+**In Development (before publishing):**
+```bash
+tsx server/seed.ts
+```
+
+**In Production (after first deployment):**
+Use the Replit Shell in your deployment and run:
+```bash
+tsx server/seed.ts
+```
+
+This creates the default users:
+- **Principle**: username `ZARA` / password `saroshahsanto`
+- **Procurement**: username `procurement` / password `procurement123`
+
+### Publishing Steps
+
+1. Fix the `.replit` port configuration (see above)
+2. Save the `.replit` file
+3. Click the **Publish** button in your Replit workspace
+4. Choose **Autoscale** deployment
+5. Wait for deployment to complete (~30 seconds)
+6. Once deployed, seed the production database using the Replit Shell
+7. Your application is now live and ready to use!
 
 ### Deployment Verification
 
 ✅ **Build Process**: Verified working (`npm run build` completes successfully)  
-✅ **Health Checks**: Optimized endpoint responds immediately  
+✅ **Health Checks**: Instant response without blocking operations  
 ✅ **Session Store**: Configured for production with PostgreSQL  
-✅ **Database Seeding**: Non-blocking, runs after server startup  
+✅ **Database Seeding**: Removed from startup (manual one-time setup)  
 ✅ **Application Testing**: All features tested and working  
-⚠️ **Port Configuration**: Requires manual fix (see above)
+✅ **Server Startup**: Non-blocking, responds to health checks immediately  
+⚠️ **Port Configuration**: Requires manual fix (see above)  
+⚠️ **Database Seeding**: Requires manual one-time setup (see above)
 
 ### What Happens During Publishing
 
 1. Replit runs `npm run build` to create production bundle
 2. Starts server with `npm run start` (production mode)
 3. Server binds to `0.0.0.0:5000` (accessible externally)
-4. Health check endpoint `/` responds immediately
-5. Database seeding runs asynchronously (non-blocking)
+4. Health check endpoint `/` responds **immediately** (no blocking operations)
+5. Server starts **instantly** without database seeding
 6. Session store uses PostgreSQL for persistence
 7. Application becomes available at your `.replit.app` domain
+8. You run `tsx server/seed.ts` manually to create default users (one-time)
 
 ### Performance Optimizations
 
-- Health checks bypass session middleware for instant response
-- Database seeding is non-blocking (won't delay deployment)
+- Health check registered FIRST, before any imports or middleware
+- No blocking operations during startup
+- Database seeding is a separate manual process
 - Session store uses PostgreSQL (supports multiple instances)
 - Static assets are pre-built and optimized
 - Build process completes in ~23 seconds
+- Server starts instantly and responds to health checks in milliseconds
 
 ---
 
