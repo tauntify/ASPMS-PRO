@@ -16,7 +16,7 @@ The frontend uses React 18 with TypeScript and Vite. It features a dark-mode-fir
 
 ### Backend Architecture
 
-The backend is an Express.js application written in TypeScript, following a modular RESTful API design. It currently uses an in-memory storage (MemStorage) with an interface defined for future PostgreSQL integration via Drizzle ORM. The API supports CRUD operations for projects, divisions, and items, with endpoints for fetching summaries and generating exports. A robust multi-role security system is implemented with bcrypt hashing, `requireAuth` middleware, and comprehensive role-based access control (RBAC) covering data isolation for Principle, Employee, Client, and Procurement roles.
+The backend is an Express.js application written in TypeScript, following a modular RESTful API design. It uses PostgreSQL via Drizzle ORM with DatabaseStorage implementation. The API supports CRUD operations for projects, divisions, and items, with endpoints for fetching summaries and generating exports. A robust multi-role security system is implemented with bcrypt hashing, `requireAuth` middleware, and comprehensive role-based access control (RBAC) covering data isolation for Principle, Employee, Client, and Procurement roles. Username authentication is case-insensitive for better user experience.
 
 ### Data Model
 
@@ -65,10 +65,8 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 
 **Health Checks:**
 - `/health` endpoint returns 200 OK immediately
-- Root `/` endpoint has intelligent health check detection:
-  - GET requests with no cookies and no/health/check user-agent get instant "OK" response
-  - Normal browser requests get full application (based on cookie presence)
-  - Bypasses all middleware for deployment platform health checks
+- Root `/` endpoint responds with 200 OK for requests without cookies
+- Simplified health check logic for reliable deployment platform compatibility
 - No blocking operations on health check endpoints
 
 **Session Store (Production):**
@@ -85,8 +83,7 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - Default users created: ZARA (principle), procurement (procurement)
 
 **Process Management:**
-- Server startup wrapped in async IIFE with awaited Promise that never resolves
-- Promise stays pending indefinitely to keep process alive
-- Prevents Node.js from exiting after startup completes
-- Server stays alive to handle requests indefinitely
+- Server uses Promise chain pattern instead of async IIFE to prevent early exit
+- Server.listen() keeps Node.js process alive naturally
 - Error handling for server errors without terminating process
+- Stable process lifecycle for production deployments
