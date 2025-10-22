@@ -7,22 +7,30 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 // Health check endpoint - ABSOLUTE FIRST - No dependencies, no imports, no async operations
-// This MUST respond immediately for deployment platform health checks
-app.get('/', (req, res, next) => {
-  // Health check: detect deployment platform probes by checking for browser-specific headers
-  // Real browsers send Accept header with text/html, health checks typically don't
-  const accept = req.headers.accept || '';
-  const userAgent = req.headers['user-agent'] || '';
-  
-  // If it looks like a health check (no Accept header for HTML, or simple user agent)
-  // respond immediately with OK
-  const isHealthCheck = !accept.includes('text/html') && !userAgent.includes('Mozilla');
-  
-  if (isHealthCheck) {
-    return res.status(200).send('OK');
+// Dedicated /health endpoint for deployment platform health checks
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Root endpoint health check fallback for platforms that only check /
+// This is more selective and won't interfere with normal app routing
+app.use((req, res, next) => {
+  // Only respond to root path requests that look like health checks
+  if (req.method === 'GET' && req.path === '/') {
+    const accept = req.headers.accept || '';
+    const userAgent = req.headers['user-agent'] || '';
+    
+    // Deployment health checks typically have simple/no user agents and don't request HTML
+    const looksLikeHealthCheck = 
+      (!userAgent || userAgent.includes('HealthCheck') || userAgent.includes('curl')) &&
+      !accept.includes('text/html');
+    
+    if (looksLikeHealthCheck) {
+      return res.status(200).send('OK');
+    }
   }
   
-  // Regular browser requests proceed to the app
+  // All other requests proceed to the app
   next();
 });
 
