@@ -145,8 +145,8 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // Helper function to convert numeric values to strings for Drizzle numeric columns
-  private toNumericString(value: number | undefined | null): string | undefined {
-    if (value === undefined || value === null) return undefined;
+  private toNumericString(value: number | undefined): string | undefined {
+    if (value === undefined) return undefined;
     return value.toString();
   }
 
@@ -238,11 +238,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createItem(insertItem: InsertItem): Promise<Item> {
-    const result = await db.insert(items).values({
-      ...insertItem,
-      quantity: this.toNumericString(insertItem.quantity),
-      rate: this.toNumericString(insertItem.rate),
-    }).returning();
+    const itemData: any = {
+      divisionId: insertItem.divisionId,
+      description: insertItem.description,
+      unit: insertItem.unit,
+      quantity: insertItem.quantity.toString(),
+      rate: insertItem.rate.toString(),
+      priority: insertItem.priority,
+      status: insertItem.status || "Not Started",
+    };
+    const result = await db.insert(items).values(itemData).returning();
     return result[0];
   }
 
@@ -511,12 +516,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProcurementItem(insertItem: InsertProcurementItem): Promise<ProcurementItem> {
-    const result = await db.insert(procurementItems).values({
-      ...insertItem,
-      quantity: this.toNumericString(insertItem.quantity),
-      projectCost: this.toNumericString(insertItem.projectCost),
-      executionCost: this.toNumericString(insertItem.executionCost),
-    }).returning();
+    const procurementData: any = {
+      projectId: insertItem.projectId,
+      itemName: insertItem.itemName,
+      projectCost: insertItem.projectCost.toString(),
+      executionCost: insertItem.executionCost !== undefined ? insertItem.executionCost.toString() : undefined,
+      isPurchased: insertItem.isPurchased,
+      billNumber: insertItem.billNumber,
+      rentalDetails: insertItem.rentalDetails,
+      quantity: insertItem.quantity.toString(),
+      unit: insertItem.unit,
+      notes: insertItem.notes,
+      purchasedBy: insertItem.purchasedBy,
+      purchasedDate: insertItem.purchasedDate,
+    };
+    const result = await db.insert(procurementItems).values(procurementData).returning();
     return result[0];
   }
 
@@ -554,15 +568,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSalary(insertSalary: InsertSalary): Promise<Salary> {
-    const result = await db.insert(salaries).values({
-      ...insertSalary,
-      basicSalary: this.toNumericString(insertSalary.basicSalary),
-      incentives: this.toNumericString(insertSalary.incentives),
-      medical: this.toNumericString(insertSalary.medical),
-      tax: this.toNumericString(insertSalary.tax),
-      deductions: this.toNumericString(insertSalary.deductions),
-      netSalary: this.toNumericString(insertSalary.netSalary),
-    }).returning();
+    const salaryData: any = {
+      employeeId: insertSalary.employeeId,
+      month: insertSalary.month,
+      basicSalary: insertSalary.basicSalary.toString(),
+      incentives: insertSalary.incentives !== undefined ? insertSalary.incentives.toString() : "0",
+      medical: insertSalary.medical !== undefined ? insertSalary.medical.toString() : "0",
+      tax: insertSalary.tax !== undefined ? insertSalary.tax.toString() : "0",
+      deductions: insertSalary.deductions !== undefined ? insertSalary.deductions.toString() : "0",
+      netSalary: insertSalary.netSalary.toString(),
+      isPaid: insertSalary.isPaid,
+      paidDate: insertSalary.paidDate,
+    };
+    const result = await db.insert(salaries).values(salaryData).returning();
     return result[0];
   }
 
@@ -709,12 +727,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProjectFinancials(insertFinancials: InsertProjectFinancials): Promise<ProjectFinancials> {
-    const result = await db.insert(projectFinancials).values({
-      ...insertFinancials,
-      contractValue: this.toNumericString(insertFinancials.contractValue),
-      amountReceived: this.toNumericString(insertFinancials.amountReceived),
-      workCompleted: this.toNumericString(insertFinancials.workCompleted),
-    }).returning();
+    const financialsData: any = {
+      projectId: insertFinancials.projectId,
+      contractValue: insertFinancials.contractValue.toString(),
+      amountReceived: insertFinancials.amountReceived !== undefined ? insertFinancials.amountReceived.toString() : "0",
+      workCompleted: insertFinancials.workCompleted !== undefined ? insertFinancials.workCompleted.toString() : "0",
+      isArchived: insertFinancials.isArchived,
+      archivedDate: insertFinancials.archivedDate,
+    };
+    const result = await db.insert(projectFinancials).values(financialsData).returning();
     return result[0];
   }
 
