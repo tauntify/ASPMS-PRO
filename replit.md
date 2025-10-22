@@ -64,10 +64,10 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 ## Deployment Configuration
 
 **Health Checks:**
-- `/health` endpoint returns 200 OK immediately
-- Root `/` endpoint responds with 200 OK for requests without cookies
-- Simplified health check logic for reliable deployment platform compatibility
-- No blocking operations on health check endpoints
+- Root `/` endpoint responds with 200 OK immediately for requests without cookies
+- Health check middleware placed before all other middleware (including session)
+- Optimized for deployment platform health checks (no blocking operations)
+- Normal browser requests with cookies proceed to full application
 
 **Session Store (Production):**
 - Uses connect-pg-simple with PostgreSQL for Autoscale deployments

@@ -16,16 +16,11 @@ if (!process.env.SESSION_SECRET) {
 
 const app = express();
 
-// Health check endpoint - MUST be first, before any middleware
-app.get("/health", (_req, res) => {
-  res.status(200).send("OK");
-});
-
-// Simplified root endpoint health check
-app.get("/", (req, res, next) => {
-  // Simple health check: respond OK for GET requests without cookies
-  if (!req.headers.cookie) {
-    return res.status(200).send("OK");
+// Root endpoint for health checks - MUST be first before ALL middleware
+// Responds immediately to deployment platform health checks
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path === '/' && !req.headers.cookie) {
+    return res.status(200).send('OK');
   }
   next();
 });
@@ -106,7 +101,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Start server without async IIFE wrapper to prevent early exit
+// Start server without async wrapper to prevent early exit
 registerRoutes(app).then((server) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
