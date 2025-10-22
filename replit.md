@@ -57,5 +57,26 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - jsPDF
 - html2canvas
 
-**Session Management (Configured for future use):**
-- connect-pg-simple
+**Session Management:**
+- connect-pg-simple with PostgreSQL (production)
+- MemoryStore fallback (development only)
+
+## Deployment Configuration
+
+**Health Checks:**
+- `/health` endpoint returns 200 OK immediately
+- Root `/` endpoint serves the application
+- No blocking operations on health check endpoints
+
+**Session Store (Production):**
+- Uses connect-pg-simple with PostgreSQL for Autoscale deployments
+- Sessions persisted in database (works across multiple instances)
+- Auto-creates `session` table on first deployment
+- Falls back to MemoryStore in development
+
+**Database Seeding:**
+- Runs asynchronously AFTER server starts listening
+- Non-blocking for health checks (prevents deployment timeouts)
+- Failures are non-fatal (won't crash production)
+- Existence checks prevent duplicate user errors
+- Default users created: ZARA (principle), procurement (procurement)

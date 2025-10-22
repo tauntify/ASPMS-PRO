@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "@neondatabase/serverless";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { attachUser } from "./auth";
@@ -13,6 +15,12 @@ if (!process.env.SESSION_SECRET) {
 }
 
 const app = express();
+
+// Health check endpoint - MUST be first, before any middleware
+// This ensures deployment health checks pass immediately
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 declare module 'http' {
   interface IncomingMessage {
@@ -33,8 +41,19 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// Session store configuration
+const PgSession = connectPgSimple(session);
+const sessionStore = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL
+  ? new PgSession({
+      pool: new Pool({ connectionString: process.env.DATABASE_URL }),
+      tableName: 'session', // Will be auto-created
+      createTableIfMissing: true,
+    })
+  : undefined; // Use default MemoryStore in development
+
 // Session middleware
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
