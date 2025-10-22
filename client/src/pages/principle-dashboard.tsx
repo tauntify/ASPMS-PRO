@@ -873,7 +873,6 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   
   const form = useForm({
     resolver: zodResolver(insertUserSchema.extend({
-      password: insertUserSchema.shape.password,
       idCard: z.string().min(1, "ID Card is required"),
       whatsapp: z.string().min(1, "WhatsApp number is required"),
       homeAddress: z.string().min(1, "Home address is required"),

@@ -1277,7 +1277,6 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.post("/api/employees/create", requireAuth, requireRole("principle"), async (req, res) => {
     try {
       const employeeSchema = insertUserSchema.extend({
-        password: insertUserSchema.shape.password,
         idCard: z.string().min(1, "ID Card is required"),
         whatsapp: z.string().min(1, "WhatsApp number is required"),
         homeAddress: z.string().min(1, "Home address is required"),
