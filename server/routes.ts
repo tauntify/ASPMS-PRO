@@ -23,7 +23,7 @@ import { z } from "zod";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express, server?: Server): Promise<Server> {
   // Attach user middleware to all routes
   app.use(attachUser);
 
@@ -1274,7 +1274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  // Use provided server or create a new one
+  const httpServer = server || createServer(app);
 
   return httpServer;
 }

@@ -105,39 +105,48 @@ app.use((req, res, next) => {
   next();
 });
 
-// Start server without async wrapper to prevent early exit
-registerRoutes(app).then((server) => {
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+// Create HTTP server and start listening IMMEDIATELY
+// This allows health checks to respond instantly without waiting for async route registration
+import { createServer } from "http";
+const server = createServer(app);
+const port = parseInt(process.env.PORT || '5000', 10);
 
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // Setup vite in development, serve static in production
-  const setupPromise = app.get("env") === "development"
-    ? setupVite(app, server)
-    : Promise.resolve(serveStatic(app));
-
-  setupPromise.then(() => {
-    const port = parseInt(process.env.PORT || '5000', 10);
-    
-    server.listen(port, "0.0.0.0", () => {
-      log(`serving on port ${port}`);
-      log(`Health check endpoint ready at /`);
-      
-      // Database seeding has been removed from server startup
-      // Run seeding manually as a separate one-time setup:
-      // npm run db:seed (or tsx server/seed.ts)
+// Start listening immediately - health check will work right away
+server.listen(port, "0.0.0.0", () => {
+  log(`serving on port ${port}`);
+  log(`Health check endpoint ready at /`);
+  
+  // Database seeding has been removed from server startup
+  // Run seeding manually as a separate one-time setup:
+  // tsx server/seed.ts
+  
+  // Register routes and setup Vite/static serving in the background
+  // This happens AFTER the server is listening, so health checks aren't blocked
+  registerRoutes(app, server).then(() => {
+    // Error handler middleware
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+      throw err;
     });
 
-    // Handle server errors without exiting
-    server.on('error', (error) => {
-      console.error('Server error:', error);
+    // Setup vite in development, serve static in production
+    const setupPromise = app.get("env") === "development"
+      ? setupVite(app, server)
+      : Promise.resolve(serveStatic(app));
+
+    setupPromise.then(() => {
+      log(`Application fully initialized and ready`);
+    }).catch((error) => {
+      console.error('Failed to setup Vite/static serving:', error);
     });
+  }).catch((error) => {
+    console.error('Failed to register routes:', error);
   });
-}).catch((error) => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+});
+
+// Handle server errors without exiting
+server.on('error', (error) => {
+  console.error('Server error:', error);
 });
