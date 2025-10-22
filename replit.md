@@ -30,6 +30,24 @@ The application offers three professional export templates:
 - **Progress Report**: A comprehensive report including client info, timeline, overall progress, and division-wise progress bars.
 All templates support JPEG, PDF, and Excel formats. Progress calculation is based on item status weights.
 
+## Recent Updates (October 2025)
+
+### Employee Management System
+- **Atomic Employee Creation**: New `/api/employees/create` endpoint creates both user account and employee profile in a single transaction with rollback support. This prevents orphaned user accounts if employee creation fails.
+- **Required Employee Fields**: Enhanced employee creation form with mandatory fields:
+  - ID Card Number
+  - WhatsApp Number
+  - Home Address
+  - Joining Date
+  - Profile Picture (file upload with preview, optional)
+- **Document Management**: Employees can view and download employment documents (Appointment Letter, Joining Letter, Resignation Letter) from their dashboard.
+- **Enhanced Salary Slips**: Professional PDF generation with ARKA branding, arka.pk website reference, and proper formatting with earnings, deductions, and net salary sections.
+
+### Security & Data Integrity
+- Role-based access control ensures employees can only view their own documents
+- Form validation enforces all required fields before submission
+- Transaction-based employee creation prevents partial data states
+
 ## External Dependencies
 
 **Database (Configured for future use):**
@@ -81,7 +99,9 @@ All templates support JPEG, PDF, and Excel formats. Progress calculation is base
 - **IMPORTANT**: Run in workspace BEFORE publishing (no shell access in deployed apps)
 - Since dev and prod share the same database, seeding once persists to both environments
 - Existence checks prevent duplicate user errors
-- Default users created: ZARA (principle), procurement (procurement)
+- Default users created: 
+  - ZARA (principle) - password: saroshahsanto
+  - procurement (procurement) - password: procurement123
 - Safe for production (idempotent - can be run multiple times)
 
 **Process Management:**
