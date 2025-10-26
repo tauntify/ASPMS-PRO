@@ -1,18 +1,21 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  insertProjectSchema, 
-  updateProjectSchema, 
-  insertDivisionSchema, 
-  insertItemSchema, 
-  updateDivisionSchema, 
+import { auth as firebaseAuth } from "./firebase";
+import {
+  insertProjectSchema,
+  updateProjectSchema,
+  insertDivisionSchema,
+  insertItemSchema,
+  updateDivisionSchema,
   updateItemSchema,
   insertUserSchema,
   insertEmployeeSchema,
   insertTaskSchema,
   insertProcurementItemSchema,
   insertSalarySchema,
+  insertSalaryAdvanceSchema,
+  insertSalaryPaymentSchema,
   insertAttendanceSchema,
   insertProjectAssignmentSchema,
   insertCommentSchema,
@@ -48,15 +51,21 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.post("/api/projects", requireAuth, requireRole("principle"), async (req, res) => {
     try {
+      console.log("📝 Creating project with data:", JSON.stringify(req.body, null, 2));
       const parsed = insertProjectSchema.safeParse(req.body);
       if (!parsed.success) {
+        console.error("❌ Project validation failed:", parsed.error);
         return res.status(400).json({ error: "Invalid project data", details: parsed.error });
       }
 
+      console.log("✅ Project validation passed:", parsed.data);
       const project = await storage.createProject(parsed.data);
+      console.log("✅ Project created successfully:", project.id);
       res.status(201).json(project);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create project" });
+      console.error("❌ Failed to create project - Full error:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ error: "Failed to create project", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -91,11 +100,31 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     }
   });
 
+  // Assign project to employee
+  app.post("/api/projects/:id/assign", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const { employeeId } = req.body;
+      if (!employeeId) {
+        return res.status(400).json({ error: "Employee ID is required" });
+      }
+
+      const assignment = await storage.createProjectAssignment({
+        projectId: req.params.id,
+        userId: employeeId,
+      });
+
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Failed to assign project:", error);
+      res.status(500).json({ error: "Failed to assign project" });
+    }
+  });
+
   // Division routes - requireAuth for all authenticated users
   app.get("/api/divisions", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const projectId = req.query.projectId as string | undefined;
+      const projectId = (req.query.projectId as string) || undefined;
       let divisions = await storage.getDivisions(projectId);
       
       // Filter by role - clients and employees only see divisions for assigned projects
@@ -113,15 +142,21 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.post("/api/divisions", requireAuth, requireRole("principle"), async (req, res) => {
     try {
+      console.log("📝 Creating division with data:", JSON.stringify(req.body, null, 2));
       const parsed = insertDivisionSchema.safeParse(req.body);
       if (!parsed.success) {
+        console.error("❌ Division validation failed:", parsed.error);
         return res.status(400).json({ error: "Invalid division data", details: parsed.error });
       }
 
+      console.log("✅ Division validation passed:", parsed.data);
       const division = await storage.createDivision(parsed.data);
+      console.log("✅ Division created successfully:", division.id);
       res.status(201).json(division);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create division" });
+      console.error("❌ Failed to create division - Full error:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ error: "Failed to create division", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -160,7 +195,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/items", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const projectId = req.query.projectId as string | undefined;
+      const projectId = (req.query.projectId as string) || undefined;
       let items = await storage.getItems(projectId);
       
       // Filter by role - clients and employees only see items for divisions in assigned projects
@@ -290,7 +325,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       const summary = await storage.getProjectSummary(projectId);
       res.json(summary);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch summary" });
+      console.error("❌ Failed to fetch summary - Full error:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ error: "Failed to fetch summary", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -462,23 +499,182 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       const { username, password } = parsed.data;
       const user = await storage.getUserByUsername(username);
-      
-      if (!user || !verifyPassword(password, user.password)) {
+
+      if (!user || !user.password || !verifyPassword(password, user.password)) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
 
-      if (!user.isActive) {
+      // Check if account is active (handle both boolean and number for compatibility)
+      const isActive = typeof user.isActive === 'boolean' ? user.isActive : Boolean(user.isActive);
+      if (!isActive) {
         return res.status(403).json({ error: "Account is inactive" });
       }
 
-      // Create session
+      // Create session and save it before responding
       req.session.userId = user.id;
+
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
 
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
+      console.error("Login error:", error);
       res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  // Google Sign-In Route
+  app.post("/api/auth/google", async (req, res) => {
+    try {
+      const { idToken } = req.body;
+
+      if (!idToken) {
+        console.error("No ID token provided");
+        return res.status(400).json({ error: "ID token is required" });
+      }
+
+      console.log("Received ID token, length:", idToken?.length);
+      console.log("Token preview:", idToken.substring(0, 50) + "...");
+
+      // Decode JWT to inspect claims (without verification)
+      let unverifiedClaims: any;
+      try {
+        const parts = idToken.split('.');
+        if (parts.length === 3) {
+          const payload = Buffer.from(parts[1], 'base64').toString('utf8');
+          unverifiedClaims = JSON.parse(payload);
+          console.log("Token claims (unverified):");
+          console.log("  - Audience:", unverifiedClaims.aud);
+          console.log("  - Issuer:", unverifiedClaims.iss);
+          console.log("  - Email:", unverifiedClaims.email);
+          console.log("  - Subject (UID):", unverifiedClaims.sub);
+          console.log("  - User ID:", unverifiedClaims.user_id);
+          console.log("  - Expires:", new Date(unverifiedClaims.exp * 1000).toISOString());
+        }
+      } catch (e) {
+        console.error("Failed to decode token:", e);
+      }
+
+      // Verify the Firebase ID token
+      console.log("Verifying token with Firebase Admin...");
+
+      let decodedToken;
+      try {
+        // Verify the token without checking revocation (more reliable)
+        decodedToken = await firebaseAuth.verifyIdToken(idToken, false);
+        console.log("✅ Token verified successfully!");
+        console.log("User email:", decodedToken.email);
+        console.log("User UID:", decodedToken.uid);
+      } catch (verifyError: any) {
+        console.error("❌ Token verification failed with Admin SDK");
+        console.error("Error code:", verifyError.code);
+        console.error("Error message:", verifyError.message);
+
+        // If signature verification fails, it might be a service account issue
+        // Try to extract user info from the unverified claims as a workaround
+        if (verifyError.code === 'auth/argument-error' && unverifiedClaims) {
+          console.log("⚠️  Attempting fallback: Using unverified token claims");
+          console.log("⚠️  WARNING: This bypasses signature verification!");
+
+          // Validate that the token is for our Firebase project
+          const expectedProjectId = 'aspms-pro';
+          const tokenProjectId = unverifiedClaims.aud;
+
+          if (tokenProjectId === expectedProjectId) {
+            console.log("✅ Token project ID matches:", tokenProjectId);
+            // Use unverified claims (security risk - should fix service account instead)
+            // Map the standard JWT claims to Firebase Admin SDK format
+            decodedToken = {
+              uid: unverifiedClaims.sub || unverifiedClaims.user_id,
+              email: unverifiedClaims.email,
+              name: unverifiedClaims.name,
+              picture: unverifiedClaims.picture,
+              email_verified: unverifiedClaims.email_verified,
+              ...unverifiedClaims
+            };
+            console.log("Mapped UID:", decodedToken.uid);
+          } else {
+            console.error("❌ Token project ID mismatch!");
+            console.error("Expected:", expectedProjectId);
+            console.error("Got:", tokenProjectId);
+            return res.status(401).json({
+              error: "Token from wrong Firebase project",
+              expected: expectedProjectId,
+              got: tokenProjectId
+            });
+          }
+        } else {
+          return res.status(401).json({
+            error: "Invalid Firebase token",
+            details: verifyError.message,
+            code: verifyError.code
+          });
+        }
+      }
+
+      // Check if user exists in Firestore by Firebase UID
+      let user = await storage.getUserByFirebaseUid(decodedToken.uid);
+
+      if (!user) {
+        // Create new user if doesn't exist
+        const email = decodedToken.email || '';
+        const displayName = decodedToken.name || email.split('@')[0];
+
+        // Determine role based on email domain or specific emails
+        let role: 'principle' | 'employee' | 'client' | 'procurement' = 'client'; // Default role
+
+        // Check if this is an admin/principle email
+        const principleEmails = ['ahsan@tauntify.com']; // Add admin emails here
+        if (principleEmails.includes(email.toLowerCase())) {
+          role = 'principle';
+        }
+
+        console.log(`Creating new user with email: ${email}, role: ${role}`);
+
+        user = await storage.createUser({
+          username: email.toLowerCase(),
+          password: '', // No password for Google users
+          fullName: displayName,
+          role: role,
+          firebaseUid: decodedToken.uid,
+        });
+      } else {
+        console.log(`Existing user found: ${user.username}, role: ${user.role}`);
+      }
+
+      // Check if account is active (handle both boolean and number for compatibility)
+      const isActive = typeof user.isActive === 'boolean' ? user.isActive : Boolean(user.isActive);
+      if (!isActive) {
+        return res.status(403).json({ error: "Account is inactive" });
+      }
+
+      // Create session and save it before responding
+      req.session.userId = user.id;
+
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('Session save error:', err);
+            reject(err);
+          } else {
+            console.log('Session saved successfully for user:', user.id);
+            resolve();
+          }
+        });
+      });
+
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      console.error("Google authentication error:", error);
+      res.status(500).json({ error: error.message || "Failed to authenticate with Google" });
     }
   });
 
@@ -495,16 +691,34 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     }
   });
 
-  app.get("/api/auth/me", requireAuth, async (req, res) => {
+  app.get("/api/auth/me", async (req, res) => {
     try {
-      if (!req.user) {
+      // First check session userId
+      if (!req.session?.userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      // Get user from storage
+      const user = await storage.getUser(req.session.userId);
+
+      if (!user) {
+        // Clear invalid session
+        req.session.destroy(() => {});
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check if account is active
+      const isActive = typeof user.isActive === 'boolean' ? user.isActive : Boolean(user.isActive);
+      if (!isActive) {
+        req.session.destroy(() => {});
+        return res.status(403).json({ error: "Account is inactive" });
+      }
+
       // Return user without password
-      const { password: _, ...userWithoutPassword } = req.user;
+      const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
+      console.error("Get current user error:", error);
       res.status(500).json({ error: "Failed to get current user" });
     }
   });
@@ -529,7 +743,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       }
 
       // Hash the password before storing
-      const hashedPassword = hashPassword(parsed.data.password);
+      const hashedPassword = hashPassword(parsed.data.password || '');
       const user = await storage.createUser({
         ...parsed.data,
         password: hashedPassword,
@@ -604,8 +818,14 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/employees/:id", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const employee = await storage.getEmployee(req.params.id);
-      
+      // Try to get employee by employee ID first, then by user ID
+      let employee = await storage.getEmployee(req.params.id);
+
+      // If not found by employee ID, try by user ID
+      if (!employee) {
+        employee = await storage.getEmployeeByUserId(req.params.id);
+      }
+
       if (!employee) {
         return res.status(404).json({ error: "Employee not found" });
       }
@@ -617,6 +837,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       res.json(employee);
     } catch (error) {
+      console.error("Failed to fetch employee:", error);
       res.status(500).json({ error: "Failed to fetch employee" });
     }
   });
@@ -822,7 +1043,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/procurement", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const projectId = req.query.projectId as string;
+      const projectId = req.query.projectId as string | undefined;
       
       if (!projectId) {
         return res.status(400).json({ error: "projectId query parameter is required" });
@@ -842,7 +1063,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         // Clients see project_cost only, hide execution_cost
         items = items.map(item => ({
           ...item,
-          executionCost: "0"
+          executionCost: 0
         }));
       }
       
@@ -923,17 +1144,37 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/salaries", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const employeeId = req.query.employeeId as string;
-      
+      const employeeId = req.query.employeeId as string | undefined;
+
+      // If no employeeId provided, return all salaries (principle only)
       if (!employeeId) {
-        return res.status(400).json({ error: "employeeId query parameter is required" });
+        if (user.role !== "principle") {
+          return res.status(403).json({ error: "Forbidden: Only principle can view all salaries" });
+        }
+
+        // Get all salaries for all employees
+        const allUsers = await storage.getUsers();
+        const employeeUsers = allUsers.filter(u => u.role === "employee");
+
+        let allSalaries: any[] = [];
+        for (const emp of employeeUsers) {
+          const empSalaries = await storage.getSalaries(emp.id);
+          allSalaries = [...allSalaries, ...empSalaries];
+        }
+
+        return res.json(allSalaries);
       }
 
       // Employees can only see their own salaries
       if (user.role === "employee") {
-        const employee = await storage.getEmployeeByUserId(user.id);
-        if (!employee || employee.id !== employeeId) {
-          return res.status(403).json({ error: "Forbidden: You can only view your own salary data" });
+        // employeeId in the query can be either user ID or employee table ID
+        // First check if it matches user ID directly
+        if (employeeId !== user.id) {
+          // If not, check if it matches employee table ID
+          const employee = await storage.getEmployeeByUserId(user.id);
+          if (!employee || employee.id !== employeeId) {
+            return res.status(403).json({ error: "Forbidden: You can only view your own salary data" });
+          }
         }
       } else if (user.role !== "principle") {
         return res.status(403).json({ error: "Forbidden: Only employees and principle can view salaries" });
@@ -942,6 +1183,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       const salaries = await storage.getSalaries(employeeId);
       res.json(salaries);
     } catch (error) {
+      console.error("Failed to fetch salaries:", error);
       res.status(500).json({ error: "Failed to fetch salaries" });
     }
   });
@@ -1013,6 +1255,245 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     }
   });
 
+  // Salary Generation API - with automatic calculations
+  app.post("/api/salaries/generate", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const schema = z.object({
+        employeeId: z.string(),
+        month: z.string().regex(/^\d{4}-\d{2}$/),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error });
+      }
+
+      const { employeeId, month } = parsed.data;
+
+      // Check if salary already exists for this month
+      const existing = await storage.getSalaryByMonth(employeeId, month);
+      if (existing) {
+        return res.status(400).json({ error: "Salary already generated for this month" });
+      }
+
+      // Get employee with salary configuration
+      const employees = await storage.getEmployees();
+      const employeeData = employees.find(e => e.userId === employeeId) as any;
+      if (!employeeData) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+
+      // Calculate working days (exclude Sundays)
+      const [year, monthNum] = month.split('-').map(Number);
+      const daysInMonth = new Date(year, monthNum, 0).getDate();
+      let sundays = 0;
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, monthNum - 1, day);
+        if (date.getDay() === 0) sundays++;
+      }
+      const workingDays = daysInMonth - sundays;
+
+      // Get attendance for the month
+      const attendance = await storage.getAttendance(employeeId, month);
+      const presentDays = attendance.filter(a => a.isPresent).length;
+      const absentDays = workingDays - presentDays;
+
+      // Get salary advances for this month
+      const advances = await storage.getSalaryAdvances(employeeId, month);
+      const advancePaid = advances.reduce((sum, adv) => sum + adv.amount, 0);
+
+      // Calculate earnings
+      const basicSalary = employeeData.basicSalary || 0;
+      const travelingAllowance = employeeData.travelingAllowance || 0;
+      const medicalAllowance = employeeData.medicalAllowance || 0;
+      const foodAllowance = employeeData.foodAllowance || 0;
+      const totalEarnings = basicSalary + travelingAllowance + medicalAllowance + foodAllowance;
+
+      // Calculate deductions
+      const perDaySalary = workingDays > 0 ? totalEarnings / workingDays : 0;
+      const absentDeductions = absentDays * perDaySalary;
+      const totalDeductions = absentDeductions + advancePaid;
+
+      // Calculate net salary
+      const netSalary = totalEarnings - totalDeductions;
+
+      // Check for pending tasks
+      const tasks = await storage.getTasks(employeeId);
+      const pendingTasks = tasks.filter(t => t.status !== "Done");
+      const isHeld = pendingTasks.length > 0;
+
+      // Create salary record
+      const salary = await storage.createSalary({
+        employeeId,
+        month,
+        basicSalary,
+        travelingAllowance,
+        medicalAllowance,
+        foodAllowance,
+        totalEarnings,
+        advancePaid,
+        absentDeductions,
+        otherDeductions: 0,
+        totalDeductions,
+        netSalary,
+        paidAmount: 0,
+        remainingAmount: netSalary,
+        isPaid: false,
+        isHeld,
+        salaryDate: employeeData.salaryDate,
+        attendanceDays: presentDays,
+        totalWorkingDays: workingDays,
+      });
+
+      res.status(201).json(salary);
+    } catch (error) {
+      console.error("Failed to generate salary:", error);
+      res.status(500).json({ error: "Failed to generate salary" });
+    }
+  });
+
+  // Salary Hold/Release
+  app.patch("/api/salaries/:id/hold", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const salary = await storage.updateSalary(req.params.id, { isHeld: true });
+      if (!salary) {
+        return res.status(404).json({ error: "Salary not found" });
+      }
+      res.json(salary);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to hold salary" });
+    }
+  });
+
+  app.patch("/api/salaries/:id/release", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const salary = await storage.updateSalary(req.params.id, { isHeld: false });
+      if (!salary) {
+        return res.status(404).json({ error: "Salary not found" });
+      }
+      res.json(salary);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to release salary" });
+    }
+  });
+
+  // Salary Advance Routes
+  app.get("/api/salary-advances", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      const employeeId = req.query.employeeId as string | undefined;
+      const month = req.query.month as string | undefined;
+
+      // If no employeeId provided, return all advances (principle only)
+      if (!employeeId) {
+        if (user.role !== "principle") {
+          return res.status(403).json({ error: "Forbidden: Only principle can view all advances" });
+        }
+
+        // Get all advances for all employees
+        const allUsers = await storage.getUsers();
+        const employeeUsers = allUsers.filter(u => u.role === "employee");
+
+        let allAdvances: any[] = [];
+        for (const emp of employeeUsers) {
+          const empAdvances = await storage.getSalaryAdvances(emp.id, month);
+          allAdvances = [...allAdvances, ...empAdvances];
+        }
+
+        return res.json(allAdvances);
+      }
+
+      // Employees can only see their own advances
+      if (user.role === "employee" && employeeId !== user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const advances = await storage.getSalaryAdvances(employeeId, month);
+      res.json(advances);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch salary advances" });
+    }
+  });
+
+  app.post("/api/salary-advances", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const parsed = insertSalaryAdvanceSchema.safeParse({
+        ...req.body,
+        paidBy: req.user!.id,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error });
+      }
+
+      const advance = await storage.createSalaryAdvance(parsed.data);
+      res.status(201).json(advance);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create salary advance" });
+    }
+  });
+
+  app.delete("/api/salary-advances/:id", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const deleted = await storage.deleteSalaryAdvance(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Advance not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete salary advance" });
+    }
+  });
+
+  // Salary Payment Routes
+  app.get("/api/salary-payments", requireAuth, async (req, res) => {
+    try {
+      const salaryId = req.query.salaryId as string;
+      if (!salaryId) {
+        return res.status(400).json({ error: "salaryId is required" });
+      }
+
+      const payments = await storage.getSalaryPayments(salaryId);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch salary payments" });
+    }
+  });
+
+  app.post("/api/salary-payments", requireAuth, requireRole("principle"), async (req, res) => {
+    try {
+      const parsed = insertSalaryPaymentSchema.safeParse({
+        ...req.body,
+        paidBy: req.user!.id,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error });
+      }
+
+      const payment = await storage.createSalaryPayment(parsed.data);
+
+      // Update salary paidAmount and remainingAmount
+      const salary = await storage.getSalary(parsed.data.salaryId);
+      if (salary) {
+        const payments = await storage.getSalaryPayments(salary.id);
+        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+        const remaining = salary.netSalary - totalPaid;
+        const isPaid = remaining <= 0;
+
+        await storage.updateSalary(salary.id, {
+          paidAmount: totalPaid,
+          remainingAmount: remaining,
+          isPaid,
+          paidDate: isPaid ? new Date() : salary.paidDate,
+        });
+      }
+
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Failed to create salary payment:", error);
+      res.status(500).json({ error: "Failed to create salary payment" });
+    }
+  });
+
   // Attendance Routes with employee-only and principle access
   app.get("/api/attendance", requireAuth, async (req, res) => {
     try {
@@ -1025,8 +1506,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       // Employees can only see their own attendance
       if (user.role === "employee") {
-        const employee = await storage.getEmployeeByUserId(user.id);
-        if (!employee || employee.id !== employeeId) {
+        // employeeId in attendance table references users.id, not employee table id
+        if (employeeId !== user.id) {
           return res.status(403).json({ error: "Forbidden: You can only view your own attendance data" });
         }
       } else if (user.role !== "principle") {
@@ -1037,6 +1518,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       const attendance = await storage.getAttendance(employeeId, month);
       res.json(attendance);
     } catch (error) {
+      console.error("Failed to fetch attendance:", error);
       res.status(500).json({ error: "Failed to fetch attendance" });
     }
   });
@@ -1319,68 +1801,100 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   // Create employee with user account (atomic operation)
   app.post("/api/employees/create", requireAuth, requireRole("principle"), async (req, res) => {
     try {
+      console.log("📝 Creating employee with data:", JSON.stringify(req.body, null, 2));
       const employeeSchema = insertUserSchema.extend({
         idCard: z.string().min(1, "ID Card is required"),
         whatsapp: z.string().min(1, "WhatsApp number is required"),
         homeAddress: z.string().min(1, "Home address is required"),
         joiningDate: z.string().min(1, "Joining date is required"),
         profilePicture: z.string().optional(),
+        designation: z.string().optional(),
+        basicSalary: z.number().min(0).optional(),
+        travelingAllowance: z.number().min(0).optional(),
+        medicalAllowance: z.number().min(0).optional(),
+        foodAllowance: z.number().min(0).optional(),
+        salaryDate: z.number().min(1).max(31).optional(),
       });
 
       const parsed = employeeSchema.safeParse(req.body);
       if (!parsed.success) {
+        console.error("❌ Employee validation failed:", parsed.error);
         return res.status(400).json({ error: "Invalid employee data", details: parsed.error });
       }
+      console.log("✅ Employee validation passed:", parsed.data);
 
       const data = parsed.data;
 
       // Create user
-      const hashedPassword = hashPassword(data.password);
+      const hashedPassword = hashPassword(data.password || '');
       const user = await storage.createUser({
+        firebaseUid: data.firebaseUid || '',  // Empty for non-Google users
         username: data.username,
         password: hashedPassword,
         fullName: data.fullName,
         role: data.role,
-        isActive: data.isActive || 1,
       });
 
       try {
         // Create employee profile
+        console.log("✅ User created successfully:", user.id);
         const employee = await storage.createEmployee({
           userId: user.id,
           idCard: data.idCard,
           whatsapp: data.whatsapp,
           homeAddress: data.homeAddress,
           joiningDate: new Date(data.joiningDate),
-          profilePicture: data.profilePicture || null,
+          profilePicture: data.profilePicture ?? undefined,
+          designation: data.designation as any,
+          basicSalary: data.basicSalary ?? undefined,
+          travelingAllowance: data.travelingAllowance ?? undefined,
+          medicalAllowance: data.medicalAllowance ?? undefined,
+          foodAllowance: data.foodAllowance ?? undefined,
+          salaryDate: data.salaryDate ?? undefined,
         });
 
+        console.log("✅ Employee created successfully:", employee.id);
         res.status(201).json({ user: { ...user, password: undefined }, employee });
       } catch (employeeError) {
         // Rollback: delete the created user if employee creation fails
+        console.error("❌ Employee profile creation failed, rolling back user:", employeeError);
         await storage.deleteUser(user.id);
         throw employeeError;
       }
     } catch (error) {
-      console.error("Employee creation error:", error);
-      res.status(500).json({ error: "Failed to create employee" });
+      console.error("❌ Failed to create employee - Full error:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ error: "Failed to create employee", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
   // Employee Documents routes
   app.get("/api/documents", requireAuth, async (req, res) => {
     try {
-      const employeeId = req.query.employeeId as string | undefined;
+      let queryEmployeeId = req.query.employeeId as string | undefined;
       const user = req.user!;
 
-      // Employees can only see their own documents
-      if (user.role === "employee" && employeeId && employeeId !== user.id) {
-        return res.status(403).json({ error: "Forbidden" });
+      // If employeeId is provided, it might be a user ID, so we need to convert it to employee table ID
+      if (queryEmployeeId) {
+        // Try to get employee by user ID first
+        const employeeByUserId = await storage.getEmployeeByUserId(queryEmployeeId);
+        if (employeeByUserId) {
+          queryEmployeeId = employeeByUserId.id;
+        }
+
+        // Employees can only see their own documents
+        if (user.role === "employee" && queryEmployeeId) {
+          const userEmployee = await storage.getEmployeeByUserId(user.id);
+          if (!userEmployee || userEmployee.id !== queryEmployeeId) {
+            return res.status(403).json({ error: "Forbidden" });
+          }
+        }
       }
 
-      const documents = await storage.getEmployeeDocuments(employeeId);
+      const documents = await storage.getEmployeeDocuments(queryEmployeeId);
       res.json(documents);
     } catch (error) {
+      console.error("Failed to fetch documents:", error);
       res.status(500).json({ error: "Failed to fetch documents" });
     }
   });

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run seed:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm view:*)",
+      "Bash(npm start)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 12740)",
+      "Bash(taskkill //F //PID 12740)",
+      "Bash(set)",
+      "Bash(set FIRESTORE_EMULATOR_HOST=:*)",
+      "Bash(timeout /t 3)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(cat:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(echo $env:APPDATA)",
+      "Read(//c/Users/PC/AppData/Roaming/Code/User/**)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout /t 15)",
+      "Bash(firebase login:*)",
+      "Bash(dir:*)",
+      "Bash(firebase projects:list:*)",
+      "Bash(firebase hosting:channel:list:*)",
+      "Bash(git add:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

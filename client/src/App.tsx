@@ -8,6 +8,9 @@ import PrincipleDashboard from "@/pages/principle-dashboard";
 import EmployeeDashboard from "@/pages/employee-dashboard";
 import ClientDashboard from "@/pages/client-dashboard";
 import ProcurementDashboard from "@/pages/procurement-dashboard";
+import TimesheetManagement from "@/pages/timesheet-management";
+import BillingInvoicing from "@/pages/billing-invoicing";
+import ExpenseTracking from "@/pages/expense-tracking";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
@@ -67,6 +70,15 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/budget">
         {() => <ProtectedRoute component={Dashboard} />}
+      </Route>
+      <Route path="/timesheet-management">
+        {() => <ProtectedRoute component={TimesheetManagement} />}
+      </Route>
+      <Route path="/billing-invoicing">
+        {() => <ProtectedRoute component={BillingInvoicing} />}
+      </Route>
+      <Route path="/expense-tracking">
+        {() => <ProtectedRoute component={ExpenseTracking} />}
       </Route>
       <Route path="/">
         {() => <ProtectedRoute component={RoleDashboard} />}

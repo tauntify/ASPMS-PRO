@@ -1,7 +1,4 @@
-import { pgTable, text, varchar, integer, numeric, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
 
 export const priorityLevels = ["High", "Mid", "Low"] as const;
 export const priorityEnum = z.enum(priorityLevels);
@@ -14,6 +11,30 @@ export type ItemStatus = z.infer<typeof itemStatusEnum>;
 export const userRoles = ["principle", "employee", "client", "procurement"] as const;
 export const userRoleEnum = z.enum(userRoles);
 export type UserRole = z.infer<typeof userRoleEnum>;
+
+export const designations = [
+  "Associate Architect",
+  "Principal Architect",
+  "Draftsman",
+  "Guard",
+  "Salesman",
+  "Interior Designer",
+  "Interior Draftsman",
+  "MEP Draftsman",
+  "Engineer",
+  "Site Engineer",
+  "Procurement Incharge",
+  "Accountant",
+  "Receptionist",
+  "Office Boy",
+  "3D Visualizer",
+  "Senior Draftsman",
+  "CEO",
+  "Junior Architect",
+  "Intern"
+] as const;
+export const designationEnum = z.enum(designations);
+export type Designation = z.infer<typeof designationEnum>;
 
 export const taskTypes = ["Design CAD", "IFCs", "3D Rendering", "Procurement", "Site Visits"] as const;
 export const taskTypeEnum = z.enum(taskTypes);
@@ -45,205 +66,237 @@ export const unitTypes = [
 export const unitEnum = z.enum(unitTypes);
 export type Unit = z.infer<typeof unitEnum>;
 
-// Database Tables
-export const projects = pgTable("projects", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  clientName: text("client_name"),
-  projectTitle: text("project_title"),
-  startDate: timestamp("start_date"),
-  deliveryDate: timestamp("delivery_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// Firebase Types
+export interface Project {
+  id: string;
+  name: string;
+  clientName?: string;
+  projectTitle?: string;
+  startDate?: Date;
+  deliveryDate?: Date;
+  createdAt: Date;
+}
 
-export const divisions = pgTable("divisions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  order: integer("order").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface Division {
+  id: string;
+  projectId: string;
+  name: string;
+  order: number;
+  createdAt: Date;
+}
 
-export const items = pgTable("items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  divisionId: varchar("division_id").notNull().references(() => divisions.id, { onDelete: "cascade" }),
-  description: text("description").notNull(),
-  unit: text("unit").notNull(),
-  quantity: numeric("quantity", { precision: 18, scale: 2 }).notNull(),
-  rate: numeric("rate", { precision: 18, scale: 2 }).notNull(),
-  priority: text("priority").notNull(),
-  status: text("status").notNull().default("Not Started"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface Item {
+  id: string;
+  divisionId: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  rate: number;
+  priority: Priority;
+  status: ItemStatus;
+  createdAt: Date;
+}
 
-// Multi-Role Management System Tables
+export interface User {
+  id: string;
+  firebaseUid: string;
+  username: string;
+  password?: string; // Keep for backward compatibility
+  role: UserRole;
+  fullName: string;
+  isActive: boolean | number; // Firebase returns 0/1, TypeScript expects boolean
+  createdAt: Date;
+}
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  role: text("role").notNull(), // principle, employee, client, procurement
-  fullName: text("full_name").notNull(),
-  isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface Employee {
+  id: string;
+  userId: string;
+  idCard?: string;
+  whatsapp?: string;
+  homeAddress?: string;
+  joiningDate?: Date;
+  profilePicture?: string;
+  designation?: Designation;
+  basicSalary?: number;
+  travelingAllowance?: number;
+  medicalAllowance?: number;
+  foodAllowance?: number;
+  salaryDate?: number; // Day of month (1-31)
+  isSalaryHeld?: boolean;
+  createdAt: Date;
+}
 
-export const employees = pgTable("employees", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  idCard: text("id_card"),
-  whatsapp: text("whatsapp"),
-  homeAddress: text("home_address"),
-  joiningDate: timestamp("joining_date"),
-  profilePicture: text("profile_picture"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface Client {
+  id: string;
+  userId: string;
+  company?: string;
+  contactNumber?: string;
+  email?: string;
+  address?: string;
+  createdAt: Date;
+}
 
-export const clients = pgTable("clients", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  company: text("company"),
-  contactNumber: text("contact_number"),
-  email: text("email"),
-  address: text("address"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface ProjectAssignment {
+  id: string;
+  projectId: string;
+  userId: string;
+  assignedBy: string;
+  createdAt: Date;
+}
 
-export const projectAssignments = pgTable("project_assignments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  assignedBy: varchar("assigned_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface Task {
+  id: string;
+  projectId: string;
+  employeeId: string;
+  taskType: TaskType;
+  description?: string;
+  status: TaskStatus;
+  remarks?: string;
+  dueDate?: Date;
+  assignedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const tasks = pgTable("tasks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  employeeId: varchar("employee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  taskType: text("task_type").notNull(), // Design CAD, IFCs, 3D Rendering, Procurement, Site Visits
-  description: text("description"),
-  status: text("status").notNull().default("Undone"), // Done, Undone, In Progress
-  remarks: text("remarks"), // Comments/remarks on task progress
-  dueDate: timestamp("due_date"),
-  assignedBy: varchar("assigned_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export interface ProcurementItem {
+  id: string;
+  projectId: string;
+  itemName: string;
+  projectCost: number;
+  executionCost?: number;
+  isPurchased: boolean | number; // Firebase returns 0/1, TypeScript expects boolean
+  billNumber?: string;
+  rentalDetails?: string;
+  quantity: number;
+  unit: string;
+  notes?: string;
+  purchasedBy?: string;
+  purchasedDate?: Date;
+  createdAt: Date;
+}
 
-export const procurementItems = pgTable("procurement_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  itemName: text("item_name").notNull(),
-  projectCost: numeric("project_cost", { precision: 18, scale: 2 }).notNull(), // Cost visible to client
-  executionCost: numeric("execution_cost", { precision: 18, scale: 2 }), // Actual cost, visible only to principle
-  isPurchased: integer("is_purchased").notNull().default(0), // 0 = not purchased, 1 = purchased
-  billNumber: text("bill_number"),
-  rentalDetails: text("rental_details"), // RFT, SFT, etc.
-  quantity: numeric("quantity", { precision: 18, scale: 2 }).notNull(),
-  unit: text("unit").notNull(),
-  notes: text("notes"),
-  purchasedBy: varchar("purchased_by").references(() => users.id),
-  purchasedDate: timestamp("purchased_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface LaborCost {
+  id: string;
+  projectId: string;
+  laborType: LaborType;
+  wageRate?: number;
+  numberOfWorkers?: number;
+  contractAmount?: number;
+  description?: string;
+  startDate?: Date;
+  endDate?: Date;
+  createdAt: Date;
+}
 
-export const laborCosts = pgTable("labor_costs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  laborType: text("labor_type").notNull(), // Daily Wage or Contract
-  wageRate: numeric("wage_rate", { precision: 18, scale: 2 }), // For daily wage
-  numberOfWorkers: integer("number_of_workers"), // For daily wage
-  contractAmount: numeric("contract_amount", { precision: 18, scale: 2 }), // For contract
-  description: text("description"),
-  startDate: timestamp("start_date"),
-  endDate: timestamp("end_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface Attendance {
+  id: string;
+  employeeId: string;
+  attendanceDate: Date;
+  isPresent: boolean;
+  notes?: string;
+  createdAt: Date;
+}
 
-export const attendance = pgTable("attendance", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  employeeId: varchar("employee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  attendanceDate: timestamp("attendance_date").notNull(),
-  isPresent: integer("is_present").notNull().default(1), // 1 = present, 0 = absent
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface EmployeeDocument {
+  id: string;
+  employeeId: string;
+  documentType: DocumentType;
+  template: string;
+  generatedDocument?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const employeeDocuments = pgTable("employee_documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  employeeId: varchar("employee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  documentType: text("document_type").notNull(), // Appointment Letter, Joining Letter, Resignation Letter
-  template: text("template").notNull(),
-  generatedDocument: text("generated_document"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export interface Salary {
+  id: string;
+  employeeId: string;
+  month: string; // Format: YYYY-MM
+  basicSalary: number;
+  travelingAllowance: number;
+  medicalAllowance: number;
+  foodAllowance: number;
+  totalEarnings: number;
+  advancePaid: number;
+  absentDeductions: number;
+  otherDeductions: number;
+  totalDeductions: number;
+  netSalary: number;
+  paidAmount: number;
+  remainingAmount: number;
+  isPaid: boolean;
+  isHeld: boolean;
+  paidDate?: Date;
+  salaryDate?: number; // Day of month for scheduled payment
+  attendanceDays: number;
+  totalWorkingDays: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const salaries = pgTable("salaries", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  employeeId: varchar("employee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  month: text("month").notNull(), // Format: YYYY-MM
-  basicSalary: numeric("basic_salary", { precision: 18, scale: 2 }).notNull(),
-  incentives: numeric("incentives", { precision: 18, scale: 2 }).notNull().default('0'),
-  medical: numeric("medical", { precision: 18, scale: 2 }).notNull().default('0'),
-  tax: numeric("tax", { precision: 18, scale: 2 }).notNull().default('0'),
-  deductions: numeric("deductions", { precision: 18, scale: 2 }).notNull().default('0'),
-  netSalary: numeric("net_salary", { precision: 18, scale: 2 }).notNull(),
-  isPaid: integer("is_paid").notNull().default(0), // 0 = not paid, 1 = paid
-  paidDate: timestamp("paid_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface SalaryAdvance {
+  id: string;
+  employeeId: string;
+  salaryId?: string; // Link to specific salary month
+  amount: number;
+  date: Date;
+  reason?: string;
+  paidBy: string;
+  createdAt: Date;
+}
 
-export const comments = pgTable("comments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  comment: text("comment").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface SalaryPayment {
+  id: string;
+  salaryId: string;
+  amount: number;
+  paymentDate: Date;
+  paymentMethod?: string;
+  notes?: string;
+  paidBy: string;
+  createdAt: Date;
+}
 
-export const projectFinancials = pgTable("project_financials", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }).unique(),
-  contractValue: numeric("contract_value", { precision: 18, scale: 2 }).notNull(),
-  amountReceived: numeric("amount_received", { precision: 18, scale: 2 }).notNull().default('0'),
-  workCompleted: numeric("work_completed", { precision: 18, scale: 2 }).notNull().default('0'), // Percentage 0-100
-  isArchived: integer("is_archived").notNull().default(0), // 0 = active, 1 = archived/completed
-  archivedDate: timestamp("archived_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export interface Comment {
+  id: string;
+  projectId: string;
+  userId: string;
+  comment: string;
+  createdAt: Date;
+}
 
-// Zod Schemas
-export const insertProjectSchema = createInsertSchema(projects).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export interface ProjectFinancials {
+  id: string;
+  projectId: string;
+  contractValue: number;
+  amountReceived: number;
+  workCompleted: number;
+  isArchived: boolean;
+  archivedDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Insert Schemas
+export const insertProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
-  startDate: z.union([z.string(), z.date()]).transform(val => 
-    typeof val === 'string' ? new Date(val) : val
-  ).optional(),
-  deliveryDate: z.union([z.string(), z.date()]).transform(val => 
-    typeof val === 'string' ? new Date(val) : val
-  ).optional(),
+  startDate: z.union([z.string(), z.date()]).transform(val => {
+    if (!val) return undefined;
+    return typeof val === 'string' ? new Date(val) : val;
+  }).optional(),
+  deliveryDate: z.union([z.string(), z.date()]).transform(val => {
+    if (!val) return undefined;
+    return typeof val === 'string' ? new Date(val) : val;
+  }).optional(),
 });
 
-export const insertDivisionSchema = createInsertSchema(divisions).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertDivisionSchema = z.object({
   projectId: z.string(),
   name: z.string().min(1, "Division name is required"),
   order: z.number(),
 });
 
-export const insertItemSchema = createInsertSchema(items).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertItemSchema = z.object({
   divisionId: z.string(),
   description: z.string().min(1, "Description is required"),
   unit: unitEnum,
@@ -258,12 +311,14 @@ export const updateProjectSchema = z.object({
   name: z.string().min(1).optional(),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
-  startDate: z.union([z.string(), z.date()]).transform(val => 
-    typeof val === 'string' ? new Date(val) : val
-  ).optional(),
-  deliveryDate: z.union([z.string(), z.date()]).transform(val => 
-    typeof val === 'string' ? new Date(val) : val
-  ).optional(),
+  startDate: z.union([z.string(), z.date()]).transform(val => {
+    if (!val) return undefined;
+    return typeof val === 'string' ? new Date(val) : val;
+  }).optional(),
+  deliveryDate: z.union([z.string(), z.date()]).transform(val => {
+    if (!val) return undefined;
+    return typeof val === 'string' ? new Date(val) : val;
+  }).optional(),
 });
 
 export const updateDivisionSchema = z.object({
@@ -284,177 +339,191 @@ export const updateItemSchema = z.object({
   status: itemStatusEnum.optional(),
 });
 
-// Multi-Role Management Schemas
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertUserSchema = z.object({
+  firebaseUid: z.string().optional(),
   username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
   role: userRoleEnum,
   fullName: z.string().min(1, "Full name is required"),
 });
 
-export const insertEmployeeSchema = createInsertSchema(employees).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertEmployeeSchema = z.object({
   userId: z.string(),
+  idCard: z.string().optional(),
+  whatsapp: z.string().optional(),
+  homeAddress: z.string().optional(),
+  joiningDate: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  profilePicture: z.string().optional(),
+  designation: designationEnum.optional(),
+  basicSalary: z.number().min(0).optional(),
+  travelingAllowance: z.number().min(0).optional(),
+  medicalAllowance: z.number().min(0).optional(),
+  foodAllowance: z.number().min(0).optional(),
+  salaryDate: z.number().min(1).max(31).optional(),
+  isSalaryHeld: z.boolean().optional(),
 });
 
-export const insertClientSchema = createInsertSchema(clients).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertClientSchema = z.object({
   userId: z.string(),
+  company: z.string().optional(),
+  contactNumber: z.string().optional(),
+  email: z.string().email().optional(),
+  address: z.string().optional(),
 });
 
-export const insertProjectAssignmentSchema = createInsertSchema(projectAssignments).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertProjectAssignmentSchema = z.object({
   projectId: z.string(),
   userId: z.string(),
   assignedBy: z.string(),
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
+export const insertTaskSchema = z.object({
   projectId: z.string(),
   employeeId: z.string(),
   taskType: taskTypeEnum,
+  description: z.string().optional(),
   status: taskStatusEnum.optional(),
+  remarks: z.string().optional(),
+  dueDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
   assignedBy: z.string(),
 });
 
-export const insertProcurementItemSchema = createInsertSchema(procurementItems).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertProcurementItemSchema = z.object({
   projectId: z.string(),
   itemName: z.string().min(1, "Item name is required"),
   projectCost: z.number().min(0, "Project cost must be positive"),
   executionCost: z.number().min(0, "Execution cost must be positive").optional(),
   quantity: z.number().min(0, "Quantity must be positive"),
   unit: z.string().min(1, "Unit is required"),
+  isPurchased: z.boolean().optional(),
+  billNumber: z.string().optional(),
+  rentalDetails: z.string().optional(),
+  notes: z.string().optional(),
+  purchasedBy: z.string().optional(),
+  purchasedDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
 });
 
-export const insertLaborCostSchema = createInsertSchema(laborCosts).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertLaborCostSchema = z.object({
   projectId: z.string(),
   laborType: laborTypeEnum,
   wageRate: z.number().min(0).optional(),
   numberOfWorkers: z.number().int().min(0).optional(),
   contractAmount: z.number().min(0).optional(),
+  description: z.string().optional(),
+  startDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  endDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
 });
 
-export const insertAttendanceSchema = createInsertSchema(attendance).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertAttendanceSchema = z.object({
   employeeId: z.string(),
   attendanceDate: z.union([z.string(), z.date()]).transform(val => 
     typeof val === 'string' ? new Date(val) : val
   ),
+  isPresent: z.boolean().optional(),
+  notes: z.string().optional(),
 });
 
-export const insertEmployeeDocumentSchema = createInsertSchema(employeeDocuments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
+export const insertEmployeeDocumentSchema = z.object({
   employeeId: z.string(),
   documentType: documentTypeEnum,
   template: z.string().min(1, "Template is required"),
+  generatedDocument: z.string().optional(),
 });
 
-export const insertSalarySchema = createInsertSchema(salaries).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertSalarySchema = z.object({
   employeeId: z.string(),
   month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format"),
   basicSalary: z.number().min(0, "Basic salary must be positive"),
-  incentives: z.number().min(0).optional(),
-  medical: z.number().min(0).optional(),
-  tax: z.number().min(0).optional(),
-  deductions: z.number().min(0).optional(),
+  travelingAllowance: z.number().min(0).optional(),
+  medicalAllowance: z.number().min(0).optional(),
+  foodAllowance: z.number().min(0).optional(),
+  totalEarnings: z.number().min(0).optional(),
+  advancePaid: z.number().min(0).optional(),
+  absentDeductions: z.number().min(0).optional(),
+  otherDeductions: z.number().min(0).optional(),
+  totalDeductions: z.number().min(0).optional(),
   netSalary: z.number().min(0, "Net salary must be positive"),
+  paidAmount: z.number().min(0).optional(),
+  remainingAmount: z.number().min(0).optional(),
+  isPaid: z.boolean().optional(),
+  isHeld: z.boolean().optional(),
+  paidDate: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  salaryDate: z.number().min(1).max(31).optional(),
+  attendanceDays: z.number().min(0).optional(),
+  totalWorkingDays: z.number().min(0).optional(),
 });
 
-export const insertCommentSchema = createInsertSchema(comments).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertSalaryAdvanceSchema = z.object({
+  employeeId: z.string(),
+  salaryId: z.string().optional(),
+  amount: z.number().min(0, "Amount must be positive"),
+  date: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ),
+  reason: z.string().optional(),
+  paidBy: z.string(),
+});
+
+export const insertSalaryPaymentSchema = z.object({
+  salaryId: z.string(),
+  amount: z.number().min(0, "Amount must be positive"),
+  paymentDate: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ),
+  paymentMethod: z.string().optional(),
+  notes: z.string().optional(),
+  paidBy: z.string(),
+});
+
+export const insertCommentSchema = z.object({
   projectId: z.string(),
   userId: z.string(),
   comment: z.string().min(1, "Comment cannot be empty"),
 });
 
-export const insertProjectFinancialsSchema = createInsertSchema(projectFinancials).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
+export const insertProjectFinancialsSchema = z.object({
   projectId: z.string(),
   contractValue: z.number().min(0, "Contract value must be positive"),
   amountReceived: z.number().min(0).optional(),
   workCompleted: z.number().min(0).max(100).optional(),
+  isArchived: z.boolean().optional(),
+  archivedDate: z.union([z.string(), z.date()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
 });
 
-// Types
-export type Project = typeof projects.$inferSelect;
+// Insert Types
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type UpdateProject = z.infer<typeof updateProjectSchema>;
-
-export type Division = typeof divisions.$inferSelect;
 export type InsertDivision = z.infer<typeof insertDivisionSchema>;
 export type UpdateDivision = z.infer<typeof updateDivisionSchema>;
-
-export type Item = typeof items.$inferSelect;
 export type InsertItem = z.infer<typeof insertItemSchema>;
 export type UpdateItem = z.infer<typeof updateItemSchema>;
-
-export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-
-export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
-
-export type Client = typeof clients.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
-
-export type ProjectAssignment = typeof projectAssignments.$inferSelect;
 export type InsertProjectAssignment = z.infer<typeof insertProjectAssignmentSchema>;
-
-export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
-
-export type ProcurementItem = typeof procurementItems.$inferSelect;
 export type InsertProcurementItem = z.infer<typeof insertProcurementItemSchema>;
-
-export type LaborCost = typeof laborCosts.$inferSelect;
 export type InsertLaborCost = z.infer<typeof insertLaborCostSchema>;
-
-export type Attendance = typeof attendance.$inferSelect;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
-
-export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
 export type InsertEmployeeDocument = z.infer<typeof insertEmployeeDocumentSchema>;
-
-export type Salary = typeof salaries.$inferSelect;
 export type InsertSalary = z.infer<typeof insertSalarySchema>;
-
-export type Comment = typeof comments.$inferSelect;
+export type InsertSalaryAdvance = z.infer<typeof insertSalaryAdvanceSchema>;
+export type InsertSalaryPayment = z.infer<typeof insertSalaryPaymentSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
-
-export type ProjectFinancials = typeof projectFinancials.$inferSelect;
 export type InsertProjectFinancials = z.infer<typeof insertProjectFinancialsSchema>;
 
 export interface DivisionWithItems extends Division {

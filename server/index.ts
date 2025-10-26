@@ -1,166 +1,114 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import { Pool } from "@neondatabase/serverless";
-import { setupVite, serveStatic, log } from "./vite";
+import cors from "cors";
+import dotenv from "dotenv";
+import { createServer } from "http";
+import { registerRoutes } from "./routes";
+import { registerExtensionRoutes } from "./routes-extensions";
+import { createRequire } from 'module';
+import { db } from "./firebase";
+
+dotenv.config();
+
+// Import CommonJS module for Firestore session store
+const require = createRequire(import.meta.url);
+const FirestoreStoreFactory = require("firestore-store");
+const FirestoreStore = FirestoreStoreFactory(session);
 
 const app = express();
+app.use(express.json());
 
-// Trust proxy - Required for apps behind reverse proxies (like Replit deployments)
-// This ensures secure cookies work properly in production
-app.set('trust proxy', 1);
+// ✅ Dynamic origin handling for local + production
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map(o => o.trim())
+  .filter(o => o.length > 0);
 
-// Health check endpoint - ABSOLUTE FIRST - No dependencies, no imports, no async operations
-// Dedicated /health endpoint for deployment platform health checks
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
+// Add default origins if none configured
+if (allowedOrigins.length === 0) {
+  allowedOrigins.push("http://localhost:5173", "http://localhost:5000");
+}
 
-// Root endpoint health check fallback for platforms that only check /
-// This is more selective and won't interfere with normal app routing
-app.use((req, res, next) => {
-  // Only respond to root path requests that look like health checks
-  if (req.method === 'GET' && req.path === '/') {
-    const accept = req.headers.accept || '';
-    const userAgent = req.headers['user-agent'] || '';
-    
-    // Deployment health checks typically have simple/no user agents and don't request HTML
-    const looksLikeHealthCheck = 
-      (!userAgent || userAgent.includes('HealthCheck') || userAgent.includes('curl')) &&
-      !accept.includes('text/html');
-    
-    if (looksLikeHealthCheck) {
-      return res.status(200).send('OK');
+console.log("🌐 CORS Allowed Origins:", allowedOrigins);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+    if (!origin) {
+      return callback(null, true);
     }
-  }
-  
-  // All other requests proceed to the app
-  next();
-});
 
-// Security check: Ensure SESSION_SECRET is set (after health check)
-if (!process.env.SESSION_SECRET) {
-  console.error("FATAL: SESSION_SECRET environment variable is not set!");
-  console.error("Server will not start without a secure session secret.");
-  process.exit(1);
-}
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-// Import routes and auth AFTER health check is established
-// This prevents any database initialization from blocking the health check
-import { registerRoutes } from "./routes";
-import { attachUser } from "./auth";
-
-declare module 'http' {
-  interface IncomingMessage {
-    rawBody: unknown
-  }
-}
-
-// Session typing
-declare module 'express-session' {
-  interface SessionData {
-    userId?: string;
-  }
-}
-
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
+    console.warn(`❌ CORS blocked origin: ${origin}`);
+    callback(new Error(`CORS blocked: ${origin}. Allowed origins: ${allowedOrigins.join(", ")}`));
+  },
+  credentials: true,
 }));
-app.use(express.urlencoded({ extended: false }));
 
-// Session store configuration
-const PgSession = connectPgSimple(session);
-const sessionStore = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL
-  ? new PgSession({
-      pool: new Pool({ connectionString: process.env.DATABASE_URL }),
-      tableName: 'session',
-      createTableIfMissing: true,
-    })
-  : undefined; // Use default MemoryStore in development
-
-// Session middleware
+// ✅ Session configuration with Firestore store for persistence
+const isProd = process.env.NODE_ENV === "production";
 app.use(session({
-  store: sessionStore,
-  secret: process.env.SESSION_SECRET,
+  store: new FirestoreStore({
+    database: db,
+    collection: 'sessions',
+  }),
+  secret: process.env.SESSION_SECRET || "dev_secret_key",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-  }
+    secure: isProd,                      // ✅ true only in production (HTTPS)
+    sameSite: isProd ? "none" : "lax", // ✅ none for cross-origin prod, lax for local
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  },
 }));
 
-// Attach user to request if session exists
-app.use(attachUser);
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+// ✅ Attach logged-in user to requests
+app.use(async (req: any, _res, next) => {
+  if (req.session && req.session.userId) {
+    try {
+      const { storage } = await import("./storage");
+      req.user = await storage.getUser(req.session.userId);
+    } catch (err) {
+      console.error("Session attach failed:", err);
     }
-  });
-
+  }
   next();
 });
 
-// Create HTTP server and start listening IMMEDIATELY for instant health checks
-import { createServer } from "http";
-const server = createServer(app);
-const port = parseInt(process.env.PORT || '5000', 10);
+const httpServer = createServer(app);
+registerRoutes(app, httpServer);
+registerExtensionRoutes(app);
 
-// Start listening immediately - health check endpoints work right away
-server.listen(port, "0.0.0.0", () => {
-  log(`serving on port ${port}`);
-  log(`Health check endpoints ready at /health and /`);
-  
-  // Register routes in background - health checks don't need to wait for this
-  registerRoutes(app, server).then(() => {
-    // Error handler middleware
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      res.status(status).json({ message });
-      throw err;
-    });
+// ✅ Serve static files from client/dist in development
+import path from "path";
+import { fileURLToPath } from "url";
 
-    // Setup vite in development, serve static in production
-    const setupPromise = app.get("env") === "development"
-      ? setupVite(app, server)
-      : Promise.resolve(serveStatic(app));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientDist = path.join(__dirname, "../dist/public");
 
-    return setupPromise;
-  }).then(() => {
-    log(`Application fully initialized and ready`);
-  }).catch((error) => {
-    console.error('Failed to initialize application:', error);
-  });
+app.use(express.static(clientDist));
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  }
 });
 
-// Handle server errors without exiting
-server.on('error', (error) => {
-  console.error('Server error:', error);
+const PORT = process.env.PORT || 5000;
+
+// Global error handler to prevent server crashes
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
 });
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+});
+
+httpServer.listen(PORT, () => console.log(`🚀 ASPMS running on port ${PORT} [Mode: ${process.env.NODE_ENV}]`));

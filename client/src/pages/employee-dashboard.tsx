@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, getDay } from "date-fns";
 import { useAuth, logout } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Task, Attendance, Salary, Project, Employee, EmployeeDocument } from "@shared/schema";
+import { Task, Attendance, Salary, Project, Employee, EmployeeDocument, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +25,10 @@ import {
   DollarSign,
   FileText,
   Download,
-  User,
+  User as UserIcon,
   BarChart3,
   CheckCheck,
+  AlertCircle,
 } from "lucide-react";
 
 export default function EmployeeDashboard() {
@@ -128,7 +129,7 @@ export default function EmployeeDashboard() {
       const res = await apiRequest("POST", "/api/attendance", {
         employeeId: user?.id,
         attendanceDate: new Date().toISOString(),
-        isPresent: 1,
+        isPresent: true,
       });
       return res.json();
     },
@@ -172,8 +173,8 @@ export default function EmployeeDashboard() {
 
   // Check if attendance is already marked today
   const today = new Date();
-  const isAttendanceMarkedToday = attendance.some(a => 
-    isSameDay(parseISO(a.attendanceDate as any), today) && a.isPresent === 1
+  const isAttendanceMarkedToday = attendance.some(a =>
+    isSameDay(parseISO(a.attendanceDate as any), today) && a.isPresent === true
   );
 
   // Generate calendar days for selected month
@@ -224,123 +225,258 @@ export default function EmployeeDashboard() {
     try {
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF();
-      
+
+      // Calculate attendance summary for the salary month
+      const monthStart = startOfMonth(parseISO(`${currentSalary.month}-01`));
+      const monthEnd = endOfMonth(parseISO(`${currentSalary.month}-01`));
+      const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+      // Count Sundays (holidays)
+      const sundays = daysInMonth.filter(day => getDay(day) === 0).length;
+      const totalWorkingDays = currentSalary.totalWorkingDays || (daysInMonth.length - sundays);
+      const presentDays = currentSalary.attendanceDays || 0;
+      const absentDays = totalWorkingDays - presentDays;
+
+      // Calculate per-day salary
+      const totalEarnings = currentSalary.totalEarnings || (
+        Number(currentSalary.basicSalary || 0) +
+        Number(currentSalary.travelingAllowance || 0) +
+        Number(currentSalary.medicalAllowance || 0) +
+        Number(currentSalary.foodAllowance || 0)
+      );
+      const perDaySalary = totalWorkingDays > 0 ? totalEarnings / totalWorkingDays : 0;
+
       // Set colors
       const primaryColor = [0, 188, 212]; // Cyan
-      const darkBg = [18, 24, 38];
-      const textColor = [255, 255, 255];
-      
+      const accentColor = [99, 102, 241]; // Indigo
+      const lightGray = [249, 250, 251];
+
       // Header - ARKA Services branding
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(0, 0, 210, 40, 'F');
-      
+      doc.rect(0, 0, 210, 45, 'F');
+
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(24);
+      doc.setFontSize(26);
       doc.setFont("helvetica", "bold");
-      doc.text("ARKA SERVICES", 105, 20, { align: "center" });
-      
+      doc.text("ARKA SERVICES", 105, 22, { align: "center" });
+
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text("arka.pk", 105, 28, { align: "center" });
-      doc.text("Architecture & Interior Design", 105, 34, { align: "center" });
-      
+      doc.text("www.arka.pk | Architecture & Interior Design", 105, 31, { align: "center" });
+      doc.text("Professional Salary Statement", 105, 38, { align: "center" });
+
       // Salary Slip Title
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(18);
+      doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text("SALARY SLIP", 105, 55, { align: "center" });
-      
-      // Employee Details
+      doc.text("SALARY SLIP", 105, 58, { align: "center" });
+
+      // Employee Details Section
+      let yPos = 72;
+      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.rect(15, yPos - 5, 180, 28, 'F');
+
       doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Employee Name: ${user?.fullName}`, 20, 70);
-      doc.text(`Month: ${format(parseISO(`${currentSalary.month}-01`), "MMMM yyyy")}`, 20, 78);
-      
-      // Earnings Section
-      let yPos = 95;
       doc.setFont("helvetica", "bold");
+      doc.text("Employee Information", 20, yPos);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      yPos += 7;
+      doc.text(`Name: ${user?.fullName || 'N/A'}`, 20, yPos);
+      doc.text(`Employee ID: ${user?.username || 'N/A'}`, 120, yPos);
+
+      yPos += 6;
+      if (employee?.designation) {
+        doc.text(`Designation: ${employee.designation}`, 20, yPos);
+      }
+      doc.text(`Period: ${format(parseISO(`${currentSalary.month}-01`), "MMMM yyyy")}`, 120, yPos);
+
+      yPos += 6;
+      doc.text(`Salary Date: ${currentSalary.salaryDate || 1}th of each month`, 20, yPos);
+
+      // Main Salary Details - Two Column Layout
+      yPos += 15;
+
+      // LEFT COLUMN - EARNINGS
       doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text("EARNINGS", 20, yPos);
-      
+
+      // Draw separator line
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.line(20, yPos + 2, 95, yPos + 2);
+
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       yPos += 10;
-      doc.text("Basic Salary", 25, yPos);
-      doc.text(`PKR ${Number(currentSalary.basicSalary).toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      yPos += 8;
-      doc.text("Incentives", 25, yPos);
-      doc.text(`PKR ${Number(currentSalary.incentives).toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      yPos += 8;
-      doc.text("Medical Allowances", 25, yPos);
-      doc.text(`PKR ${Number(currentSalary.medical).toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      // Total Earnings
-      const totalEarnings = Number(currentSalary.basicSalary) + Number(currentSalary.incentives) + Number(currentSalary.medical);
-      yPos += 12;
+
+      const leftColX = 25;
+      const rightColX = 110;
+
+      doc.text("Basic Salary", leftColX, yPos);
+      doc.text(`PKR ${Number(currentSalary.basicSalary || 0).toLocaleString()}`, 90, yPos, { align: "right" });
+
+      yPos += 7;
+      doc.text("Traveling Allowance", leftColX, yPos);
+      doc.text(`PKR ${Number(currentSalary.travelingAllowance || 0).toLocaleString()}`, 90, yPos, { align: "right" });
+
+      yPos += 7;
+      doc.text("Medical Allowance", leftColX, yPos);
+      doc.text(`PKR ${Number(currentSalary.medicalAllowance || 0).toLocaleString()}`, 90, yPos, { align: "right" });
+
+      yPos += 7;
+      doc.text("Food Allowance", leftColX, yPos);
+      doc.text(`PKR ${Number(currentSalary.foodAllowance || 0).toLocaleString()}`, 90, yPos, { align: "right" });
+
+      yPos += 10;
       doc.setFont("helvetica", "bold");
-      doc.text("Total Earnings", 25, yPos);
-      doc.text(`PKR ${totalEarnings.toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      // Deductions Section
-      yPos += 20;
+      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.rect(leftColX - 5, yPos - 5, 75, 8, 'F');
+      doc.text("GROSS EARNINGS", leftColX, yPos);
+      doc.text(`PKR ${totalEarnings.toLocaleString()}`, 90, yPos, { align: "right" });
+
+      // RIGHT COLUMN - DEDUCTIONS (start from same top position)
+      let deductionYPos = yPos - 40; // Reset to earnings start position
+
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
-      doc.text("DEDUCTIONS", 20, yPos);
-      
+      doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+      doc.text("DEDUCTIONS", rightColX, deductionYPos);
+
+      // Draw separator line
+      doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
+      doc.line(rightColX, deductionYPos + 2, 185, deductionYPos + 2);
+
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      yPos += 10;
-      doc.text("Tax", 25, yPos);
-      doc.text(`PKR ${Number(currentSalary.tax).toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      yPos += 8;
-      doc.text("Other Deductions", 25, yPos);
-      doc.text(`PKR ${Number(currentSalary.deductions).toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      // Total Deductions
-      const totalDeductions = Number(currentSalary.tax) + Number(currentSalary.deductions);
-      yPos += 12;
+      doc.setFontSize(10);
+      deductionYPos += 10;
+
+      doc.text("Advance Payments", rightColX + 5, deductionYPos);
+      doc.text(`PKR ${Number(currentSalary.advancePaid || 0).toLocaleString()}`, 185, deductionYPos, { align: "right" });
+
+      deductionYPos += 7;
+      doc.text("Absent Deductions", rightColX + 5, deductionYPos);
+      doc.text(`PKR ${Number(currentSalary.absentDeductions || 0).toLocaleString()}`, 185, deductionYPos, { align: "right" });
+
+      deductionYPos += 7;
+      doc.text("Other Deductions", rightColX + 5, deductionYPos);
+      doc.text(`PKR ${Number(currentSalary.otherDeductions || 0).toLocaleString()}`, 185, deductionYPos, { align: "right" });
+
+      deductionYPos += 10;
       doc.setFont("helvetica", "bold");
-      doc.text("Total Deductions", 25, yPos);
-      doc.text(`PKR ${totalDeductions.toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      // Net Salary (highlighted)
+      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.rect(rightColX, deductionYPos - 5, 80, 8, 'F');
+      doc.text("TOTAL DEDUCTIONS", rightColX + 5, deductionYPos);
+      const totalDeductions = currentSalary.totalDeductions ||
+        (Number(currentSalary.advancePaid || 0) +
+         Number(currentSalary.absentDeductions || 0) +
+         Number(currentSalary.otherDeductions || 0));
+      doc.text(`PKR ${totalDeductions.toLocaleString()}`, 185, deductionYPos, { align: "right" });
+
+      // Attendance Summary Section
       yPos += 20;
+      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.rect(15, yPos - 5, 180, 28, 'F');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text("ATTENDANCE SUMMARY", 20, yPos);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      yPos += 7;
+      doc.text(`Total Days in Month: ${daysInMonth.length}`, 20, yPos);
+      doc.text(`Working Days: ${totalWorkingDays}`, 90, yPos);
+      doc.text(`Sundays (Holidays): ${sundays}`, 140, yPos);
+
+      yPos += 6;
+      doc.text(`Present Days: ${presentDays}`, 20, yPos);
+      doc.text(`Absent Days: ${absentDays}`, 90, yPos);
+      doc.text(`Per Day Salary: PKR ${perDaySalary.toFixed(2)}`, 140, yPos);
+
+      yPos += 6;
+      if (absentDays > 0) {
+        doc.setTextColor(220, 38, 38); // Red for deductions
+        doc.text(`Deduction for ${absentDays} absent day(s): PKR ${(absentDays * perDaySalary).toLocaleString()}`, 20, yPos);
+        doc.setTextColor(0, 0, 0);
+      }
+
+      // NET SALARY - Highlighted Box
+      yPos += 18;
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(15, yPos - 8, 180, 15, 'F');
-      
+      doc.roundedRect(15, yPos - 10, 180, 18, 3, 3, 'F');
+
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
       doc.text("NET SALARY", 25, yPos);
-      doc.text(`PKR ${Number(currentSalary.netSalary).toLocaleString()}`, 160, yPos, { align: "right" });
-      
-      // Payment Status
+      const netSalary = currentSalary.netSalary || (totalEarnings - totalDeductions);
+      doc.text(`PKR ${Number(netSalary).toLocaleString()}`, 185, yPos, { align: "right" });
+
+      // Payment Details Section
+      yPos += 18;
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("PAYMENT DETAILS", 20, yPos);
+
       doc.setFont("helvetica", "normal");
-      yPos += 20;
-      doc.text(`Payment Status: ${currentSalary.isPaid ? 'PAID' : 'NOT PAID'}`, 20, yPos);
-      
-      if (currentSalary.paidDate) {
-        yPos += 8;
-        doc.text(`Payment Date: ${format(parseISO(currentSalary.paidDate as any), 'dd MMM yyyy')}`, 20, yPos);
+      doc.setFontSize(10);
+      yPos += 7;
+
+      doc.text(`Amount Paid: PKR ${Number(currentSalary.paidAmount || 0).toLocaleString()}`, 20, yPos);
+      const remainingAmount = currentSalary.remainingAmount || (netSalary - Number(currentSalary.paidAmount || 0));
+      doc.text(`Remaining Amount: PKR ${remainingAmount.toLocaleString()}`, 120, yPos);
+
+      yPos += 6;
+      doc.text(`Payment Status: ${currentSalary.isPaid ? 'PAID' : 'PENDING'}`, 20, yPos);
+      if (currentSalary.isPaid && currentSalary.paidDate) {
+        doc.text(`Payment Date: ${format(parseISO(currentSalary.paidDate as any), 'dd MMM yyyy')}`, 120, yPos);
       }
-      
-      // Footer
-      doc.setFontSize(9);
-      doc.setTextColor(128, 128, 128);
-      doc.text("This is a computer-generated salary slip and does not require a signature.", 105, 270, { align: "center" });
-      doc.text("For queries, please contact ARKA Services at arka.pk", 105, 277, { align: "center" });
-      
+
+      if (currentSalary.isHeld) {
+        yPos += 6;
+        doc.setTextColor(220, 38, 38);
+        doc.setFont("helvetica", "bold");
+        doc.text("⚠ SALARY ON HOLD - Pending Tasks", 20, yPos);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+      }
+
+      // Footer Section
+      yPos = 270;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, yPos, 195, yPos);
+
+      yPos += 5;
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont("helvetica", "italic");
+      doc.text("This is a computer-generated salary slip and does not require a signature.", 105, yPos, { align: "center" });
+
+      yPos += 4;
+      doc.text("For any queries regarding your salary, please contact HR at ARKA Services", 105, yPos, { align: "center" });
+
+      yPos += 4;
+      doc.setFont("helvetica", "bold");
+      doc.text("www.arka.pk | contact@arka.pk", 105, yPos, { align: "center" });
+
       // Save PDF
-      doc.save(`ARKA-Salary-Slip-${currentSalary.month}.pdf`);
-      
+      const fileName = `ARKA-Salary-Slip-${(user?.fullName || 'Employee')?.replace(/\s+/g, '-')}-${currentSalary.month}.pdf`;
+      doc.save(fileName);
+
       toast({
-        title: "Downloaded",
-        description: "Salary slip PDF has been downloaded.",
+        title: "Downloaded Successfully",
+        description: "Professional salary slip PDF has been downloaded.",
       });
     } catch (error) {
+      console.error("PDF generation error:", error);
       toast({
         title: "Error",
         description: "Failed to generate PDF. Please try again.",
@@ -378,7 +514,7 @@ export default function EmployeeDashboard() {
               </Avatar>
               <div>
                 <p className="text-sm font-semibold text-foreground" data-testid="text-employee-name">
-                  {user?.fullName}
+                  {user?.fullName || 'Employee'}
                 </p>
                 <p className="text-xs text-muted-foreground">Employee</p>
               </div>
@@ -605,10 +741,10 @@ export default function EmployeeDashboard() {
                     </div>
                   ))}
                   {daysInMonth.map(day => {
-                    const attendanceRecord = attendance.find(a => 
+                    const attendanceRecord = attendance.find(a =>
                       isSameDay(parseISO(a.attendanceDate as any), day)
                     );
-                    const isPresent = attendanceRecord?.isPresent === 1;
+                    const isPresent = attendanceRecord?.isPresent === true;
                     const isToday = isSameDay(day, today);
 
                     return (
@@ -659,13 +795,13 @@ export default function EmployeeDashboard() {
                   <div className="text-center p-4 rounded-md bg-green-500/10 border border-green-500/30">
                     <p className="text-sm text-muted-foreground mb-2">Present</p>
                     <p className="text-3xl font-bold text-green-500" data-testid="text-present-days">
-                      {attendance.filter(a => a.isPresent === 1).length}
+                      {attendance.filter(a => a.isPresent === true).length}
                     </p>
                   </div>
                   <div className="text-center p-4 rounded-md bg-red-500/10 border border-red-500/30">
                     <p className="text-sm text-muted-foreground mb-2">Absent</p>
                     <p className="text-3xl font-bold text-red-500" data-testid="text-absent-days">
-                      {daysInMonth.length - attendance.filter(a => a.isPresent === 1).length}
+                      {daysInMonth.length - attendance.filter(a => a.isPresent === true).length}
                     </p>
                   </div>
                 </div>
@@ -700,19 +836,37 @@ export default function EmployeeDashboard() {
                         <div className="flex justify-between items-center py-2">
                           <span className="text-sm text-muted-foreground">Basic Salary</span>
                           <span className="text-sm font-semibold text-foreground" data-testid="text-basic-salary">
-                            PKR {Number(currentSalary.basicSalary).toLocaleString()}
+                            PKR {Number(currentSalary.basicSalary || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-2">
-                          <span className="text-sm text-muted-foreground">Incentives</span>
-                          <span className="text-sm font-semibold text-foreground" data-testid="text-incentives">
-                            PKR {Number(currentSalary.incentives).toLocaleString()}
+                          <span className="text-sm text-muted-foreground">Traveling Allowance</span>
+                          <span className="text-sm font-semibold text-foreground" data-testid="text-traveling">
+                            PKR {Number(currentSalary.travelingAllowance || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-2">
-                          <span className="text-sm text-muted-foreground">Medical</span>
+                          <span className="text-sm text-muted-foreground">Medical Allowance</span>
                           <span className="text-sm font-semibold text-foreground" data-testid="text-medical">
-                            PKR {Number(currentSalary.medical).toLocaleString()}
+                            PKR {Number(currentSalary.medicalAllowance || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm text-muted-foreground">Food Allowance</span>
+                          <span className="text-sm font-semibold text-foreground" data-testid="text-food">
+                            PKR {Number(currentSalary.foodAllowance || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm font-bold text-foreground">Total Earnings</span>
+                          <span className="text-sm font-bold text-green-600" data-testid="text-total-earnings">
+                            PKR {Number(currentSalary.totalEarnings ||
+                              (Number(currentSalary.basicSalary || 0) +
+                               Number(currentSalary.travelingAllowance || 0) +
+                               Number(currentSalary.medicalAllowance || 0) +
+                               Number(currentSalary.foodAllowance || 0))
+                            ).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -721,15 +875,32 @@ export default function EmployeeDashboard() {
                         <h4 className="text-sm font-semibold text-muted-foreground uppercase">Deductions</h4>
                         <Separator />
                         <div className="flex justify-between items-center py-2">
-                          <span className="text-sm text-muted-foreground">Tax</span>
-                          <span className="text-sm font-semibold text-destructive" data-testid="text-tax">
-                            PKR {Number(currentSalary.tax).toLocaleString()}
+                          <span className="text-sm text-muted-foreground">Advance Paid</span>
+                          <span className="text-sm font-semibold text-destructive" data-testid="text-advance">
+                            PKR {Number(currentSalary.advancePaid || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm text-muted-foreground">Absent Deductions</span>
+                          <span className="text-sm font-semibold text-destructive" data-testid="text-absent">
+                            PKR {Number(currentSalary.absentDeductions || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-2">
                           <span className="text-sm text-muted-foreground">Other Deductions</span>
                           <span className="text-sm font-semibold text-destructive" data-testid="text-deductions">
-                            PKR {Number(currentSalary.deductions).toLocaleString()}
+                            PKR {Number(currentSalary.otherDeductions || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm font-bold text-foreground">Total Deductions</span>
+                          <span className="text-sm font-bold text-red-600" data-testid="text-total-deductions">
+                            PKR {Number(currentSalary.totalDeductions ||
+                              (Number(currentSalary.advancePaid || 0) +
+                               Number(currentSalary.absentDeductions || 0) +
+                               Number(currentSalary.otherDeductions || 0))
+                            ).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -737,17 +908,86 @@ export default function EmployeeDashboard() {
 
                     <Separator />
 
+                    {/* Attendance Summary */}
+                    {currentSalary.attendanceDays !== undefined && currentSalary.totalWorkingDays !== undefined && (
+                      <div className="bg-muted/50 p-4 rounded-md">
+                        <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Attendance Summary</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Working Days</p>
+                            <p className="text-lg font-bold text-foreground">{currentSalary.totalWorkingDays}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Present</p>
+                            <p className="text-lg font-bold text-green-600">{currentSalary.attendanceDays}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Absent</p>
+                            <p className="text-lg font-bold text-red-600">
+                              {currentSalary.totalWorkingDays - currentSalary.attendanceDays}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Per Day Salary</p>
+                            <p className="text-lg font-bold text-foreground">
+                              PKR {currentSalary.totalWorkingDays > 0
+                                ? ((currentSalary.totalEarnings || 0) / currentSalary.totalWorkingDays).toFixed(0)
+                                : 0}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <Separator />
+
                     <div className="flex justify-between items-center p-4 rounded-md bg-primary/10 border border-primary/40">
                       <span className="text-lg font-semibold text-foreground">Net Salary</span>
                       <span className="text-2xl font-bold text-primary" data-testid="text-net-salary">
-                        PKR {Number(currentSalary.netSalary).toLocaleString()}
+                        PKR {Number(currentSalary.netSalary || 0).toLocaleString()}
                       </span>
                     </div>
 
+                    {/* Payment Status */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center p-3 rounded-md bg-green-500/10 border border-green-500/30">
+                        <p className="text-xs text-muted-foreground mb-1">Amount Paid</p>
+                        <p className="text-lg font-bold text-green-600" data-testid="text-paid-amount">
+                          PKR {Number(currentSalary.paidAmount || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 rounded-md bg-orange-500/10 border border-orange-500/30">
+                        <p className="text-xs text-muted-foreground mb-1">Remaining</p>
+                        <p className="text-lg font-bold text-orange-600" data-testid="text-remaining-amount">
+                          PKR {Number(currentSalary.remainingAmount ||
+                            (Number(currentSalary.netSalary || 0) - Number(currentSalary.paidAmount || 0))
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 rounded-md bg-blue-500/10 border border-blue-500/30">
+                        <p className="text-xs text-muted-foreground mb-1">Status</p>
+                        <Badge variant={currentSalary.isPaid ? "default" : "secondary"} className="text-sm">
+                          {currentSalary.isHeld ? "ON HOLD" : currentSalary.isPaid ? "PAID" : "PENDING"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {currentSalary.isHeld && (
+                      <div className="bg-destructive/10 border border-destructive/30 rounded-md p-4">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5 text-destructive" />
+                          <p className="font-semibold text-destructive">Salary On Hold</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Your salary has been held. Please complete all pending tasks or contact your supervisor.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex justify-center">
-                      <Button onClick={downloadSalarySlip} data-testid="button-download-slip">
+                      <Button onClick={downloadSalarySlip} size="lg" data-testid="button-download-slip">
                         <Download className="w-4 h-4 mr-2" />
-                        Download Salary Slip
+                        Download Professional Salary Slip
                       </Button>
                     </div>
                   </div>
@@ -806,9 +1046,9 @@ export default function EmployeeDashboard() {
                     </Avatar>
                     <div>
                       <h3 className="text-xl font-bold text-foreground" data-testid="text-profile-name">
-                        {user?.fullName}
+                        {user?.fullName || 'Employee'}
                       </h3>
-                      <p className="text-sm text-muted-foreground">Employee ID: {user?.username}</p>
+                      <p className="text-sm text-muted-foreground">Employee ID: {user?.username || 'N/A'}</p>
                     </div>
                   </div>
                   <Separator />
@@ -868,7 +1108,7 @@ export default function EmployeeDashboard() {
                           const url = URL.createObjectURL(blob);
                           const a = document.createElement("a");
                           a.href = url;
-                          a.download = `${doc.documentType.replace(/ /g, "-")}-${user?.fullName}.txt`;
+                          a.download = `${doc.documentType.replace(/ /g, "-")}-${user?.fullName || 'Employee'}.txt`;
                           document.body.appendChild(a);
                           a.click();
                           document.body.removeChild(a);
@@ -945,8 +1185,8 @@ function UpdateTaskDialog({
   onUpdate: (status: string, remarks?: string) => void;
   isUpdating: boolean;
 }) {
-  const [status, setStatus] = useState(task?.status || "Undone");
-  const [remarks, setRemarks] = useState(task?.remarks || "");
+  const [status, setStatus] = useState<string>(task?.status || "Undone");
+  const [remarks, setRemarks] = useState<string>(task?.remarks || "");
 
   // Update local state when task changes
   useEffect(() => {

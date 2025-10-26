@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth, logout } from "@/lib/auth";
-import { Project, User, Task, ProcurementItem, Comment, insertProjectSchema, insertUserSchema, InsertProject, InsertUser } from "@shared/schema";
+import { Project, User, Task, ProcurementItem, Comment, Attendance, Salary, SalaryAdvance, insertProjectSchema, insertUserSchema, InsertProject, designations } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,15 +37,14 @@ import {
   ExternalLink,
   TrendingUp,
   CalendarIcon,
-  Upload,
+  Receipt,
 } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format, parseISO } from "date-fns";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardStats {
@@ -64,7 +64,7 @@ interface ProjectHealth {
   issues: string[];
 }
 
-type ActiveTab = "projects" | "employees" | "clients" | "procurement" | "accounts" | "tasks" | "users";
+type ActiveTab = "projects" | "employees" | "clients" | "procurement" | "accounts" | "tasks" | "users" | "salary";
 
 export default function PrincipleDashboard() {
   const { user } = useAuth();
@@ -76,6 +76,11 @@ export default function PrincipleDashboard() {
   const [assignTaskOpen, setAssignTaskOpen] = useState(false);
   const [editUserOpen, setEditUserOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [generateSalaryOpen, setGenerateSalaryOpen] = useState(false);
+  const [selectedEmployeeForSalary, setSelectedEmployeeForSalary] = useState<User | null>(null);
+  const [recordAdvanceOpen, setRecordAdvanceOpen] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [selectedSalary, setSelectedSalary] = useState<Salary | null>(null);
 
   // Fetch all data
   const { data: projects = [] } = useQuery<Project[]>({
@@ -84,6 +89,10 @@ export default function PrincipleDashboard() {
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: allEmployees = [] } = useQuery<any[]>({
+    queryKey: ["/api/employees"],
   });
 
   const { data: allTasks = [] } = useQuery<Task[]>({
@@ -136,13 +145,180 @@ export default function PrincipleDashboard() {
     enabled: projects.length > 0,
   });
 
+  const { data: allAttendance = [] } = useQuery<Attendance[]>({
+    queryKey: ["/api/attendance/all"],
+    queryFn: async () => {
+      // Fetch attendance for all employees
+      const attendanceData: Attendance[] = [];
+      const employees = users.filter(u => u.role === "employee");
+      for (const employee of employees) {
+        try {
+          const res = await fetch(`/api/attendance?employeeId=${employee.id}`, {
+            credentials: "include",
+          });
+          if (res.ok) {
+            const data = await res.json();
+            attendanceData.push(...data);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch attendance for employee ${employee.id}`, error);
+        }
+      }
+      return attendanceData;
+    },
+    enabled: users.length > 0,
+  });
+
+  // Fetch all salaries
+  const { data: allSalaries = [] } = useQuery<Salary[]>({
+    queryKey: ["/api/salaries"],
+    enabled: users.length > 0,
+  });
+
+  // Fetch all salary advances
+  const { data: allAdvances = [] } = useQuery<SalaryAdvance[]>({
+    queryKey: ["/api/salary-advances"],
+    enabled: users.length > 0,
+  });
+
+  // Salary API handlers
+  const handleGenerateSalary = async (employeeId: string, month: string) => {
+    try {
+      const response = await apiRequest('POST', '/api/salaries/generate', {
+        employeeId,
+        month
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate salary');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/salaries"] });
+      toast({
+        title: "Success",
+        description: "Salary generated successfully!"
+      });
+      setGenerateSalaryOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate salary",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRecordAdvance = async (data: {
+    employeeId: string;
+    amount: number;
+    date: string;
+    reason?: string;
+  }) => {
+    try {
+      const response = await apiRequest('POST', '/api/salary-advances', data);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to record advance');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/salary-advances"] });
+      toast({
+        title: "Success",
+        description: "Advance recorded successfully!"
+      });
+      setRecordAdvanceOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to record advance",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRecordPayment = async (data: {
+    salaryId: string;
+    amount: number;
+    paymentDate: string;
+    paymentMethod?: string;
+    notes?: string;
+  }) => {
+    try {
+      const response = await apiRequest('POST', '/api/salary-payments', data);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to record payment');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/salaries"] });
+      toast({
+        title: "Success",
+        description: "Payment recorded successfully!"
+      });
+      setRecordPaymentOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to record payment",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleHoldSalary = async (salaryId: string) => {
+    try {
+      const response = await apiRequest('PATCH', `/api/salaries/${salaryId}/hold`, {});
+
+      if (!response.ok) {
+        throw new Error('Failed to hold salary');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/salaries"] });
+      toast({
+        title: "Success",
+        description: "Salary held successfully!"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to hold salary",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReleaseSalary = async (salaryId: string) => {
+    try {
+      const response = await apiRequest('PATCH', `/api/salaries/${salaryId}/release`, {});
+
+      if (!response.ok) {
+        throw new Error('Failed to release salary');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/salaries"] });
+      toast({
+        title: "Success",
+        description: "Salary released successfully!"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to release salary",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Calculate statistics
   const stats: DashboardStats = {
     totalProjects: projects.length,
     activeProjects: projects.length,
-    activeEmployees: users.filter((u) => u.role === "employee" && u.isActive === 1).length,
+    activeEmployees: users.filter((u) => u.role === "employee" && (u.isActive === 1 || u.isActive === true)).length,
     totalClients: users.filter((u) => u.role === "client").length,
-    pendingProcurement: allProcurement.filter((p) => p.isPurchased === 0).length,
+    pendingProcurement: allProcurement.filter((p) => (p.isPurchased === 0 || p.isPurchased === false)).length,
     totalTasks: allTasks.length,
     completedTasks: allTasks.filter((t) => t.status === "Done").length,
   };
@@ -155,7 +331,7 @@ export default function PrincipleDashboard() {
     const taskCompletion = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 100;
 
     const projectProcurement = allProcurement.filter((p) => p.projectId === project.id);
-    const purchasedItems = projectProcurement.filter((p) => p.isPurchased === 1).length;
+    const purchasedItems = projectProcurement.filter((p) => (p.isPurchased === 1 || p.isPurchased === true)).length;
     const totalProcurement = projectProcurement.length;
     const procurementCompletion = totalProcurement > 0 ? (purchasedItems / totalProcurement) * 100 : 100;
 
@@ -252,7 +428,7 @@ export default function PrincipleDashboard() {
             <div className="flex items-center gap-3 px-4 py-2 rounded-md bg-primary/10 border border-primary/40">
               <Avatar data-testid="avatar-user">
                 <AvatarFallback className="bg-primary/20 text-primary font-display">
-                  {user?.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase() || "ZA"}
+                  {user?.fullName?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "ZA"}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -349,6 +525,16 @@ export default function PrincipleDashboard() {
             <UserPlus className="w-4 h-4" />
             Users
           </Button>
+          <Button
+            variant={activeTab === "salary" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setActiveTab("salary")}
+            data-testid="button-nav-salary"
+          >
+            <DollarSign className="w-4 h-4" />
+            Salary
+          </Button>
           <Link href="/budget">
             <Button
               variant="ghost"
@@ -358,6 +544,39 @@ export default function PrincipleDashboard() {
             >
               <Calculator className="w-4 h-4" />
               Budget Tool
+            </Button>
+          </Link>
+          <Link href="/timesheet-management">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              data-testid="button-nav-timesheet"
+            >
+              <Clock className="w-4 h-4" />
+              Timesheets
+            </Button>
+          </Link>
+          <Link href="/billing-invoicing">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              data-testid="button-nav-billing"
+            >
+              <FileText className="w-4 h-4" />
+              Billing
+            </Button>
+          </Link>
+          <Link href="/expense-tracking">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              data-testid="button-nav-expenses"
+            >
+              <Receipt className="w-4 h-4" />
+              Expenses
             </Button>
           </Link>
         </div>
@@ -601,33 +820,77 @@ export default function PrincipleDashboard() {
 
           {activeTab === "employees" && (
             <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-display font-bold text-foreground">
-                  Employee Management
-                </h2>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-display font-bold text-foreground">
+                    Employee Management
+                  </h2>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Total Employees: {users.filter((u) => u.role === "employee").length}
+                </p>
               </div>
               <div className="space-y-4">
-                {users.filter((u) => u.role === "employee").map((employee) => (
-                  <Card key={employee.id} className="p-4 hover-elevate" data-testid={`card-employee-${employee.id}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback className="bg-blue-500/20 text-blue-500">
-                            {employee.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold text-foreground">{employee.fullName}</p>
-                          <p className="text-xs text-muted-foreground">{employee.username}</p>
+                {users.filter((u) => u.role === "employee").map((employee) => {
+                  const employeeTasks = allTasks.filter(t => t.employeeId === employee.id);
+                  const completedTasks = employeeTasks.filter(t => t.status === "Done").length;
+                  const totalTasks = employeeTasks.length;
+
+                  // Calculate this month's attendance
+                  const now = new Date();
+                  const currentMonth = now.getMonth();
+                  const currentYear = now.getFullYear();
+                  const employeeAttendance = allAttendance.filter(a => {
+                    const attendanceDate = new Date(a.attendanceDate);
+                    return a.employeeId === employee.id &&
+                           attendanceDate.getMonth() === currentMonth &&
+                           attendanceDate.getFullYear() === currentYear;
+                  });
+                  const presentDays = employeeAttendance.filter(a => a.isPresent === true).length;
+                  const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+                  return (
+                    <Card key={employee.id} className="p-4 hover-elevate" data-testid={`card-employee-${employee.id}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Avatar>
+                            <AvatarFallback className="bg-blue-500/20 text-blue-500">
+                              {employee.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">{employee.fullName}</p>
+                            <p className="text-xs text-muted-foreground">{employee.username}</p>
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="text-xs text-muted-foreground">
+                                Tasks: {completedTasks}/{totalTasks} completed
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Attendance: {presentDays}/{totalDays} days
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={(employee.isActive === 1 || employee.isActive === true) ? "default" : "outline"}>
+                            {(employee.isActive === 1 || employee.isActive === true) ? "Active" : "Inactive"}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUser(employee);
+                              setEditUserOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
                         </div>
                       </div>
-                      <Badge variant={employee.isActive === 1 ? "default" : "outline"}>
-                        {employee.isActive === 1 ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
                 {users.filter((u) => u.role === "employee").length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">No employees found</p>
                 )}
@@ -658,8 +921,8 @@ export default function PrincipleDashboard() {
                           <p className="text-xs text-muted-foreground">{client.username}</p>
                         </div>
                       </div>
-                      <Badge variant={client.isActive === 1 ? "default" : "outline"}>
-                        {client.isActive === 1 ? "Active" : "Inactive"}
+                      <Badge variant={(client.isActive === 1 || client.isActive === true) ? "default" : "outline"}>
+                        {(client.isActive === 1 || client.isActive === true) ? "Active" : "Inactive"}
                       </Badge>
                     </div>
                   </Card>
@@ -687,13 +950,13 @@ export default function PrincipleDashboard() {
                 <Card className="p-4">
                   <p className="text-xs text-muted-foreground uppercase">Pending Purchase</p>
                   <p className="text-2xl font-bold text-orange-500">
-                    {allProcurement.filter((p) => p.isPurchased === 0).length}
+                    {allProcurement.filter((p) => (p.isPurchased === 0 || p.isPurchased === false)).length}
                   </p>
                 </Card>
                 <Card className="p-4">
                   <p className="text-xs text-muted-foreground uppercase">Purchased</p>
                   <p className="text-2xl font-bold text-green-500">
-                    {allProcurement.filter((p) => p.isPurchased === 1).length}
+                    {allProcurement.filter((p) => (p.isPurchased === 1 || p.isPurchased === true)).length}
                   </p>
                 </Card>
               </div>
@@ -711,8 +974,8 @@ export default function PrincipleDashboard() {
                           Qty: {item.quantity} × {Number(item.projectCost).toLocaleString('en-PK')} PKR
                         </p>
                       </div>
-                      <Badge variant={item.isPurchased === 1 ? "default" : "outline"}>
-                        {item.isPurchased === 1 ? "Purchased" : "Pending"}
+                      <Badge variant={(item.isPurchased === 1 || item.isPurchased === true) ? "default" : "outline"}>
+                        {(item.isPurchased === 1 || item.isPurchased === true) ? "Purchased" : "Pending"}
                       </Badge>
                     </div>
                   ))}
@@ -838,7 +1101,7 @@ export default function PrincipleDashboard() {
                               {u.role}
                             </Badge>
                             <span>•</span>
-                            {u.isActive === 1 ? (
+                            {(u.isActive === 1 || u.isActive === true) ? (
                               <span className="text-green-500 flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" />
                                 Active
@@ -852,8 +1115,8 @@ export default function PrincipleDashboard() {
                           </div>
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setSelectedUser(u);
@@ -866,6 +1129,235 @@ export default function PrincipleDashboard() {
                     </div>
                   </Card>
                 ))}
+              </div>
+            </Card>
+          )}
+
+          {activeTab === "salary" && (
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <DollarSign className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-display font-bold text-foreground">
+                  Employee Salary Management
+                </h2>
+              </div>
+
+              <div className="space-y-4">
+                {users.filter((u) => u.role === "employee").map((user) => {
+                  // Find employee data for this user
+                  const employeeData = allEmployees.find(e => e.userId === user.id);
+
+                  const employeeTasks = allTasks.filter(t => t.employeeId === user.id);
+                  const pendingTasks = employeeTasks.filter(t => t.status !== "Done").length;
+
+                  // Calculate this month's attendance
+                  const now = new Date();
+                  const currentMonth = now.getMonth();
+                  const currentYear = now.getFullYear();
+                  const currentMonthStr = format(now, 'yyyy-MM');
+                  const employeeAttendance = allAttendance.filter(a => {
+                    const attendanceDate = new Date(a.attendanceDate);
+                    return a.employeeId === user.id &&
+                           attendanceDate.getMonth() === currentMonth &&
+                           attendanceDate.getFullYear() === currentYear;
+                  });
+                  const presentDays = employeeAttendance.filter(a => a.isPresent === true).length;
+
+                  // Get current month's salary
+                  const currentSalary = allSalaries.find(s =>
+                    s.employeeId === user.id && s.month === currentMonthStr
+                  );
+
+                  // Get employee advances for current month
+                  const employeeAdvances = allAdvances.filter(a =>
+                    a.employeeId === user.id
+                  );
+                  const currentMonthAdvances = employeeAdvances.filter(a => {
+                    const advDate = new Date(a.date);
+                    return advDate.getMonth() === currentMonth &&
+                           advDate.getFullYear() === currentYear;
+                  });
+                  const totalAdvances = currentMonthAdvances.reduce((sum, a) => sum + a.amount, 0);
+
+                  return (
+                    <Card key={user.id} className="p-5 hover-elevate border-primary/20" data-testid={`card-salary-${user.id}`}>
+                      <div className="space-y-4">
+                        {/* Employee Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="w-12 h-12">
+                              <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                                {user.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-bold text-lg text-foreground">{user.fullName}</p>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>{user.username}</span>
+                                {pendingTasks > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
+                                      {pendingTasks} Pending Task{pendingTasks > 1 ? 's' : ''}
+                                    </Badge>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {currentSalary ? (
+                              <div className="text-sm">
+                                <Badge variant={currentSalary.isPaid ? "default" : currentSalary.isHeld ? "destructive" : "secondary"}>
+                                  {currentSalary.isHeld ? 'Salary Held' : currentSalary.isPaid ? 'Fully Paid' : `Pending: PKR ${currentSalary.remainingAmount.toLocaleString()}`}
+                                </Badge>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedEmployeeForSalary(user);
+                                  setGenerateSalaryOpen(true);
+                                }}
+                                data-testid={`button-view-salary-${user.id}`}
+                              >
+                                <FileText className="w-4 h-4 mr-2" />
+                                Generate Salary
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Salary Overview */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="bg-muted/50 p-3 rounded-md">
+                            <p className="text-xs text-muted-foreground mb-1">Monthly Package</p>
+                            <p className="text-sm font-bold text-foreground">
+                              PKR {(employeeData?.basicSalary || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Basic Salary
+                            </p>
+                          </div>
+                          <div className="bg-green-500/10 p-3 rounded-md border border-green-500/20">
+                            <p className="text-xs text-muted-foreground mb-1">Attendance (This Month)</p>
+                            <p className="text-sm font-bold text-green-600">
+                              {presentDays} Days Present
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Out of {new Date(currentYear, currentMonth + 1, 0).getDate()} days
+                            </p>
+                          </div>
+                          <div className="bg-blue-500/10 p-3 rounded-md border border-blue-500/20">
+                            <p className="text-xs text-muted-foreground mb-1">Salary Status</p>
+                            {currentSalary ? (
+                              <>
+                                <Badge variant={currentSalary.isPaid ? "default" : "secondary"} className="text-xs">
+                                  {currentSalary.isHeld ? 'Held' : currentSalary.isPaid ? 'Paid' : 'Pending Payment'}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  PKR {currentSalary.netSalary.toLocaleString()}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <Badge variant="outline" className="text-xs">
+                                  Not Generated
+                                </Badge>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {format(now, "MMMM yyyy")}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                          <div className={`p-3 rounded-md border ${
+                            pendingTasks > 0
+                              ? 'bg-orange-500/10 border-orange-500/20'
+                              : 'bg-green-500/10 border-green-500/20'
+                          }`}>
+                            <p className="text-xs text-muted-foreground mb-1">Task Status</p>
+                            <p className={`text-sm font-bold ${
+                              pendingTasks > 0 ? 'text-orange-600' : 'text-green-600'
+                            }`}>
+                              {pendingTasks > 0 ? `${pendingTasks} Pending` : 'All Clear'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {employeeTasks.length} total tasks
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEmployeeForSalary(user);
+                              setGenerateSalaryOpen(true);
+                            }}
+                            disabled={!!currentSalary}
+                          >
+                            Generate Salary
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEmployeeForSalary(user);
+                              setRecordAdvanceOpen(true);
+                            }}
+                          >
+                            Record Advance
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSalary(currentSalary || null);
+                              setRecordPaymentOpen(true);
+                            }}
+                            disabled={!currentSalary || currentSalary.isPaid}
+                          >
+                            Record Payment
+                          </Button>
+                          {currentSalary && currentSalary.isHeld ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-green-500/50 text-green-600"
+                              onClick={() => handleReleaseSalary(currentSalary.id)}
+                            >
+                              Release Salary
+                            </Button>
+                          ) : currentSalary && !currentSalary.isHeld && pendingTasks > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-orange-500/50 text-orange-600"
+                              onClick={() => handleHoldSalary(currentSalary.id)}
+                            >
+                              Hold Salary
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+
+                {users.filter((u) => u.role === "employee").length === 0 && (
+                  <div className="text-center py-12">
+                    <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-semibold text-foreground mb-2">No Employees Found</p>
+                    <p className="text-sm text-muted-foreground">
+                      Add employees to start managing salaries
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -900,10 +1392,34 @@ export default function PrincipleDashboard() {
       />
 
       {/* Edit User Dialog */}
-      <EditUserDialog 
-        open={editUserOpen} 
+      <EditUserDialog
+        open={editUserOpen}
         onOpenChange={setEditUserOpen}
         user={selectedUser}
+      />
+
+      {/* Generate Salary Dialog */}
+      <GenerateSalaryDialog
+        open={generateSalaryOpen}
+        onOpenChange={setGenerateSalaryOpen}
+        employee={selectedEmployeeForSalary}
+        onGenerate={handleGenerateSalary}
+      />
+
+      {/* Record Advance Dialog */}
+      <RecordAdvanceDialog
+        open={recordAdvanceOpen}
+        onOpenChange={setRecordAdvanceOpen}
+        employee={selectedEmployeeForSalary}
+        onRecord={handleRecordAdvance}
+      />
+
+      {/* Record Payment Dialog */}
+      <RecordPaymentDialog
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+        salary={selectedSalary}
+        onRecord={handleRecordPayment}
       />
     </div>
   );
@@ -1044,6 +1560,12 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       whatsapp: z.string().min(1, "WhatsApp number is required"),
       homeAddress: z.string().min(1, "Home address is required"),
       joiningDate: z.date({ required_error: "Joining date is required" }),
+      designation: z.string().min(1, "Designation is required"),
+      basicSalary: z.number().min(0, "Basic salary must be positive").optional(),
+      travelingAllowance: z.number().min(0).optional(),
+      medicalAllowance: z.number().min(0).optional(),
+      foodAllowance: z.number().min(0).optional(),
+      salaryDate: z.number().min(1).max(31).optional(),
     })),
     defaultValues: {
       username: "",
@@ -1055,6 +1577,12 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       whatsapp: "",
       homeAddress: "",
       joiningDate: new Date(),
+      designation: "",
+      basicSalary: 0,
+      travelingAllowance: 0,
+      medicalAllowance: 0,
+      foodAllowance: 0,
+      salaryDate: 1,
     },
   });
 
@@ -1082,6 +1610,12 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         homeAddress: data.homeAddress,
         joiningDate: data.joiningDate.toISOString(),
         profilePicture: profilePictureBase64 || undefined,
+        designation: data.designation,
+        basicSalary: data.basicSalary || 0,
+        travelingAllowance: data.travelingAllowance || 0,
+        medicalAllowance: data.medicalAllowance || 0,
+        foodAllowance: data.foodAllowance || 0,
+        salaryDate: data.salaryDate || 1,
       });
       
       return await res.json();
@@ -1260,11 +1794,143 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 <FormItem>
                   <FormLabel>Home Address *</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Enter complete home address" 
+                    <Textarea
+                      placeholder="Enter complete home address"
                       className="resize-none"
-                      {...field} 
-                      data-testid="input-employee-address" 
+                      {...field}
+                      data-testid="input-employee-address"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="designation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Designation *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-designation">
+                        <SelectValue placeholder="Select designation" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {designations.map((designation) => (
+                        <SelectItem key={designation} value={designation}>
+                          {designation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Separator className="my-4" />
+            <h3 className="text-lg font-semibold mb-4">Salary Information</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="basicSalary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Basic Salary (PKR)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="30000"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        data-testid="input-basic-salary"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="travelingAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Traveling Allowance (PKR)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="5000"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        data-testid="input-traveling-allowance"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="medicalAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Medical Allowance (PKR)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="3000"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        data-testid="input-medical-allowance"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="foodAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Food Allowance (PKR)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="2000"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        data-testid="input-food-allowance"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="salaryDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Salary Payment Date (Day of Month)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="31"
+                      placeholder="1"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                      data-testid="input-salary-date"
                     />
                   </FormControl>
                   <FormMessage />
@@ -1437,6 +2103,281 @@ function AssignProjectDialog({
             </Button>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Generate Salary Dialog Component
+function GenerateSalaryDialog({
+  open,
+  onOpenChange,
+  employee,
+  onGenerate
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employee: User | null;
+  onGenerate: (employeeId: string, month: string) => Promise<void>;
+}) {
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employee) return;
+
+    setIsLoading(true);
+    try {
+      await onGenerate(employee.id, selectedMonth);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Generate Salary</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Employee: <span className="font-semibold text-foreground">{employee?.fullName}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Basic Salary: <span className="font-semibold text-foreground">PKR {((employee as any)?.basicSalary || 0).toLocaleString()}</span>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Select Month</label>
+            <Input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              max={format(new Date(), 'yyyy-MM')}
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Generating..." : "Generate Salary"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Record Advance Dialog Component
+function RecordAdvanceDialog({
+  open,
+  onOpenChange,
+  employee,
+  onRecord
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employee: User | null;
+  onRecord: (data: { employeeId: string; amount: number; date: string; reason?: string }) => Promise<void>;
+}) {
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [reason, setReason] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employee) return;
+
+    setIsLoading(true);
+    try {
+      await onRecord({
+        employeeId: employee.id,
+        amount: parseFloat(amount),
+        date,
+        reason: reason || undefined
+      });
+      setAmount('');
+      setReason('');
+      setDate(format(new Date(), 'yyyy-MM-dd'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record Salary Advance</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Employee: <span className="font-semibold text-foreground">{employee?.fullName}</span>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Amount (PKR) *</label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Enter amount"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Date *</label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Reason (Optional)</label>
+            <Input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g., Medical emergency"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Recording..." : "Record Advance"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Record Payment Dialog Component
+function RecordPaymentDialog({
+  open,
+  onOpenChange,
+  salary,
+  onRecord
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  salary: Salary | null;
+  onRecord: (data: { salaryId: string; amount: number; paymentDate: string; paymentMethod?: string; notes?: string }) => Promise<void>;
+}) {
+  const [amount, setAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!salary) return;
+
+    setIsLoading(true);
+    try {
+      await onRecord({
+        salaryId: salary.id,
+        amount: parseFloat(amount),
+        paymentDate,
+        paymentMethod: paymentMethod || undefined,
+        notes: notes || undefined
+      });
+      setAmount('');
+      setPaymentMethod('');
+      setNotes('');
+      setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record Salary Payment</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {salary && (
+            <div className="space-y-2 bg-muted/50 p-3 rounded-md">
+              <p className="text-sm text-muted-foreground">
+                Month: <span className="font-semibold text-foreground">{format(parseISO(salary.month + '-01'), 'MMMM yyyy')}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Net Salary: <span className="font-semibold text-foreground">PKR {salary.netSalary.toLocaleString()}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Remaining: <span className="font-semibold text-orange-600">PKR {salary.remainingAmount.toLocaleString()}</span>
+              </p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Amount (PKR) *</label>
+            <Input
+              type="number"
+              min="0"
+              max={salary?.remainingAmount || 0}
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Enter amount"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Payment Date *</label>
+            <Input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Payment Method (Optional)</label>
+            <Input
+              type="text"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              placeholder="e.g., Bank Transfer, Cash"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Notes (Optional)</label>
+            <Input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g., First installment"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Recording..." : "Record Payment"}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

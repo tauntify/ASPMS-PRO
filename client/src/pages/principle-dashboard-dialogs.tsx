@@ -11,7 +11,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Project, User } from "@shared/schema";
+import { Project, User, designations } from "@shared/schema";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -258,6 +258,12 @@ export function EditUserDialog({
     fullName: z.string().min(1, "Full name is required"),
     password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
     isActive: z.number(),
+    designation: z.string().optional(),
+    basicSalary: z.number().min(0).optional(),
+    travelingAllowance: z.number().min(0).optional(),
+    medicalAllowance: z.number().min(0).optional(),
+    foodAllowance: z.number().min(0).optional(),
+    salaryDate: z.number().min(1).max(31).optional(),
   });
 
   const form = useForm({
@@ -267,6 +273,12 @@ export function EditUserDialog({
       fullName: "",
       password: "",
       isActive: 1,
+      designation: "",
+      basicSalary: 0,
+      travelingAllowance: 0,
+      medicalAllowance: 0,
+      foodAllowance: 0,
+      salaryDate: 1,
     },
   });
 
@@ -277,7 +289,13 @@ export function EditUserDialog({
         username: user.username,
         fullName: user.fullName,
         password: "",
-        isActive: user.isActive,
+        isActive: user.isActive === true || user.isActive === 1 ? 1 : 0,
+        designation: (user as any).designation || "",
+        basicSalary: (user as any).basicSalary || 0,
+        travelingAllowance: (user as any).travelingAllowance || 0,
+        medicalAllowance: (user as any).medicalAllowance || 0,
+        foodAllowance: (user as any).foodAllowance || 0,
+        salaryDate: (user as any).salaryDate || 1,
       });
     }
   }, [user, form]);
@@ -293,6 +311,15 @@ export function EditUserDialog({
       // Only include password if it's provided
       if (data.password && data.password.length > 0) {
         updates.password = data.password;
+      }
+      // Include salary fields if user is employee
+      if (user.role === "employee") {
+        if (data.designation) updates.designation = data.designation;
+        if (data.basicSalary !== undefined) updates.basicSalary = data.basicSalary;
+        if (data.travelingAllowance !== undefined) updates.travelingAllowance = data.travelingAllowance;
+        if (data.medicalAllowance !== undefined) updates.medicalAllowance = data.medicalAllowance;
+        if (data.foodAllowance !== undefined) updates.foodAllowance = data.foodAllowance;
+        if (data.salaryDate !== undefined) updates.salaryDate = data.salaryDate;
       }
       const res = await apiRequest("PATCH", `/api/users/${user.id}`, updates);
       return await res.json();
@@ -377,8 +404,8 @@ export function EditUserDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
-                  <Select 
-                    value={field.value.toString()} 
+                  <Select
+                    value={field.value.toString()}
                     onValueChange={(value) => field.onChange(parseInt(value))}
                   >
                     <FormControl>
@@ -395,6 +422,143 @@ export function EditUserDialog({
                 </FormItem>
               )}
             />
+
+            {user?.role === "employee" && (
+              <>
+                <div className="pt-4 border-t">
+                  <h3 className="font-semibold text-sm mb-3">Salary Information</h3>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="designation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select designation" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {designations.map((designation) => (
+                            <SelectItem key={designation} value={designation}>
+                              {designation}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="basicSalary"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Basic Salary (PKR)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="travelingAllowance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Traveling Allowance</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="medicalAllowance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Medical Allowance</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="foodAllowance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Food Allowance</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="salaryDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Salary Date (Day of Month)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="1"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+
             <div className="flex justify-end gap-3">
               <Button
                 type="button"

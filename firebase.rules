@@ -1,0 +1,176 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isPrinciple() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'principle';
+    }
+
+    function isEmployee() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
+    }
+
+    function isClient() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'client';
+    }
+
+    function isProcurement() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'procurement';
+    }
+
+    function isOwner(employeeId) {
+      return request.auth.uid == employeeId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isPrinciple() || request.auth.uid == userId;
+    }
+
+    // Sessions collection (for express-session)
+    match /sessions/{sessionId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Divisions collection
+    match /divisions/{divisionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Tasks collection
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple() || isEmployee();
+    }
+
+    // Project assignments
+    match /projectAssignments/{assignmentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Comments collection
+    match /comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isPrinciple() || isOwner(resource.data.userId);
+    }
+
+    // Procurement items
+    match /procurementItems/{itemId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple() || isProcurement();
+    }
+
+    // Clients collection
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Attendance collection
+    match /attendance/{attendanceId} {
+      allow read: if isPrinciple() || isOwner(resource.data.employeeId);
+      allow create, update: if isPrinciple() || isOwner(request.resource.data.employeeId);
+      allow delete: if isPrinciple();
+    }
+
+    // Salaries collection
+    match /salaries/{salaryId} {
+      allow read: if isPrinciple() || isOwner(resource.data.employeeId);
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Salary advances collection
+    match /salaryAdvances/{advanceId} {
+      allow read: if isPrinciple() || isOwner(resource.data.employeeId);
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Salary payments collection
+    match /salaryPayments/{paymentId} {
+      allow read: if isPrinciple();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // ============================================================================
+    // NEW MODULES - TIMESHEET MANAGEMENT
+    // ============================================================================
+
+    match /timesheetEntries/{entryId} {
+      allow read: if isPrinciple() || isOwner(resource.data.employeeId);
+      allow create: if isEmployee() && isOwner(request.resource.data.employeeId) || isPrinciple();
+      allow update: if isPrinciple() || (isEmployee() && isOwner(resource.data.employeeId) && resource.data.status != 'Approved');
+      allow delete: if isPrinciple() || (isEmployee() && isOwner(resource.data.employeeId) && resource.data.status != 'Approved');
+    }
+
+    // ============================================================================
+    // NEW MODULES - BILLING AND INVOICING
+    // ============================================================================
+
+    match /invoices/{invoiceId} {
+      allow read: if isPrinciple() || (isClient() && resource.data.clientId == request.auth.uid);
+      allow create, update, delete: if isPrinciple();
+    }
+
+    match /invoiceLineItems/{itemId} {
+      allow read: if isPrinciple() || isClient();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // ============================================================================
+    // NEW MODULES - EXPENSE TRACKING
+    // ============================================================================
+
+    match /expenses/{expenseId} {
+      allow read: if isPrinciple() || isOwner(resource.data.employeeId);
+      allow create: if isEmployee() && isOwner(request.resource.data.employeeId) || isPrinciple();
+      allow update: if isPrinciple() || (isEmployee() && isOwner(resource.data.employeeId) && resource.data.status == 'Pending');
+      allow delete: if isPrinciple() || (isEmployee() && isOwner(resource.data.employeeId) && resource.data.status == 'Pending');
+    }
+
+    // ============================================================================
+    // NEW MODULES - RESOURCE MANAGEMENT
+    // ============================================================================
+
+    match /resourceAllocations/{allocationId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    match /projectMilestones/{milestoneId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // ============================================================================
+    // NEW MODULES - BUDGET TRACKING
+    // ============================================================================
+
+    match /budgetCategories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+  }
+}

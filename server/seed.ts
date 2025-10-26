@@ -1,66 +1,41 @@
-import { db } from './db';
-import { users, employees, projects, projectFinancials } from '@shared/schema';
+import 'dotenv/config';
+import { storage } from './storage';
 import { hashPassword } from './auth';
-import { eq } from 'drizzle-orm';
 
-export async function seedDatabase() {
-  console.log('Seeding database...');
-  
-  // Check if principle user already exists
-  const existingPrinciple = await db.select().from(users).where(eq(users.username, 'ZARA'));
-  
-  if (existingPrinciple.length === 0) {
-    // Create default principle user
-    await db.insert(users).values({
-      username: 'ZARA',
-      password: hashPassword('saroshahsanto'),
+async function seedAdmin() {
+  try {
+    console.log('Testing Firebase connection...');
+    
+    // Check if admin already exists
+    const existingAdmin = await storage.getUserByUsername('admin');
+    
+    if (existingAdmin) {
+      console.log('✓ Admin user already exists');
+      console.log('  Username: admin');
+      console.log('  ID:', existingAdmin.id);
+      return;
+    }
+    
+    // Create default admin user
+    console.log('Creating default admin user...');
+    const admin = await storage.createUser({
+      firebaseUid: '',
+      username: 'admin',
+      password: hashPassword('admin123'),
+      fullName: 'System Administrator',
       role: 'principle',
-      fullName: 'ZARA (Principle)',
-      isActive: 1,
-    }).returning();
+    });
     
-    console.log('✅ Created default principle user: ZARA / saroshahsanto');
-  } else {
-    console.log('✅ Principle user already exists');
-  }
-
-  // Check if procurement user already exists
-  const existingProcurement = await db.select().from(users).where(eq(users.username, 'procurement'));
-  
-  if (existingProcurement.length === 0) {
-    // Create default procurement user
-    await db.insert(users).values({
-      username: 'procurement',
-      password: hashPassword('procurement123'),
-      role: 'procurement',
-      fullName: 'Procurement Manager',
-      isActive: 1,
-    }).returning();
+    console.log('✓ Admin user created successfully!');
+    console.log('  Username: admin');
+    console.log('  Password: admin123');
+    console.log('  ID:', admin.id);
+    console.log('\nYou can now login with these credentials.');
     
-    console.log('✅ Created default procurement user: procurement / procurement123');
-  } else {
-    console.log('✅ Procurement user already exists');
+  } catch (error) {
+    console.error('✗ Error:', error);
+    process.exit(1);
   }
 }
 
-// Run seed if called directly (only in development/manual execution)
-// Note: Never call process.exit() when imported as a module to prevent server termination
-if (typeof process !== 'undefined' && process.argv && process.argv[1]) {
-  const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-  if (isMainModule) {
-    seedDatabase()
-      .then(() => {
-        console.log('✅ Seeding complete');
-        // Only exit if run directly as a script, not when imported
-        if (typeof process !== 'undefined' && process.exit) {
-          process.exit(0);
-        }
-      })
-      .catch((error) => {
-        console.error('❌ Seeding failed:', error);
-        if (typeof process !== 'undefined' && process.exit) {
-          process.exit(1);
-        }
-      });
-  }
-}
+seedAdmin().then(() => process.exit(0));
