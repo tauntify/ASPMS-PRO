@@ -9,7 +9,15 @@ if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
   throw new Error("Missing FIREBASE_SERVICE_ACCOUNT in .env");
 }
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+// Handle both escaped and unescaped newlines in the private key
+let serviceAccountJSON = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+// If the JSON has literal \n characters (not actual newlines), replace them
+if (serviceAccountJSON.includes('\\n')) {
+  serviceAccountJSON = serviceAccountJSON.replace(/\\n/g, '\n');
+}
+
+const serviceAccount = JSON.parse(serviceAccountJSON);
 
 if (!admin.apps.length) {
   admin.initializeApp({
