@@ -1,6 +1,10 @@
 import admin from "firebase-admin";
 import dotenv from "dotenv";
-dotenv.config();
+
+// Only load .env file in development - Render provides env vars directly in production
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config();
+}
 
 // Disable Firestore emulator to connect to production
 delete process.env.FIRESTORE_EMULATOR_HOST;
