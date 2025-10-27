@@ -10,7 +10,10 @@ import { db } from "./firebase";
 import path from "path";
 import { fileURLToPath } from "url";
 
-dotenv.config();
+// Only load .env file in development - Render provides env vars directly in production
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config();
+}
 
 const require = createRequire(import.meta.url);
 const FirestoreStoreFactory = require("firestore-store");
