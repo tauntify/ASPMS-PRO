@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: aspms-backend
+    name: aspms-pro-backend
     runtime: node
     plan: free
     branch: main
@@ -13,8 +13,17 @@ services:
         value: 5000
       - key: SESSION_SECRET
         generateValue: true
-      - key: FIREBASE_SERVICE_ACCOUNT
+      # Firebase Admin SDK Configuration (Individual env vars - Render friendly)
+      - key: FIREBASE_PROJECT_ID
         sync: false
-      - key: ALLOWED_ORIGINS
+      - key: FIREBASE_PRIVATE_KEY_ID
         sync: false
-    healthCheckPath: /api/user
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_CLIENT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_CERT_URL
+        sync: false
+    healthCheckPath: /api/health

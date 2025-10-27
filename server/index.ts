@@ -85,13 +85,20 @@ app.use(async (req: any, _res, next) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 4. API Routes Registered BEFORE Static Serve                            */
+/* ✅ 4. Health Check Endpoint (for Render and monitoring)                    */
+/* -------------------------------------------------------------------------- */
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+/* -------------------------------------------------------------------------- */
+/* ✅ 5. API Routes Registered BEFORE Static Serve                            */
 /* -------------------------------------------------------------------------- */
 registerRoutes(app);
 registerExtensionRoutes(app);
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 5. Static Files Serve (for client build)                                */
+/* ✅ 6. Static Files Serve (for client build)                                */
 /* -------------------------------------------------------------------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,7 +117,7 @@ app.get("*", (req, res, next) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 6. Global Error Handling                                                */
+/* ✅ 7. Global Error Handling                                                */
 /* -------------------------------------------------------------------------- */
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught Exception:", error);
@@ -120,7 +127,7 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 7. Start Server                                                         */
+/* ✅ 8. Start Server                                                         */
 /* -------------------------------------------------------------------------- */
 const PORT = process.env.PORT || 5000;
 const httpServer = createServer(app);

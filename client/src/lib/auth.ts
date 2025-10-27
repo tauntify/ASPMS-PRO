@@ -2,6 +2,7 @@ import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "./firebase";
 import { useQuery } from "@tanstack/react-query";
 import { User as SchemaUser } from "@shared/schema";
+import { apiFetch } from "./api";
 
 export interface LoginCredentials {
   username: string;
@@ -16,18 +17,16 @@ export function useAuth() {
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include"
-        });
-        
+        const response = await apiFetch("/api/auth/me");
+
         if (response.status === 401) {
           return null;
         }
-        
+
         if (!response.ok) {
           throw new Error("Failed to fetch user");
         }
-        
+
         return await response.json();
       } catch (error) {
         console.error("Auth check failed:", error);
@@ -47,11 +46,10 @@ export function useAuth() {
 
 export async function login(credentials: LoginCredentials) {
   try {
-    const response = await fetch("/api/auth/login", {
+    const response = await apiFetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
-      credentials: "include"
     });
 
     if (!response.ok) throw new Error("Invalid username or password");
@@ -76,11 +74,10 @@ export async function loginWithGoogle() {
     console.log("ID token obtained, length:", idToken.length);
 
     console.log("Sending token to server...");
-    const response = await fetch("/api/auth/google", {
+    const response = await apiFetch("/api/auth/google", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
-      credentials: "include"
     });
 
     console.log("Server response status:", response.status);
@@ -108,13 +105,12 @@ export async function logout() {
   } catch (error) {
     console.error("Firebase sign-out error:", error);
   }
-  
+
   // Clear backend session
-  await fetch("/api/auth/logout", {
+  await apiFetch("/api/auth/logout", {
     method: "POST",
-    credentials: "include"
   });
-  
+
   // Redirect to login
   window.location.href = "/login";
 }
