@@ -1,14 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
+// Hardcoded config for testing - NEW API KEY
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyBMdnPoo4HW8uNNdt2lbmjEbZ7vtbOwH1M",
+  authDomain: "aspms-pro.firebaseapp.com",
+  projectId: "aspms-pro",
+  storageBucket: "aspms-pro.firebasestorage.app",
+  messagingSenderId: "308846770044",
+  appId: "1:308846770044:web:dca42fc84b8e79295996f9",
+  measurementId: "G-5D1Q22B0YL",
 };
 
 export const app = initializeApp(firebaseConfig);

@@ -58,6 +58,24 @@ service cloud.firestore {
       allow create, update, delete: if isPrinciple();
     }
 
+    // Items collection
+    match /items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Employees collection
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Employee documents collection
+    match /employeeDocuments/{documentId} {
+      allow read: if isPrinciple() || isOwner(resource.data.employeeId);
+      allow create, update, delete: if isPrinciple();
+    }
+
     // Tasks collection
     match /tasks/{taskId} {
       allow read: if isAuthenticated();
@@ -111,6 +129,12 @@ service cloud.firestore {
     // Salary payments collection
     match /salaryPayments/{paymentId} {
       allow read: if isPrinciple();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Project financials collection
+    match /projectFinancials/{financialId} {
+      allow read: if isAuthenticated();
       allow create, update, delete: if isPrinciple();
     }
 

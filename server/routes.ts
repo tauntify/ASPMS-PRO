@@ -111,6 +111,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       const assignment = await storage.createProjectAssignment({
         projectId: req.params.id,
         userId: employeeId,
+        assignedBy: req.user!.id,
       });
 
       res.status(201).json(assignment);
@@ -487,6 +488,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   // Authentication Routes
   app.post("/api/auth/login", async (req, res) => {
     try {
+      console.log("🔐 Login attempt:", { username: req.body.username, hasPassword: !!req.body.password });
+
       const loginSchema = z.object({
         username: z.string().min(1),
         password: z.string().min(1),
@@ -494,38 +497,81 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       const parsed = loginSchema.safeParse(req.body);
       if (!parsed.success) {
+        console.error("❌ Login validation failed:", parsed.error);
         return res.status(400).json({ error: "Invalid credentials", details: parsed.error });
       }
 
       const { username, password } = parsed.data;
-      const user = await storage.getUserByUsername(username);
+      console.log("🔍 Looking up user:", username);
 
-      if (!user || !user.password || !verifyPassword(password, user.password)) {
+      let user;
+      try {
+        user = await storage.getUserByUsername(username);
+        console.log("✅ User query completed:", user ? "User found" : "User not found");
+      } catch (dbError) {
+        console.error("❌ Database query failed:", dbError);
+        console.error("❌ This likely means Firebase connection issue");
+        return res.status(500).json({
+          error: "Database connection error. Please check server logs.",
+          details: dbError instanceof Error ? dbError.message : String(dbError)
+        });
+      }
+
+      if (!user) {
+        console.log("❌ User not found:", username);
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      if (!user.password) {
+        console.log("❌ User has no password (Google user?):", username);
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      console.log("🔑 Verifying password for user:", username);
+      const passwordMatch = verifyPassword(password, user.password);
+      console.log("🔑 Password verification:", passwordMatch ? "SUCCESS" : "FAILED");
+
+      if (!passwordMatch) {
+        console.log("❌ Password mismatch for user:", username);
         return res.status(401).json({ error: "Invalid username or password" });
       }
 
       // Check if account is active (handle both boolean and number for compatibility)
       const isActive = typeof user.isActive === 'boolean' ? user.isActive : Boolean(user.isActive);
+      console.log("👤 User active status:", isActive);
+
       if (!isActive) {
+        console.log("❌ Account inactive:", username);
         return res.status(403).json({ error: "Account is inactive" });
       }
 
       // Create session and save it before responding
+      console.log("💾 Creating session for user:", user.id);
       req.session.userId = user.id;
 
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
-          if (err) reject(err);
-          else resolve();
+          if (err) {
+            console.error("❌ Session save failed:", err);
+            reject(err);
+          } else {
+            console.log("✅ Session saved successfully");
+            resolve();
+          }
         });
       });
 
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
+      console.log("✅ Login successful for:", username, "Role:", user.role);
       res.json(userWithoutPassword);
     } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ error: "Failed to login" });
+      console.error("❌ Login error:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack');
+      res.status(500).json({
+        error: "Failed to login",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

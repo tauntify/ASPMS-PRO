@@ -90,8 +90,27 @@ app.use(async (req: any, _res, next) => {
 /* -------------------------------------------------------------------------- */
 /* ✅ 4. Health Check Endpoint (for Render and monitoring)                    */
 /* -------------------------------------------------------------------------- */
-app.get("/api/health", (_req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  try {
+    // Test Firestore connection
+    const testQuery = await db.collection('_health_check').limit(1).get();
+
+    res.status(200).json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      firebase: "connected",
+      firestore: "operational"
+    });
+  } catch (error) {
+    console.error("❌ Health check failed - Firebase connection issue:", error);
+    res.status(503).json({
+      status: "degraded",
+      timestamp: new Date().toISOString(),
+      firebase: "error",
+      firestore: "failed",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
 });
 
 /* -------------------------------------------------------------------------- */

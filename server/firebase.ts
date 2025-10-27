@@ -62,11 +62,29 @@ if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && proce
 }
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id,
-  });
-  console.log("✅ Firebase Admin connected to project:", serviceAccount.project_id);
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id,
+    });
+    console.log("✅ Firebase Admin initialized for project:", serviceAccount.project_id);
+
+    // Test Firestore connection
+    const testDb = admin.firestore();
+    testDb.collection('_test_connection').limit(1).get()
+      .then(() => {
+        console.log("✅ Firestore connection test: SUCCESS");
+      })
+      .catch((error) => {
+        console.error("❌ Firestore connection test: FAILED");
+        console.error("❌ Error:", error.message);
+        console.error("❌ This usually means Firebase credentials are invalid or incorrectly formatted");
+      });
+  } catch (initError) {
+    console.error("❌ Firebase Admin initialization FAILED:");
+    console.error(initError);
+    throw initError;
+  }
 }
 
 export const auth = admin.auth();

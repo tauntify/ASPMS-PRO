@@ -574,7 +574,6 @@ export class FirestoreStorage implements IStorage {
     let query = db.collection('attendance').where('employeeId', '==', employeeId).orderBy('attendanceDate', 'asc');
     if (month) {
       const startDate = new Date(`${month}-01`);
-      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
       query = db.collection('attendance').where('employeeId', '==', employeeId).where('attendanceDate', '>=', Timestamp.fromDate(startDate)).orderBy('attendanceDate', 'asc');
     }
     const snapshot = await query.get();
@@ -608,7 +607,7 @@ export class FirestoreStorage implements IStorage {
       query = query.where('employeeId', '==', employeeId);
     }
     const snapshot = await query.get();
-    const documents = snapshot.docs.map(doc => ({
+    const documents = snapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
       createdAt: fromTimestamp(doc.data().createdAt)!,
@@ -616,7 +615,7 @@ export class FirestoreStorage implements IStorage {
     } as EmployeeDocument));
 
     // Sort by createdAt in memory to avoid composite index requirement
-    return documents.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return documents.sort((a: EmployeeDocument, b: EmployeeDocument) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
   async getProjectAssignments(userId?: string, projectId?: string): Promise<ProjectAssignment[]> {
