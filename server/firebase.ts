@@ -20,11 +20,24 @@ let serviceAccount: any;
 
 if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
   // Use individual environment variables (easier for Render)
+  // Handle both formats: literal \n strings AND actual newlines
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  // If the key contains literal \n strings (as text), replace them with actual newlines
+  if (privateKey.includes('\\n') && !privateKey.includes('\n')) {
+    privateKey = privateKey.replace(/\\n/g, '\n');
+  }
+
+  // Ensure the key has the proper BEGIN/END format
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    console.error('❌ FIREBASE_PRIVATE_KEY is missing BEGIN PRIVATE KEY header');
+  }
+
   serviceAccount = {
     type: "service_account",
     project_id: process.env.FIREBASE_PROJECT_ID,
     private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID || "",
-    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    private_key: privateKey,
     client_email: process.env.FIREBASE_CLIENT_EMAIL,
     client_id: process.env.FIREBASE_CLIENT_ID || "",
     auth_uri: "https://accounts.google.com/o/oauth2/auth",
