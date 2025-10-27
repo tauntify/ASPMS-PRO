@@ -20,17 +20,40 @@ let serviceAccount: any;
 
 if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
   // Use individual environment variables (easier for Render)
-  // Handle both formats: literal \n strings AND actual newlines
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-  // If the key contains literal \n strings (as text), replace them with actual newlines
-  if (privateKey.includes('\\n') && !privateKey.includes('\n')) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
+  console.log("🔍 Private key format check:");
+  console.log("  - Length:", privateKey.length);
+  console.log("  - Starts with:", privateKey.substring(0, 30));
+  console.log("  - Contains \\n (literal):", privateKey.includes('\\n'));
+  console.log("  - Contains newlines (actual):", privateKey.includes('\n'));
+  console.log("  - Contains BEGIN header:", privateKey.includes('-----BEGIN PRIVATE KEY-----'));
+
+  // Option 1: Check if it's base64 encoded (recommended for Render)
+  // Base64 encoded keys are more reliable in environment variables
+  if (!privateKey.includes('-----BEGIN') && !privateKey.includes('\\n')) {
+    try {
+      console.log("🔄 Detected base64 encoded private key, decoding...");
+      privateKey = Buffer.from(privateKey, 'base64').toString('utf-8');
+      console.log("✅ Base64 decode successful");
+    } catch (e) {
+      console.error("❌ Failed to decode base64 private key:", e);
+    }
   }
 
-  // Ensure the key has the proper BEGIN/END format
+  // Option 2: Handle literal \n strings (like -----BEGIN PRIVATE KEY-----\nMIIE...)
+  if (privateKey.includes('\\n') && !privateKey.includes('\n')) {
+    console.log("🔄 Converting literal \\n to actual newlines...");
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    console.log("✅ Newline conversion complete");
+  }
+
+  // Validate the key format
   if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
     console.error('❌ FIREBASE_PRIVATE_KEY is missing BEGIN PRIVATE KEY header');
+    console.error('❌ First 100 chars:', privateKey.substring(0, 100));
+  } else {
+    console.log("✅ Private key format looks valid");
   }
 
   serviceAccount = {

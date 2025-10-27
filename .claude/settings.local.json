@@ -43,7 +43,8 @@
       "Bash(set NODE_ENV=production)",
       "Bash(npx vite build:*)",
       "Bash(git branch:*)",
-      "Bash(firebase firestore:rules:list:*)"
+      "Bash(firebase firestore:rules:list:*)",
+      "Bash(node encode-key.js:*)"
     ],
     "deny": [],
     "ask": []
