@@ -564,6 +564,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
       console.log("✅ Login successful for:", username, "Role:", user.role);
+      console.log("🍪 Session ID:", req.session.id);
+      console.log("🍪 Response headers will include Set-Cookie");
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("❌ Login error:", error);

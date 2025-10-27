@@ -54,6 +54,11 @@ app.use(
 /* ✅ 2. Session Configuration with Firestore                                 */
 /* -------------------------------------------------------------------------- */
 const isProd = process.env.NODE_ENV === "production";
+console.log("🍪 Session Configuration:");
+console.log("  - Environment:", process.env.NODE_ENV);
+console.log("  - Secure cookies:", isProd);
+console.log("  - SameSite:", isProd ? "none" : "lax");
+
 app.use(
   session({
     store: new FirestoreStore({
@@ -68,7 +73,9 @@ app.use(
       secure: isProd, // HTTPS only in production
       sameSite: isProd ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      // Important: Don't set domain in production to allow cookies across subdomains
     },
+    proxy: isProd, // Trust the reverse proxy (Render)
   })
 );
 
