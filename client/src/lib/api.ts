@@ -1,10 +1,11 @@
-// API client configuration - HARDCODED for production
-const API_BASE_URL = 'https://aspms-pro-backend.onrender.com';
+// API client configuration - reads from environment variable
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://aspms-pro-backend.onrender.com';
 
 // Debug logging
 console.log('🔧 API Configuration:', {
   API_BASE_URL,
-  hardcoded: true
+  fromEnv: !!import.meta.env.VITE_API_URL,
+  env: import.meta.env.MODE
 });
 
 /**
