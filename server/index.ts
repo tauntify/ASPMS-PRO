@@ -7,8 +7,6 @@ import { registerRoutes } from "./routes";
 import { registerExtensionRoutes } from "./routes-extensions";
 import { createRequire } from "module";
 import { db } from "./firebase";
-import path from "path";
-import { fileURLToPath } from "url";
 
 // Only load .env file in development - Render provides env vars directly in production
 if (process.env.NODE_ENV !== "production") {
@@ -121,33 +119,39 @@ app.get("/api/health", async (_req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 5. API Routes Registered BEFORE Static Serve                            */
+/* ✅ 5. API Routes                                                           */
 /* -------------------------------------------------------------------------- */
 registerRoutes(app);
 registerExtensionRoutes(app);
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 6. Static Files Serve (for client build)                                */
+/* ✅ 6. API 404 Handler (No Static File Serving on Backend)                 */
 /* -------------------------------------------------------------------------- */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const clientDist = path.join(__dirname, "../dist/public");
-
-// Serve built React files
-app.use(express.static(clientDist));
-
-/* 
-   Important: Only serve index.html for routes *not starting* with /api.
-   This prevents API responses from returning "<!DOCTYPE html>".
-*/
-app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api")) return next(); // skip for API routes
-  res.sendFile(path.join(clientDist, "index.html"));
+// Backend should ONLY serve API endpoints, not static files
+app.use("*", (req, res) => {
+  res.status(404).json({ 
+    error: "API endpoint not found",
+    path: req.originalUrl,
+    message: "This backend server only serves API endpoints under /api"
+  });
 });
 
 /* -------------------------------------------------------------------------- */
 /* ✅ 7. Global Error Handling                                                */
 /* -------------------------------------------------------------------------- */
+// API Error Handler Middleware
+app.use((err: any, req: any, res: any, next: any) => {
+  // Only handle API errors
+  if (req.path.startsWith("/api")) {
+    console.error("❌ API Error:", err);
+    return res.status(err.status || 500).json({
+      error: err.message || "Internal server error",
+      details: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
+  }
+  next(err);
+});
+
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught Exception:", error);
 });
