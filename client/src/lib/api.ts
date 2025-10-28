@@ -31,11 +31,23 @@ export function getApiUrl(path: string): string {
 
 /**
  * Enhanced fetch that automatically uses the correct API URL
+ * and includes JWT token if available
  */
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const url = getApiUrl(path);
+
+  // Get JWT token from localStorage
+  const token = localStorage.getItem('auth_token');
+
+  // Merge headers with Authorization header if token exists
+  const headers = new Headers(options?.headers);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
   return fetch(url, {
     ...options,
-    credentials: 'include', // Important for session cookies
+    headers,
+    credentials: 'include', // Keep for backward compatibility with sessions
   });
 }

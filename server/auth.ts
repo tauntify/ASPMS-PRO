@@ -3,6 +3,7 @@ import { User } from '@shared/schema';
 import { storage } from './storage';
 import { auth as firebaseAuth } from './firebase';
 import bcrypt from 'bcrypt';
+import { verifyToken, extractTokenFromHeader } from './jwt';
 
 // Extend Express Request to include user
 declare global {
@@ -17,44 +18,55 @@ declare global {
 // Extend express-session to include userId
 declare module 'express-session' {
   interface SessionData {
-    userId: string;
+    userId: number;
   }
 }
 
-// Middleware to verify Firebase token and attach user
+// Middleware to verify token and attach user
 export async function attachUser(req: Request, res: Response, next: NextFunction) {
   try {
-    // First, check for session-based authentication
+    // Priority 1: Check for JWT token in Authorization header
+    const jwtToken = extractTokenFromHeader(req.headers.authorization);
+    if (jwtToken) {
+      const payload = verifyToken(jwtToken);
+      if (payload) {
+        const user = await storage.getUser(payload.userId);
+        if (user) {
+          req.user = user;
+          return next();
+        }
+      }
+    }
+
+    // Priority 2: Fallback to session-based authentication (backward compatibility)
     if (req.session?.userId) {
       const user = await storage.getUser(req.session.userId);
       if (user) {
         req.user = user;
+        return next();
       }
     }
-    
-    // If no session user, check for Firebase token in header
-    if (!req.user) {
-      const authHeader = req.headers.authorization;
-      
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        
-        try {
-          // Verify Firebase token
-          const decodedToken = await firebaseAuth.verifyIdToken(token);
-          req.firebaseUser = decodedToken;
-          
-          // Get user from database by Firebase UID
-          const user = await storage.getUserByFirebaseUid(decodedToken.uid);
-          if (user) {
-            req.user = user;
-          }
-        } catch (error) {
-          console.error('Error verifying Firebase token:', error);
+
+    // Priority 3: Check for Firebase token (Google Sign-In)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+
+      try {
+        // Try to verify as Firebase token
+        const decodedToken = await firebaseAuth.verifyIdToken(token);
+        req.firebaseUser = decodedToken;
+
+        // Get user from database by Firebase UID
+        const user = await storage.getUserByFirebaseUid(decodedToken.uid);
+        if (user) {
+          req.user = user;
         }
+      } catch (error) {
+        console.error('Error verifying Firebase token:', error);
       }
     }
-    
+
     next();
   } catch (error) {
     console.error('Error in attachUser middleware:', error);

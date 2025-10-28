@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { auth as firebaseAuth } from "./firebase";
+import { generateToken, verifyToken, extractTokenFromHeader } from "./jwt";
 import {
   insertProjectSchema,
   updateProjectSchema,
@@ -545,28 +546,22 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(403).json({ error: "Account is inactive" });
       }
 
-      // Create session and save it before responding
-      console.log("💾 Creating session for user:", user.id);
-      req.session.userId = user.id;
-
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error("❌ Session save failed:", err);
-            reject(err);
-          } else {
-            console.log("✅ Session saved successfully");
-            resolve();
-          }
-        });
+      // Generate JWT token instead of session
+      console.log("🔑 Generating JWT token for user:", user.id);
+      const token = generateToken({
+        userId: user.id,
+        username: user.username,
+        role: user.role,
       });
 
-      // Return user without password
+      // Return user without password + JWT token
       const { password: _, ...userWithoutPassword } = user;
       console.log("✅ Login successful for:", username, "Role:", user.role);
-      console.log("🍪 Session ID:", req.session.id);
-      console.log("🍪 Response headers will include Set-Cookie");
-      res.json(userWithoutPassword);
+      console.log("🔑 JWT token generated");
+      res.json({
+        ...userWithoutPassword,
+        token, // Include token in response
+      });
     } catch (error) {
       console.error("❌ Login error:", error);
       console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack');
@@ -702,24 +697,21 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(403).json({ error: "Account is inactive" });
       }
 
-      // Create session and save it before responding
-      req.session.userId = user.id;
-
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error('Session save error:', err);
-            reject(err);
-          } else {
-            console.log('Session saved successfully for user:', user.id);
-            resolve();
-          }
-        });
+      // Generate JWT token for Google Sign-In
+      console.log("🔑 Generating JWT token for Google user:", user.id);
+      const token = generateToken({
+        userId: user.id,
+        username: user.username,
+        role: user.role,
       });
 
-      // Return user without password
+      // Return user without password + JWT token
       const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      console.log("✅ Google login successful for:", user.username, "Role:", user.role);
+      res.json({
+        ...userWithoutPassword,
+        token, // Include token in response
+      });
     } catch (error: any) {
       console.error("Google authentication error:", error);
       res.status(500).json({ error: error.message || "Failed to authenticate with Google" });
@@ -741,17 +733,36 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.get("/api/auth/me", async (req, res) => {
     try {
-      // First check session userId
-      if (!req.session?.userId) {
+      let userId: number | undefined;
+
+      // Try JWT token first (from Authorization header)
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (token) {
+        const payload = verifyToken(token);
+        if (payload) {
+          userId = payload.userId;
+          console.log("✅ Authenticated via JWT token, user:", userId);
+        }
+      }
+
+      // Fallback to session (for backward compatibility)
+      if (!userId && req.session?.userId) {
+        userId = req.session.userId;
+        console.log("✅ Authenticated via session, user:", userId);
+      }
+
+      if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
       // Get user from storage
-      const user = await storage.getUser(req.session.userId);
+      const user = await storage.getUser(userId);
 
       if (!user) {
-        // Clear invalid session
-        req.session.destroy(() => {});
+        // Clear invalid session if using sessions
+        if (req.session?.userId) {
+          req.session.destroy(() => {});
+        }
         return res.status(401).json({ error: "Not authenticated" });
       }
 

@@ -12,6 +12,21 @@ export interface LoginCredentials {
 // Re-export the User type from schema
 export type User = SchemaUser;
 
+// JWT Token management
+const TOKEN_KEY = 'auth_token';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 export function useAuth() {
   const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
@@ -54,7 +69,14 @@ export async function login(credentials: LoginCredentials) {
 
     if (!response.ok) throw new Error("Invalid username or password");
 
-    const user = await response.json();
+    const data = await response.json();
+
+    // Store JWT token
+    if (data.token) {
+      setToken(data.token);
+      console.log("✅ JWT token stored in localStorage");
+    }
+
     // Redirect to root - the router will show the correct dashboard based on role
     window.location.href = "/";
   } catch (error) {
@@ -88,8 +110,15 @@ export async function loginWithGoogle() {
       throw new Error(errorData.error || "Failed to authenticate with server");
     }
 
-    const user = await response.json();
+    const data = await response.json();
     console.log("Authentication successful, redirecting...");
+
+    // Store JWT token
+    if (data.token) {
+      setToken(data.token);
+      console.log("✅ JWT token stored in localStorage");
+    }
+
     // Redirect to root - the router will show the correct dashboard based on role
     window.location.href = "/";
   } catch (error) {
@@ -106,10 +135,17 @@ export async function logout() {
     console.error("Firebase sign-out error:", error);
   }
 
-  // Clear backend session
-  await apiFetch("/api/auth/logout", {
-    method: "POST",
-  });
+  // Clear JWT token
+  clearToken();
+
+  // Clear backend session (optional, for backward compatibility)
+  try {
+    await apiFetch("/api/auth/logout", {
+      method: "POST",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+  }
 
   // Redirect to login
   window.location.href = "/login";
