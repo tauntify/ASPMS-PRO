@@ -19,6 +19,7 @@ const FirestoreStore = FirestoreStoreFactory(session);
 
 const app = express();
 app.use(express.json());
+app.set("trust proxy", 1);
 
 /* -------------------------------------------------------------------------- */
 /* ✅ 1. Correct CORS Configuration                                           */
@@ -41,29 +42,21 @@ app.use(
 /* -------------------------------------------------------------------------- */
 /* ✅ 2. Session Configuration with Firestore                                 */
 /* -------------------------------------------------------------------------- */
-const isProd = process.env.NODE_ENV === "production";
-console.log("🍪 Session Configuration:");
-console.log("  - Environment:", process.env.NODE_ENV);
-console.log("  - Secure cookies:", isProd);
-console.log("  - SameSite:", isProd ? "none" : "lax");
-
 app.use(
   session({
-    store: new FirestoreStore({
-      database: db,
-      collection: "sessions",
-    }),
+    store: new FirestoreStore({ database: db, collection: "sessions" }),
     secret: process.env.SESSION_SECRET || "dev_secret_key",
     resave: false,
     saveUninitialized: false,
+    name: "connect.sid",
+    proxy: true,
     cookie: {
       httpOnly: true,
-      secure: isProd, // HTTPS only in production
-      sameSite: isProd ? "none" : "lax",
+      secure: true,
+      sameSite: "none",
+      partitioned: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      // Important: Don't set domain in production to allow cookies across subdomains
     },
-    proxy: isProd, // Trust the reverse proxy (Render)
   })
 );
 
