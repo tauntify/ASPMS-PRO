@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth, logout } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -56,7 +57,6 @@ export default function ClientDashboard() {
     queryKey: ["/api/assignments", user?.id],
     queryFn: async () => {
       const res = await fetch(`/api/assignments?userId=${user?.id}`, {
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch assignments");
       return res.json();
@@ -80,7 +80,6 @@ export default function ClientDashboard() {
     queryKey: ["/api/divisions", selectedProjectId],
     queryFn: async () => {
       const res = await fetch(`/api/divisions?projectId=${selectedProjectId}`, {
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch divisions");
       return res.json();
@@ -93,7 +92,6 @@ export default function ClientDashboard() {
     queryKey: ["/api/items", selectedProjectId],
     queryFn: async () => {
       const res = await fetch(`/api/items?projectId=${selectedProjectId}`, {
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch items");
       return res.json();
@@ -106,7 +104,6 @@ export default function ClientDashboard() {
     queryKey: ["/api/tasks", selectedProjectId],
     queryFn: async () => {
       const res = await fetch(`/api/tasks?projectId=${selectedProjectId}`, {
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch tasks");
       return res.json();
@@ -119,7 +116,6 @@ export default function ClientDashboard() {
     queryKey: ["/api/financials", selectedProjectId],
     queryFn: async () => {
       const res = await fetch(`/api/financials/${selectedProjectId}`, {
-        credentials: "include",
       });
       if (!res.ok) return null;
       return res.json();
@@ -132,7 +128,6 @@ export default function ClientDashboard() {
     queryKey: ["/api/comments", selectedProjectId],
     queryFn: async () => {
       const res = await fetch(`/api/comments?projectId=${selectedProjectId}`, {
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch comments");
       return res.json();
@@ -144,8 +139,7 @@ export default function ClientDashboard() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await fetch("/api/users", {
-        credentials: "include",
+      const res = await apiFetch("/api/users", {
       });
       if (!res.ok) return [];
       return res.json();

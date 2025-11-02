@@ -733,7 +733,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.get("/api/auth/me", async (req, res) => {
     try {
-      let userId: number | undefined;
+      let userId: string | undefined;
 
       // Try JWT token first (from Authorization header)
       const token = extractTokenFromHeader(req.headers.authorization);
@@ -791,6 +791,20 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       res.json(usersWithoutPasswords);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      // Remove password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user" });
     }
   });
 

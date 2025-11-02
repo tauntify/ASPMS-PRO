@@ -112,6 +112,7 @@ export interface Employee {
   id: string;
   userId: string;
   idCard?: string;
+  email?: string;
   whatsapp?: string;
   homeAddress?: string;
   joiningDate?: Date;
@@ -130,9 +131,11 @@ export interface Client {
   id: string;
   userId: string;
   company?: string;
+  profession?: string;
   contactNumber?: string;
   email?: string;
   address?: string;
+  profilePicture?: string;
   createdAt: Date;
 }
 
@@ -350,6 +353,7 @@ export const insertUserSchema = z.object({
 export const insertEmployeeSchema = z.object({
   userId: z.string(),
   idCard: z.string().optional(),
+  email: z.string().email().optional(),
   whatsapp: z.string().optional(),
   homeAddress: z.string().optional(),
   joiningDate: z.union([z.string(), z.date()]).transform(val =>
@@ -368,9 +372,11 @@ export const insertEmployeeSchema = z.object({
 export const insertClientSchema = z.object({
   userId: z.string(),
   company: z.string().optional(),
+  profession: z.string().optional(),
   contactNumber: z.string().optional(),
   email: z.string().email().optional(),
   address: z.string().optional(),
+  profilePicture: z.string().optional(),
 });
 
 export const insertProjectAssignmentSchema = z.object({

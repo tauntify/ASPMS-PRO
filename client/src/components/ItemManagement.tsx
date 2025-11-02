@@ -85,11 +85,11 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       return await apiRequest("POST", "/api/items", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/items')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/items') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/summary')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/summary') ?? false
       });
       setIsAdding(false);
       setFormData(initialFormData);
@@ -105,11 +105,11 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       return await apiRequest("PATCH", `/api/items/${data.id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/items')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/items') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/summary')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/summary') ?? false
       });
       setEditingId(null);
       toast({
@@ -124,11 +124,11 @@ export function ItemManagement({ division, items, isLoading }: ItemManagementPro
       return await apiRequest("DELETE", `/api/items/${id}`, undefined);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/items')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/items') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/summary')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/summary') ?? false
       });
       setDeletingId(null);
       toast({

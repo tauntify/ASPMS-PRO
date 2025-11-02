@@ -28,28 +28,40 @@ export function clearToken(): void {
 }
 
 export function useAuth() {
-  const { data: user, isLoading } = useQuery<User | null>({
+  const { data: user, isLoading, error } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
+        console.log("🔍 useAuth: Checking authentication status...");
         const response = await apiFetch("/api/auth/me");
 
         if (response.status === 401) {
+          console.log("❌ useAuth: Not authenticated (401)");
           return null;
         }
 
         if (!response.ok) {
+          console.error("❌ useAuth: Auth check failed with status:", response.status);
           throw new Error("Failed to fetch user");
         }
 
-        return await response.json();
+        const userData = await response.json();
+        console.log("✅ useAuth: User authenticated:", userData.username, userData.role);
+        return userData;
       } catch (error) {
-        console.error("Auth check failed:", error);
+        console.error("❌ useAuth: Auth check error:", error);
         return null;
       }
     },
     staleTime: Infinity,
     retry: false
+  });
+
+  console.log("🔐 useAuth hook state:", {
+    hasUser: !!user,
+    isLoading,
+    isAuthenticated: !!user,
+    username: user?.username
   });
 
   return {

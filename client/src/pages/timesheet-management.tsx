@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,11 +94,10 @@ export default function TimesheetManagement() {
   // Create timesheet entry mutation
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/timesheets", {
+      const response = await apiFetch("/api/timesheets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to create timesheet entry");
       return response.json();
@@ -124,7 +124,6 @@ export default function TimesheetManagement() {
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/timesheets/${id}/submit`, {
         method: "POST",
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to submit timesheet");
       return response.json();
@@ -150,7 +149,6 @@ export default function TimesheetManagement() {
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/timesheets/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to delete timesheet");
     },

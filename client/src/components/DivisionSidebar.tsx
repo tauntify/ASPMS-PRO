@@ -47,11 +47,11 @@ export function DivisionSidebar({
       return await apiRequest("POST", "/api/divisions", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/divisions')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/divisions') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/summary')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/summary') ?? false
       });
       setIsAdding(false);
       setNewDivisionName("");
@@ -67,11 +67,11 @@ export function DivisionSidebar({
       return await apiRequest("PATCH", `/api/divisions/${id}`, { name });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/divisions')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/divisions') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/summary')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/summary') ?? false
       });
       setEditingId(null);
       toast({
@@ -86,14 +86,14 @@ export function DivisionSidebar({
       return await apiRequest("DELETE", `/api/divisions/${id}`, undefined);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/divisions')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/divisions') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/items')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/items') ?? false
       });
-      queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/summary')
+      queryClient.invalidateQueries({ predicate: (query) =>
+        query.queryKey[0]?.toString().startsWith('/api/summary') ?? false
       });
       setDeletingId(null);
       if (selectedDivisionId === deletingId) {

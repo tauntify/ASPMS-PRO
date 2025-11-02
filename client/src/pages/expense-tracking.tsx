@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,11 +90,10 @@ export default function ExpenseTracking() {
   // Create expense mutation
   const createExpenseMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/expenses", {
+      const response = await apiFetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to create expense");
       return response.json();
@@ -113,7 +113,6 @@ export default function ExpenseTracking() {
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/expenses/${id}/approve`, {
         method: "POST",
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to approve expense");
       return response.json();
@@ -135,7 +134,6 @@ export default function ExpenseTracking() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to reject expense");
       return response.json();
@@ -157,7 +155,6 @@ export default function ExpenseTracking() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reimbursementDate: new Date().toISOString() }),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to mark as reimbursed");
       return response.json();
@@ -176,7 +173,6 @@ export default function ExpenseTracking() {
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/expenses/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to delete expense");
     },

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function AssignTaskDialog({
         
         const employeeIds = assignments.map((a: any) => a.userId);
         
-        const usersRes = await fetch("/api/users");
+        const usersRes = await apiFetch("/api/users");
         if (!usersRes.ok) throw new Error("Failed to fetch users");
         const allUsers = await usersRes.json();
         

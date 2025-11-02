@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,7 +109,6 @@ export default function BillingInvoicing() {
     enabled: !!selectedInvoice,
     queryFn: async () => {
       const response = await fetch(`/api/invoices/${selectedInvoice!.id}/items`, {
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch line items");
       return response.json();
@@ -118,11 +118,10 @@ export default function BillingInvoicing() {
   // Create invoice mutation
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/invoices", {
+      const response = await apiFetch("/api/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to create invoice");
       return response.json();
@@ -144,7 +143,6 @@ export default function BillingInvoicing() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to add line item");
       return response.json();
@@ -166,7 +164,6 @@ export default function BillingInvoicing() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to update status");
       return response.json();
@@ -185,7 +182,6 @@ export default function BillingInvoicing() {
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/invoices/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to delete invoice");
     },

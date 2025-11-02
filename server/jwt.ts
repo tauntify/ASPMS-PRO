@@ -4,7 +4,7 @@ const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || "fall
 const JWT_EXPIRES_IN = "7d"; // 7 days
 
 export interface JWTPayload {
-  userId: number;
+  userId: string;
   username: string;
   role: string;
 }

@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth, logout } from "@/lib/auth";
 import { Project, User, Task, ProcurementItem, Comment, Attendance, Salary, SalaryAdvance, insertProjectSchema, insertUserSchema, InsertProject, designations } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiFetch } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { AssignTaskDialog, EditUserDialog } from "./principle-dashboard-dialogs";
 import { TaskProgressGraph } from "@/components/TaskProgressGraph";
+import { EmployeeDetailModal } from "@/components/EmployeeDetailModal";
 import {
   Briefcase,
   Users,
@@ -81,6 +83,8 @@ export default function PrincipleDashboard() {
   const [recordAdvanceOpen, setRecordAdvanceOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [selectedSalary, setSelectedSalary] = useState<Salary | null>(null);
+  const [employeeDetailOpen, setEmployeeDetailOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Fetch all data
   const { data: projects = [] } = useQuery<Project[]>({
@@ -106,9 +110,7 @@ export default function PrincipleDashboard() {
       const procurementData: ProcurementItem[] = [];
       for (const project of projects) {
         try {
-          const res = await fetch(`/api/procurement?projectId=${project.id}`, {
-            credentials: "include",
-          });
+          const res = await apiFetch(`/api/procurement?projectId=${project.id}`);
           if (res.ok) {
             const data = await res.json();
             procurementData.push(...data);
@@ -129,9 +131,7 @@ export default function PrincipleDashboard() {
       const commentsData: Comment[] = [];
       for (const project of projects) {
         try {
-          const res = await fetch(`/api/comments?projectId=${project.id}`, {
-            credentials: "include",
-          });
+          const res = await apiFetch(`/api/comments?projectId=${project.id}`);
           if (res.ok) {
             const data = await res.json();
             commentsData.push(...data);
@@ -153,9 +153,7 @@ export default function PrincipleDashboard() {
       const employees = users.filter(u => u.role === "employee");
       for (const employee of employees) {
         try {
-          const res = await fetch(`/api/attendance?employeeId=${employee.id}`, {
-            credentials: "include",
-          });
+          const res = await apiFetch(`/api/attendance?employeeId=${employee.id}`);
           if (res.ok) {
             const data = await res.json();
             attendanceData.push(...data);
@@ -850,8 +848,20 @@ export default function PrincipleDashboard() {
                   const presentDays = employeeAttendance.filter(a => a.isPresent === true).length;
                   const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
 
+                  const employeeData = allEmployees.find(e => e.userId === employee.id);
+
                   return (
-                    <Card key={employee.id} className="p-4 hover-elevate" data-testid={`card-employee-${employee.id}`}>
+                    <Card
+                      key={employee.id}
+                      className="p-4 hover-elevate cursor-pointer transition-all hover:shadow-lg"
+                      data-testid={`card-employee-${employee.id}`}
+                      onClick={() => {
+                        if (employeeData?.id) {
+                          setSelectedEmployeeId(employeeData.id);
+                          setEmployeeDetailOpen(true);
+                        }
+                      }}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 flex-1">
                           <Avatar>
@@ -872,14 +882,15 @@ export default function PrincipleDashboard() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Badge variant={(employee.isActive === 1 || employee.isActive === true) ? "default" : "outline"}>
                             {(employee.isActive === 1 || employee.isActive === true) ? "Active" : "Inactive"}
                           </Badge>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedUser(employee);
                               setEditUserOpen(true);
                             }}
@@ -1398,6 +1409,13 @@ export default function PrincipleDashboard() {
         user={selectedUser}
       />
 
+      {/* Employee Detail Modal */}
+      <EmployeeDetailModal
+        open={employeeDetailOpen}
+        onOpenChange={setEmployeeDetailOpen}
+        employeeId={selectedEmployeeId}
+      />
+
       {/* Generate Salary Dialog */}
       <GenerateSalaryDialog
         open={generateSalaryOpen}
@@ -1425,120 +1443,336 @@ export default function PrincipleDashboard() {
   );
 }
 
-// Create Project Dialog Component
+// Create Project Dialog Component with Client Creation
 function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
-  const form = useForm<InsertProject>({
-    resolver: zodResolver(insertProjectSchema),
+  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string>("");
+
+  const projectClientSchema = z.object({
+    // Project fields
+    projectName: z.string().min(1, "Project name is required"),
+    projectTitle: z.string().optional(),
+    startDate: z.date().optional(),
+    deliveryDate: z.date().optional(),
+    // Client user fields
+    fullName: z.string().min(1, "Client full name is required"),
+    username: z.string().min(3, "Username must be at least 3 characters"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    // Client detail fields
+    company: z.string().optional(),
+    profession: z.string().optional(),
+    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    contactNumber: z.string().optional(),
+    address: z.string().optional(),
+  });
+
+  const form = useForm({
+    resolver: zodResolver(projectClientSchema),
     defaultValues: {
-      name: "",
-      clientName: "",
+      projectName: "",
       projectTitle: "",
+      fullName: "",
+      username: "",
+      password: "",
+      company: "",
+      profession: "",
+      email: "",
+      contactNumber: "",
+      address: "",
     },
   });
 
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePictureFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const createProjectMutation = useMutation({
-    mutationFn: async (data: InsertProject) => {
-      const res = await apiRequest("POST", "/api/projects", data);
-      return await res.json();
+    mutationFn: async (data: any) => {
+      let profilePictureUrl = "";
+
+      // Upload profile picture if provided
+      if (profilePictureFile) {
+        const formData = new FormData();
+        formData.append("file", profilePictureFile);
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        if (!uploadRes.ok) throw new Error("Failed to upload profile picture");
+        const uploadData = await uploadRes.json();
+        profilePictureUrl = uploadData.url;
+      }
+
+      // 1. Create client user account
+      const userRes = await apiRequest("POST", "/api/users", {
+        username: data.username,
+        password: data.password,
+        fullName: data.fullName,
+        role: "client",
+      });
+      const user = await userRes.json();
+
+      // 2. Create client details
+      await apiRequest("POST", "/api/clients", {
+        userId: user.id,
+        company: data.company || "",
+        profession: data.profession || "",
+        email: data.email || "",
+        contactNumber: data.contactNumber || "",
+        address: data.address || "",
+        profilePicture: profilePictureUrl,
+      });
+
+      // 3. Create project
+      const projectRes = await apiRequest("POST", "/api/projects", {
+        name: data.projectName,
+        clientName: data.fullName,
+        projectTitle: data.projectTitle,
+        startDate: data.startDate,
+        deliveryDate: data.deliveryDate,
+      });
+      const project = await projectRes.json();
+
+      // 4. Assign client to project
+      await apiRequest("POST", "/api/assignments", {
+        projectId: project.id,
+        userId: user.id,
+        assignedBy: "", // Will be set by backend from req.user
+      });
+
+      return { user, project };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       toast({
         title: "Success",
-        description: "Project created successfully!",
+        description: "Project and client account created successfully!",
       });
       form.reset();
+      setProfilePictureFile(null);
+      setProfilePicturePreview("");
       onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create project",
+        description: error.message || "Failed to create project and client",
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: InsertProject) => {
+  const onSubmit = (data: any) => {
     createProjectMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
+          <DialogTitle>Create New Project with Client</DialogTitle>
           <DialogDescription>
-            Add a new project to the system
+            Add a new project and create a client account
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Project Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter project name" {...field} data-testid="input-project-name" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="clientName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Name</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter client name" 
-                      {...field} 
-                      value={field.value || ""}
-                      data-testid="input-client-name" 
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Project Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Project Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="projectName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter project name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="projectTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter project title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Client Account Information */}
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-semibold">Client Account Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Client Full Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter client full name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter username for login" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password *</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Enter password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter company name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="profession"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Profession</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter profession" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Enter email address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="contactNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter phone number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter full address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Profile Picture Upload */}
+              <div className="space-y-2">
+                <FormLabel>Client Profile Picture</FormLabel>
+                <div className="flex items-center gap-4">
+                  {profilePicturePreview && (
+                    <img
+                      src={profilePicturePreview}
+                      alt="Profile Preview"
+                      className="w-20 h-20 rounded-full object-cover"
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="projectTitle"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Project Title</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter project title" 
-                      {...field} 
-                      value={field.value || ""}
-                      data-testid="input-project-title" 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end gap-3">
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
-                data-testid="button-cancel-create-project"
+                onClick={() => {
+                  form.reset();
+                  setProfilePictureFile(null);
+                  setProfilePicturePreview("");
+                  onOpenChange(false);
+                }}
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={createProjectMutation.isPending}
-                data-testid="button-submit-create-project"
               >
-                {createProjectMutation.isPending ? "Creating..." : "Create Project"}
+                {createProjectMutation.isPending ? "Creating..." : "Create Project & Client"}
               </Button>
             </div>
           </form>
@@ -1557,6 +1791,7 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const form = useForm({
     resolver: zodResolver(insertUserSchema.extend({
       idCard: z.string().min(1, "ID Card is required"),
+      email: z.string().email("Invalid email address").optional().or(z.literal("")),
       whatsapp: z.string().min(1, "WhatsApp number is required"),
       homeAddress: z.string().min(1, "Home address is required"),
       joiningDate: z.date({ required_error: "Joining date is required" }),
@@ -1574,6 +1809,7 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       role: "employee" as const,
       isActive: 1,
       idCard: "",
+      email: "",
       whatsapp: "",
       homeAddress: "",
       joiningDate: new Date(),
@@ -1606,6 +1842,7 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         role: data.role,
         isActive: data.isActive,
         idCard: data.idCard,
+        email: data.email || "",
         whatsapp: data.whatsapp,
         homeAddress: data.homeAddress,
         joiningDate: data.joiningDate.toISOString(),
@@ -1733,6 +1970,19 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="Enter email address" {...field} data-testid="input-employee-email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="whatsapp"
