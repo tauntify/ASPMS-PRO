@@ -23,6 +23,7 @@ import {
   insertProjectFinancialsSchema,
 } from "../shared/schema";
 import { requireAuth, requireRole, attachUser, hashPassword, verifyPassword } from "./auth";
+import { createTrialSubscription } from "./subscription-utils";
 import { z } from "zod";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
@@ -638,6 +639,14 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       console.log("✅ User created:", user.id, username);
 
+      // Create trial subscription
+      const trialSubscription = createTrialSubscription(user.id);
+      const subscription = await storage.createSubscription(trialSubscription);
+      console.log("✅ Trial subscription created:", subscription.id);
+
+      // Update user with subscription ID
+      await storage.updateUser(user.id, { subscriptionId: subscription.id });
+
       // Generate JWT token
       const token = generateToken({
         userId: user.id as any,
@@ -650,6 +659,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       console.log("✅ Signup successful for:", email);
       res.status(201).json({
         ...userWithoutPassword,
+        subscriptionId: subscription.id,
         token,
       });
     } catch (error) {
@@ -807,6 +817,86 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     }
   });
 
+  // Update profile endpoint
+  app.patch("/api/auth/update-profile", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { fullName, email, phone } = req.body;
+
+      // Validate input
+      if (!fullName || !email) {
+        return res.status(400).json({ error: "Full name and email are required" });
+      }
+
+      // Check if email is already taken by another user
+      const users = await storage.getUsers();
+      const emailTaken = users.some(u => u.email === email && u.id !== userId);
+      if (emailTaken) {
+        return res.status(400).json({ error: "Email already in use by another account" });
+      }
+
+      // Update user
+      const updatedUser = await storage.updateUser(userId, {
+        fullName,
+        email,
+        phone: phone || ""
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Return user without password
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  // Change password endpoint
+  app.post("/api/auth/change-password", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { currentPassword, newPassword } = req.body;
+
+      // Validate input
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Current and new password are required" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      // Get user
+      const user = await storage.getUser(userId);
+      if (!user || !user.password) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verify current password
+      const passwordMatch = verifyPassword(currentPassword, user.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedPassword = hashPassword(newPassword);
+
+      // Update password
+      await storage.updateUser(userId, {
+        password: hashedPassword
+      });
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Password change error:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
   app.post("/api/auth/logout", requireAuth, async (req, res) => {
     try {
       req.session.destroy((err) => {
@@ -868,6 +958,43 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     } catch (error) {
       console.error("Get current user error:", error);
       res.status(500).json({ error: "Failed to get current user" });
+    }
+  });
+
+  // Get subscription status
+  app.get("/api/subscription/status", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+
+      // System admin doesn't have subscription
+      if (user.role === "admin") {
+        return res.json({
+          status: "admin",
+          message: "System administrator account",
+        });
+      }
+
+      // Get user's subscription
+      const subscription = await storage.getSubscriptionByUserId(user.id);
+
+      if (!subscription) {
+        return res.status(404).json({
+          error: "No subscription found",
+          message: "Please contact support to activate your account.",
+        });
+      }
+
+      // Get subscription status
+      const { getSubscriptionStatus } = await import("./subscription-utils");
+      const status = getSubscriptionStatus(subscription);
+
+      res.json({
+        subscription,
+        status,
+      });
+    } catch (error) {
+      console.error("Get subscription status error:", error);
+      res.status(500).json({ error: "Failed to get subscription status" });
     }
   });
 
@@ -2057,6 +2184,83 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     } catch (error) {
       console.error("Failed to fetch documents:", error);
       res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  // Admin impersonation endpoint
+  app.post("/api/admin/impersonate/:userId", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Get the user to impersonate
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Don't allow impersonating other admins
+      if (targetUser.role === "admin") {
+        return res.status(403).json({ error: "Cannot impersonate other administrators" });
+      }
+
+      // Generate JWT token for the target user
+      const token = generateToken({
+        userId: targetUser.id as any,
+        username: targetUser.username,
+        role: targetUser.role,
+      });
+
+      const { password, ...userWithoutPassword } = targetUser;
+      res.json({
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Impersonation error:", error);
+      res.status(500).json({ error: "Failed to impersonate user" });
+    }
+  });
+
+  // Admin routes - only accessible to admin role
+  app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      // Remove password hashes from response
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/status", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean' && typeof isActive !== 'number') {
+        return res.status(400).json({ error: "isActive must be a boolean or number" });
+      }
+
+      // Don't allow admin to deactivate themselves
+      if (req.user?.id === id && !isActive) {
+        return res.status(400).json({ error: "Cannot deactivate your own account" });
+      }
+
+      const user = await storage.updateUser(id, {
+        isActive: isActive ? 1 : 0,
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Failed to update user status:", error);
+      res.status(500).json({ error: "Failed to update user status" });
     }
   });
 

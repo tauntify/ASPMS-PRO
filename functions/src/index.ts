@@ -60,7 +60,7 @@ app.use(
 // Attach user to request (checks JWT token first, then session)
 app.use(attachUser);
 
-// Health Check
+// Health Check - Updated with new admin features
 app.get("/api/health", async (_req, res) => {
   try {
     await db.collection('_health_check').limit(1).get();
@@ -69,7 +69,8 @@ app.get("/api/health", async (_req, res) => {
       timestamp: new Date().toISOString(),
       firebase: "connected",
       firestore: "operational",
-      hosting: "Firebase Cloud Functions"
+      hosting: "Firebase Cloud Functions",
+      version: "2.0.0"
     });
   } catch (error) {
     console.error("Health check failed:", error);

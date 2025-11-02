@@ -134,12 +134,12 @@ export default function Landing() {
             Streamline your workflow, track budgets, and deliver excellence.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-lg" onClick={() => setLocation("/signup")}>
+            <Button size="lg" className="text-lg" onClick={() => setLocation("/pricing")}>
               Start Free Trial
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg" onClick={() => setLocation("/pricing")}>
-              View Pricing
+              View All Plans
             </Button>
           </div>
           <p className="text-sm text-muted-foreground mt-6">
@@ -251,8 +251,8 @@ export default function Landing() {
           <p className="text-xl text-muted-foreground mb-8">
             Join architecture and design professionals who trust ASPMS for their project management needs
           </p>
-          <Button size="lg" className="text-lg" onClick={() => setLocation("/signup")}>
-            Start Your Free Trial
+          <Button size="lg" className="text-lg" onClick={() => setLocation("/pricing")}>
+            View Pricing & Start Free Trial
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>

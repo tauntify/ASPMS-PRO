@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Download, FileSpreadsheet, FileText, Image as ImageIcon, Table2, FileBarChart } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { X, Download, FileSpreadsheet, FileText, Image as ImageIcon, Table2, FileBarChart, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/use-subscription";
 import { ExportDashboard } from "./ExportDashboard";
 import { jsPDF } from "jspdf";
 
@@ -21,14 +23,19 @@ interface ExportModalProps {
 export type ExportTemplateType = "standard" | "boq" | "progress-report";
 
 export function ExportModal({ onClose, project, projectName, divisions, items, summary }: ExportModalProps) {
-  const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | "jpeg">("excel");
+  const [exportFormat, setExportFormat] = useState<"excel" | "pdf" | "jpeg">("jpeg");
   const [exportTemplate, setExportTemplate] = useState<ExportTemplateType>("standard");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
+  const { data: subscriptionData } = useSubscription();
 
   if (!summary) {
     return null;
   }
+
+  const isTrial = subscriptionData?.subscription.status === "trial";
+  const canExportPDF = subscriptionData?.subscription.status === "active";
+  const canExportExcel = subscriptionData?.subscription.status === "active";
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -56,6 +63,31 @@ export function ExportModal({ onClose, project, projectName, divisions, items, s
 
         // Move it back off-screen
         exportElement.style.left = '-9999px';
+
+        // Add watermark for trial users
+        if (isTrial && exportFormat === "jpeg") {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Semi-transparent watermark overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Rotate and draw watermark multiple times
+            ctx.save();
+            const text = 'TRIAL VERSION - ARKA SERVICES';
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            ctx.translate(centerX, centerY);
+            ctx.rotate(-Math.PI / 6);
+            ctx.fillText(text, 0, 0);
+            ctx.fillText(text, 0, -200);
+            ctx.fillText(text, 0, 200);
+            ctx.restore();
+          }
+        }
 
         if (exportFormat === "jpeg") {
           canvas.toBlob((blob) => {
@@ -227,19 +259,43 @@ export function ExportModal({ onClose, project, projectName, divisions, items, s
               </p>
             </div>
 
+            {!canExportPDF && !canExportExcel && (
+              <Alert className="mb-4 bg-blue-50 border-blue-200">
+                <Lock className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-900">Trial Limitation</AlertTitle>
+                <AlertDescription className="text-blue-800">
+                  PDF and Excel exports are available with a paid subscription. During trial, you can export as JPEG (with watermark).
+                  Purchase a package to unlock all export formats without watermark.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Tabs value={exportFormat} onValueChange={(v) => setExportFormat(v as any)}>
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="excel" className="gap-2" data-testid="tab-excel">
+                <TabsTrigger
+                  value="excel"
+                  className="gap-2"
+                  data-testid="tab-excel"
+                  disabled={!canExportExcel}
+                >
                   <FileSpreadsheet className="w-4 h-4" />
                   Excel
+                  {!canExportExcel && <Lock className="w-3 h-3 ml-1" />}
                 </TabsTrigger>
-                <TabsTrigger value="pdf" className="gap-2" data-testid="tab-pdf">
+                <TabsTrigger
+                  value="pdf"
+                  className="gap-2"
+                  data-testid="tab-pdf"
+                  disabled={!canExportPDF}
+                >
                   <FileText className="w-4 h-4" />
                   PDF
+                  {!canExportPDF && <Lock className="w-3 h-3 ml-1" />}
                 </TabsTrigger>
                 <TabsTrigger value="jpeg" className="gap-2" data-testid="tab-jpeg">
                   <ImageIcon className="w-4 h-4" />
                   JPEG
+                  {isTrial && <span className="text-xs ml-1">(Trial)</span>}
                 </TabsTrigger>
               </TabsList>
 

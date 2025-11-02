@@ -12,7 +12,10 @@
       "Bash(firebase deploy:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx tsx:*)",
+      "Bash(findstr:*)",
+      "Bash(set:*)"
     ],
     "deny": [],
     "ask": []

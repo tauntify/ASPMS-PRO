@@ -691,6 +691,67 @@ export class FirestoreStorage implements IStorage {
     await db.collection('projectFinancials').doc(existing.id).delete();
     return true;
   }
+
+  // Subscription methods
+  async getSubscription(id: string): Promise<any | undefined> {
+    const doc = await db.collection('subscriptions').doc(id).get();
+    if (!doc.exists) return undefined;
+    return {
+      id: doc.id,
+      ...doc.data(),
+      trialStartDate: fromTimestamp(doc.data()!.trialStartDate)!,
+      trialEndDate: fromTimestamp(doc.data()!.trialEndDate)!,
+      subscriptionStartDate: fromTimestamp(doc.data()!.subscriptionStartDate),
+      subscriptionEndDate: fromTimestamp(doc.data()!.subscriptionEndDate),
+      lastPaymentDate: fromTimestamp(doc.data()!.lastPaymentDate),
+      createdAt: fromTimestamp(doc.data()!.createdAt)!,
+      updatedAt: fromTimestamp(doc.data()!.updatedAt)!
+    };
+  }
+
+  async getSubscriptionByUserId(userId: string): Promise<any | undefined> {
+    const snapshot = await db.collection('subscriptions').where('userId', '==', userId).get();
+    if (snapshot.empty) return undefined;
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+      trialStartDate: fromTimestamp(doc.data().trialStartDate)!,
+      trialEndDate: fromTimestamp(doc.data().trialEndDate)!,
+      subscriptionStartDate: fromTimestamp(doc.data().subscriptionStartDate),
+      subscriptionEndDate: fromTimestamp(doc.data().subscriptionEndDate),
+      lastPaymentDate: fromTimestamp(doc.data().lastPaymentDate),
+      createdAt: fromTimestamp(doc.data().createdAt)!,
+      updatedAt: fromTimestamp(doc.data().updatedAt)!
+    };
+  }
+
+  async createSubscription(subscription: any): Promise<any> {
+    const id = generateId();
+    const subData = {
+      ...subscription,
+      trialStartDate: toTimestamp(subscription.trialStartDate),
+      trialEndDate: toTimestamp(subscription.trialEndDate),
+      subscriptionStartDate: toTimestamp(subscription.subscriptionStartDate),
+      subscriptionEndDate: toTimestamp(subscription.subscriptionEndDate),
+      lastPaymentDate: toTimestamp(subscription.lastPaymentDate),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
+    await db.collection('subscriptions').doc(id).set(subData);
+    return { id, ...subscription, createdAt: new Date(), updatedAt: new Date() };
+  }
+
+  async updateSubscription(id: string, updates: any): Promise<any | undefined> {
+    const updateData: any = { ...updates, updatedAt: Timestamp.now() };
+    if (updates.trialStartDate) updateData.trialStartDate = toTimestamp(updates.trialStartDate);
+    if (updates.trialEndDate) updateData.trialEndDate = toTimestamp(updates.trialEndDate);
+    if (updates.subscriptionStartDate) updateData.subscriptionStartDate = toTimestamp(updates.subscriptionStartDate);
+    if (updates.subscriptionEndDate) updateData.subscriptionEndDate = toTimestamp(updates.subscriptionEndDate);
+    if (updates.lastPaymentDate) updateData.lastPaymentDate = toTimestamp(updates.lastPaymentDate);
+    await db.collection('subscriptions').doc(id).update(updateData);
+    return this.getSubscription(id);
+  }
 }
 
 export const storage: IStorage = new FirestoreStorage();

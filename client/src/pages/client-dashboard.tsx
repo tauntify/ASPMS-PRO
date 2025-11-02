@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { SubscriptionBanner } from "@/components/subscription-banner";
 import {
   LogOut,
   ExternalLink,
@@ -345,6 +346,9 @@ export default function ClientDashboard() {
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-[1600px] mx-auto space-y-6">
+          {/* Subscription Banner */}
+          <SubscriptionBanner />
+
           {!selectedProjectId ? (
             /* My Projects View */
             <>

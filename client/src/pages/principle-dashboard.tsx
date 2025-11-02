@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { AssignTaskDialog, EditUserDialog } from "./principle-dashboard-dialogs";
 import { TaskProgressGraph } from "@/components/TaskProgressGraph";
 import { EmployeeDetailModal } from "@/components/EmployeeDetailModal";
+import { SubscriptionBanner } from "@/components/subscription-banner";
 import {
   Briefcase,
   Users,
@@ -583,6 +584,8 @@ export default function PrincipleDashboard() {
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-[1600px] mx-auto space-y-6">
+          {/* Subscription Banner */}
+          <SubscriptionBanner />
           {activeTab === "projects" && (
             <>
               {/* Overview Statistics Cards */}

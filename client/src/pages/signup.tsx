@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { loginWithGoogle } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, User, Users, AlertCircle, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Building2, User, Users, AlertCircle, ArrowLeft, Eye, EyeOff, Crown, Sparkles, Zap } from "lucide-react";
 
 type AccountType = "individual" | "organization";
+type PlanType = "trial" | "individual" | "custom" | "organization";
 
 export default function Signup() {
   const [, setLocation] = useLocation();
-  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  const searchParams = useSearch();
+  const urlParams = new URLSearchParams(searchParams);
+  const planParam = urlParams.get('plan') as PlanType | null;
+
+  const [accountType, setAccountType] = useState<AccountType | null>(
+    planParam === "organization" ? "organization" :
+    planParam === "individual" || planParam === "trial" ? "individual" : null
+  );
+  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(planParam);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -27,6 +37,8 @@ export default function Signup() {
   });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const signupMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -151,11 +163,40 @@ export default function Signup() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home
             </Button>
+
+            {/* Selected Plan Badge */}
+            {selectedPlan && (
+              <div className="mb-6">
+                <Badge variant="outline" className="text-lg px-6 py-2">
+                  {selectedPlan === "trial" && (
+                    <><Sparkles className="w-4 h-4 mr-2" /> Free Trial - 3 Days</>
+                  )}
+                  {selectedPlan === "individual" && (
+                    <><User className="w-4 h-4 mr-2" /> Individual Plan - $50/month</>
+                  )}
+                  {selectedPlan === "custom" && (
+                    <><Zap className="w-4 h-4 mr-2" /> Custom Plan - Build Your Own</>
+                  )}
+                  {selectedPlan === "organization" && (
+                    <><Crown className="w-4 h-4 mr-2" /> Organization Plan</>
+                  )}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-4"
+                  onClick={() => setLocation("/pricing")}
+                >
+                  Change Plan
+                </Button>
+              </div>
+            )}
+
             <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2">
-              Choose Your Account Type
+              {selectedPlan ? "Create Your Account" : "Choose Your Account Type"}
             </h1>
             <p className="text-muted-foreground text-lg">
-              Select the plan that best fits your needs
+              {selectedPlan ? `Complete signup to start your ${selectedPlan === "trial" ? "free trial" : "subscription"}` : "Select the plan that best fits your needs"}
             </p>
           </div>
 
@@ -389,14 +430,29 @@ export default function Signup() {
                 <Label htmlFor="password">
                   Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="At least 6 characters"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  disabled={signupMutation.isPending}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 6 characters"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    disabled={signupMutation.isPending}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
@@ -406,14 +462,29 @@ export default function Signup() {
                 <Label htmlFor="confirmPassword">
                   Confirm Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Re-enter your password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  disabled={signupMutation.isPending}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Re-enter your password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    disabled={signupMutation.isPending}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.confirmPassword && (
                   <p className="text-sm text-destructive">{errors.confirmPassword}</p>
                 )}

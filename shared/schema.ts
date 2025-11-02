@@ -8,7 +8,7 @@ export const itemStatuses = ["Not Started", "Purchased", "In Installation Phase"
 export const itemStatusEnum = z.enum(itemStatuses);
 export type ItemStatus = z.infer<typeof itemStatusEnum>;
 
-export const userRoles = ["principle", "employee", "client", "procurement"] as const;
+export const userRoles = ["admin", "principle", "employee", "client", "procurement"] as const;
 export const userRoleEnum = z.enum(userRoles);
 export type UserRole = z.infer<typeof userRoleEnum>;
 
@@ -101,6 +101,32 @@ export const accountTypes = ["individual", "organization"] as const;
 export const accountTypeEnum = z.enum(accountTypes);
 export type AccountType = z.infer<typeof accountTypeEnum>;
 
+// Subscription Types
+export const subscriptionStatuses = ["trial", "active", "expired", "blocked"] as const;
+export const subscriptionStatusEnum = z.enum(subscriptionStatuses);
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusEnum>;
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  status: SubscriptionStatus;
+  trialStartDate: Date;
+  trialEndDate: Date;
+  subscriptionStartDate?: Date;
+  subscriptionEndDate?: Date;
+  maxEmployees: number;
+  maxProjects: number;
+  currentEmployees: number;
+  currentProjects: number;
+  baseFee: number; // $50
+  employeeFee: number; // $10 per employee
+  projectFee: number; // $5 per project
+  totalAmount: number;
+  lastPaymentDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface User {
   id: string;
   firebaseUid: string;
@@ -114,6 +140,7 @@ export interface User {
   accountType?: AccountType;
   organizationName?: string; // For organization accounts
   isActive: boolean | number; // Firebase returns 0/1, TypeScript expects boolean
+  subscriptionId?: string; // Link to subscription
   createdAt: Date;
 }
 
