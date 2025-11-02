@@ -53,7 +53,7 @@ if errorlevel 1 (
     echo This may take 1-5 minutes to complete.
     echo.
     echo You can check the status at:
-    echo https://console.firebase.google.com/project/aspms-pro/firestore/indexes
+    echo https://console.firebase.google.com/project/aspms-pro-v1/firestore/indexes
     echo.
 )
 

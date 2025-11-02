@@ -21,7 +21,7 @@ import {
   insertProjectAssignmentSchema,
   insertCommentSchema,
   insertProjectFinancialsSchema,
-} from "@shared/schema";
+} from "../shared/schema";
 import { requireAuth, requireRole, attachUser, hashPassword, verifyPassword } from "./auth";
 import { z } from "zod";
 import ExcelJS from "exceljs";
@@ -700,7 +700,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       // Generate JWT token for Google Sign-In
       console.log("🔑 Generating JWT token for Google user:", user.id);
       const token = generateToken({
-        userId: user.id,
+        userId: Number(user.id),
         username: user.username,
         role: user.role,
       });
@@ -756,7 +756,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       }
 
       // Get user from storage
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(String(userId));
 
       if (!user) {
         // Clear invalid session if using sessions

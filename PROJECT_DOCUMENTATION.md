@@ -293,16 +293,16 @@ ASPMS/
 **Environment Variables (.env)**:
 ```env
 FIREBASE_API_KEY=your_api_key
-FIREBASE_AUTH_DOMAIN=aspms-pro.firebaseapp.com
-FIREBASE_PROJECT_ID=aspms-pro
-FIREBASE_STORAGE_BUCKET=aspms-pro.appspot.com
+FIREBASE_AUTH_DOMAIN=aspms-pro-v1.firebaseapp.com
+FIREBASE_PROJECT_ID=aspms-pro-v1
+FIREBASE_STORAGE_BUCKET=aspms-pro-v1.firebasestorage.app
 FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 FIREBASE_APP_ID=your_app_id
 FIREBASE_MEASUREMENT_ID=your_measurement_id
 
 # Firebase Admin SDK (Service Account)
 FIREBASE_PRIVATE_KEY=your_private_key
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@aspms-pro.iam.gserviceaccount.com
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@aspms-pro-v1.iam.gserviceaccount.com
 
 # Session Secret
 SESSION_SECRET=your_session_secret

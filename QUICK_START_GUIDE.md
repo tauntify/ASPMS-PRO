@@ -31,7 +31,7 @@ In the console, you should see an error like this:
 ```
 Failed to fetch salaries: Error: 9 FAILED_PRECONDITION:
 The query requires an index. You can create it here:
-https://console.firebase.google.com/v1/r/project/aspms-pro/firestore/indexes?create_composite=...
+https://console.firebase.google.com/v1/r/project/aspms-pro-v1/firestore/indexes?create_composite=...
 ```
 
 ### Step 6: Create the Index
@@ -77,8 +77,8 @@ You'll need to create indexes for these collections:
 ```
 Failed to fetch salaries: Error: 9 FAILED_PRECONDITION:
 The query requires an index. You can create it here:
-https://console.firebase.google.com/v1/r/project/aspms-pro/...
-                                    ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+https://console.firebase.google.com/v1/r/project/aspms-pro-v1/...
+                                    ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
                             CLICK THIS LINK OR COPY IT
 ```
 
