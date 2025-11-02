@@ -44,7 +44,22 @@
       "Bash(npx vite build:*)",
       "Bash(git branch:*)",
       "Bash(firebase firestore:rules:list:*)",
-      "Bash(node encode-key.js:*)"
+      "Bash(node encode-key.js:*)",
+      "Bash(firebase emulators:start:*)",
+      "Bash(timeout /t 5)",
+      "Bash(firebase init:*)",
+      "Bash(NODE_ENV=production npx vite build:*)",
+      "Bash(firebase login:list:*)",
+      "Bash(firebase logout:*)",
+      "Bash(copy \"functions\\service-account-key.json\" \"functions\\lib\\service-account-key.json\")",
+      "Bash(gcloud projects add-iam-policy-binding:*)",
+      "Bash(firebase functions:delete:*)",
+      "Bash(firebase functions:list:*)",
+      "Bash(firebase functions:config:get:*)",
+      "Bash(firebase functions:log:*)",
+      "Bash(timeout /t:*)",
+      "Bash(nul)",
+      "Bash(firebase functions:secrets:access:*)"
     ],
     "deny": [],
     "ask": []

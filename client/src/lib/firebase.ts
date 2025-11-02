@@ -1,15 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// Hardcoded config for testing - NEW API KEY
+// Firebase config for NEW project (aspms-pro-v1)
 const firebaseConfig = {
-  apiKey: "AIzaSyBMdnPoo4HW8uNNdt2lbmjEbZ7vtbOwH1M",
-  authDomain: "aspms-pro.firebaseapp.com",
-  projectId: "aspms-pro",
-  storageBucket: "aspms-pro.firebasestorage.app",
-  messagingSenderId: "308846770044",
-  appId: "1:308846770044:web:dca42fc84b8e79295996f9",
-  measurementId: "G-5D1Q22B0YL",
+  apiKey: "AIzaSyCe_YMLorbVaqIfuolxh9ymYq5nF7KuGxk",
+  authDomain: "aspms-pro-v1.firebaseapp.com",
+  projectId: "aspms-pro-v1",
+  storageBucket: "aspms-pro-v1.firebasestorage.app",
+  messagingSenderId: "208076547094",
+  appId: "1:208076547094:web:42e2a09624620a8ff58137",
+  measurementId: "G-S6MXL58KP0",
 };
 
 export const app = initializeApp(firebaseConfig);

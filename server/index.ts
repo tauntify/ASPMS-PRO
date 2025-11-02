@@ -27,9 +27,8 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5000",
-  "https://aspms-pro.web.app",
-  "https://aspms-pro.firebaseapp.com",
-  "https://aspms-pro-backend.onrender.com",
+  "https://aspms-pro-v1.web.app",
+  "https://aspms-pro-v1.firebaseapp.com",
 ];
 
 app.use(
@@ -61,19 +60,11 @@ app.use(
 );
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 3. Attach Logged-in User to Request (Optional Auth Hook)                */
+/* ✅ 3. Attach Logged-in User to Request (JWT & Session Auth)                */
 /* -------------------------------------------------------------------------- */
-app.use(async (req: any, _res, next) => {
-  if (req.session && req.session.userId) {
-    try {
-      const { storage } = await import("./storage");
-      req.user = await storage.getUser(req.session.userId);
-    } catch (err) {
-      console.error("Session attach failed:", err);
-    }
-  }
-  next();
-});
+// Import attachUser middleware that handles both JWT and session auth
+import { attachUser } from "./auth.js";
+app.use(attachUser);
 
 /* -------------------------------------------------------------------------- */
 /* ✅ 4. Health Check Endpoint (for Render and monitoring)                    */

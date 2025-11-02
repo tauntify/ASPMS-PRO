@@ -2,8 +2,8 @@
  * API Configuration Helper
  *
  * This file determines the correct API base URL based on the environment:
- * - Development (npm run dev): Uses proxy to localhost:5000
- * - Production (deployed): Uses Render backend URL
+ * - Development (npm run dev): Uses Vite proxy to localhost:5000
+ * - Production (deployed): Uses Firebase Functions via Firebase Hosting
  */
 
 // Get the API URL from environment variable or use relative path

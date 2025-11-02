@@ -1,5 +1,6 @@
 // API client configuration - reads from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://aspms-pro-backend.onrender.com';
+// Empty string means use relative paths (Firebase Hosting will route /api/** to Cloud Functions)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Debug logging
 console.log('🔧 API Configuration:', {
@@ -39,10 +40,34 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
   // Get JWT token from localStorage
   const token = localStorage.getItem('auth_token');
 
-  // Merge headers with Authorization header if token exists
+  console.log('🔐 apiFetch called:', {
+    path,
+    url,
+    hasToken: !!token,
+    tokenPreview: token ? token.substring(0, 20) + '...' : 'NO TOKEN',
+  });
+
+  // Validate JWT token format (should have 3 parts separated by dots)
+  const isValidJWT = token && token.split('.').length === 3;
+  
+  if (token && !isValidJWT) {
+    console.error('❌ INVALID JWT TOKEN FORMAT:', token);
+    console.error('❌ Clearing corrupted token and redirecting to login...');
+    localStorage.removeItem('auth_token');
+    
+    // Don't redirect if this is the login page or auth check
+    if (!path.includes('/auth/login') && !path.includes('/auth/google')) {
+      window.location.href = '/login?error=invalid_token';
+    }
+  }
+
+  // Merge headers with Authorization header if token exists and is valid
   const headers = new Headers(options?.headers);
-  if (token) {
+  if (token && isValidJWT) {
     headers.set('Authorization', `Bearer ${token}`);
+    console.log('✅ Authorization header set with valid JWT');
+  } else if (!token) {
+    console.warn('⚠️ NO TOKEN FOUND IN localStorage!');
   }
 
   return fetch(url, {

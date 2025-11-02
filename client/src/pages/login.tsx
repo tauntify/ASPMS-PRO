@@ -14,11 +14,17 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Check for error parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const errorParam = urlParams.get('error');
+  const hasTokenError = errorParam === 'invalid_token';
 
   const loginMutation = useMutation({
     mutationFn: login,
-    onSuccess: (user) => {
-      setLocation("/");
+    onSuccess: () => {
+      // Force a full page reload to ensure all components re-fetch with the new token
+      window.location.href = "/";
     },
   });
 
@@ -59,6 +65,15 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {hasTokenError && (
+                <Alert variant="destructive" data-testid="alert-token-error">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Your session has expired or is invalid. Please log in again.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {loginMutation.isError && (
                 <Alert variant="destructive" data-testid="alert-login-error">
                   <AlertCircle className="h-4 w-4" />

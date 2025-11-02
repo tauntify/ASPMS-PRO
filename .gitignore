@@ -8,3 +8,8 @@ vite.config.ts.*
 # Environment variables
 .env
 .env.local
+
+# Firebase service account keys
+functions/service-account-key.json
+functions/src/service-account-key.json
+functions/lib

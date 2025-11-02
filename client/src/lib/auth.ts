@@ -60,29 +60,39 @@ export function useAuth() {
 }
 
 export async function login(credentials: LoginCredentials) {
-  try {
-    const response = await apiFetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(credentials),
-    });
+  console.log("🔑 Login attempt starting...");
+  const response = await apiFetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
 
-    if (!response.ok) throw new Error("Invalid username or password");
+  console.log("📡 Login response status:", response.status);
+  if (!response.ok) throw new Error("Invalid username or password");
 
-    const data = await response.json();
+  const data = await response.json();
+  console.log("📦 Login response data:", { ...data, token: data.token ? 'EXISTS' : 'MISSING' });
 
-    // Store JWT token
-    if (data.token) {
-      setToken(data.token);
-      console.log("✅ JWT token stored in localStorage");
+  // Store JWT token
+  if (data.token) {
+    console.log("💾 Saving token to localStorage...");
+    setToken(data.token);
+
+    // Verify it was saved
+    const savedToken = localStorage.getItem('auth_token');
+    console.log("✅ Token saved successfully:", savedToken ? `${savedToken.substring(0, 20)}...` : 'FAILED TO SAVE');
+
+    if (!savedToken) {
+      console.error("❌ CRITICAL: Token was NOT saved to localStorage!");
+      throw new Error("Failed to save authentication token");
     }
-
-    // Redirect to root - the router will show the correct dashboard based on role
-    window.location.href = "/";
-  } catch (error) {
-    console.error("Login failed:", error);
-    throw error;
+  } else {
+    console.error("❌ No token in login response!");
+    throw new Error("No authentication token received");
   }
+
+  console.log("✅ Login successful, returning user data");
+  return data;
 }
 
 export async function loginWithGoogle() {
