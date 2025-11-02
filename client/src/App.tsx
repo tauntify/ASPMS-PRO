@@ -12,6 +12,13 @@ import TimesheetManagement from "@/pages/timesheet-management";
 import BillingInvoicing from "@/pages/billing-invoicing";
 import ExpenseTracking from "@/pages/expense-tracking";
 import Login from "@/pages/login";
+import Signup from "@/pages/signup";
+import Landing from "@/pages/landing";
+import About from "@/pages/about";
+import Features from "@/pages/features";
+import Pricing from "@/pages/pricing";
+import Terms from "@/pages/terms";
+import Privacy from "@/pages/privacy";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
@@ -67,7 +74,20 @@ function RoleDashboard() {
 function Router() {
   return (
     <Switch>
+      {/* Public Routes */}
+      <Route path="/" component={Landing} />
+      <Route path="/about" component={About} />
+      <Route path="/features" component={Features} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
       <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
+
+      {/* Protected Routes */}
+      <Route path="/dashboard">
+        {() => <ProtectedRoute component={RoleDashboard} />}
+      </Route>
       <Route path="/budget">
         {() => <ProtectedRoute component={Dashboard} />}
       </Route>
@@ -80,9 +100,8 @@ function Router() {
       <Route path="/expense-tracking">
         {() => <ProtectedRoute component={ExpenseTracking} />}
       </Route>
-      <Route path="/">
-        {() => <ProtectedRoute component={RoleDashboard} />}
-      </Route>
+
+      {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
   );

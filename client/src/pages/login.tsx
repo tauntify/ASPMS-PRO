@@ -24,7 +24,7 @@ export default function Login() {
     mutationFn: login,
     onSuccess: () => {
       // Force a full page reload to ensure all components re-fetch with the new token
-      window.location.href = "/";
+      window.location.href = "/dashboard";
     },
   });
 

@@ -141,8 +141,8 @@ export async function loginWithGoogle() {
       console.log("✅ JWT token stored in localStorage");
     }
 
-    // Redirect to root - the router will show the correct dashboard based on role
-    window.location.href = "/";
+    // Redirect to dashboard - the router will show the correct dashboard based on role
+    window.location.href = "/dashboard";
   } catch (error) {
     console.error("Google login failed:", error);
     throw error;

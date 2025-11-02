@@ -572,6 +572,95 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     }
   });
 
+  // Signup Route
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      console.log("📝 Signup attempt:", { email: req.body.email, accountType: req.body.accountType });
+
+      const signupSchema = z.object({
+        fullName: z.string().min(1, "Full name is required"),
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        phone: z.string().min(1, "Phone number is required"),
+        dateOfBirth: z.string().optional(),
+        accountType: z.enum(["individual", "organization"]),
+        organizationName: z.string().optional(),
+      });
+
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        console.error("❌ Signup validation failed:", parsed.error);
+        return res.status(400).json({ error: "Invalid signup data", details: parsed.error });
+      }
+
+      const { fullName, email, password, phone, dateOfBirth, accountType, organizationName } = parsed.data;
+
+      // Generate username from email (before @)
+      const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Check if username already exists
+      try {
+        const existingUser = await storage.getUserByUsername(username);
+        if (existingUser) {
+          // If username exists, append random numbers
+          const randomSuffix = Math.floor(Math.random() * 10000);
+          const newUsername = `${username}${randomSuffix}`;
+          console.log(`⚠️ Username ${username} exists, using ${newUsername}`);
+        }
+      } catch (error) {
+        // User not found, continue
+      }
+
+      // Check if email already exists
+      const usersSnapshot = await storage.getUsers();
+      const emailExists = usersSnapshot.some(u => u.email === email);
+      if (emailExists) {
+        console.error("❌ Email already exists:", email);
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      // Hash password
+      const hashedPassword = hashPassword(password);
+
+      // Create user account
+      const user = await storage.createUser({
+        firebaseUid: "", // Will be set if they use Google later
+        username,
+        password: hashedPassword,
+        role: "principle", // All signups get principle role initially
+        fullName,
+        email,
+        phone,
+        dateOfBirth,
+        accountType,
+        organizationName: accountType === "organization" ? organizationName : undefined,
+      } as any);
+
+      console.log("✅ User created:", user.id, username);
+
+      // Generate JWT token
+      const token = generateToken({
+        userId: user.id as any,
+        username: user.username,
+        role: user.role,
+      });
+
+      // Return user without password + JWT token
+      const { password: _, ...userWithoutPassword } = user;
+      console.log("✅ Signup successful for:", email);
+      res.status(201).json({
+        ...userWithoutPassword,
+        token,
+      });
+    } catch (error) {
+      console.error("❌ Signup error:", error);
+      res.status(500).json({
+        error: "Failed to create account",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Google Sign-In Route
   app.post("/api/auth/google", async (req, res) => {
     try {

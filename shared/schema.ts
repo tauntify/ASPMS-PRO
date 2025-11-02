@@ -97,6 +97,10 @@ export interface Item {
   createdAt: Date;
 }
 
+export const accountTypes = ["individual", "organization"] as const;
+export const accountTypeEnum = z.enum(accountTypes);
+export type AccountType = z.infer<typeof accountTypeEnum>;
+
 export interface User {
   id: string;
   firebaseUid: string;
@@ -104,6 +108,11 @@ export interface User {
   password?: string; // Keep for backward compatibility
   role: UserRole;
   fullName: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  accountType?: AccountType;
+  organizationName?: string; // For organization accounts
   isActive: boolean | number; // Firebase returns 0/1, TypeScript expects boolean
   createdAt: Date;
 }
@@ -348,6 +357,11 @@ export const insertUserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   role: userRoleEnum,
   fullName: z.string().min(1, "Full name is required"),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  accountType: accountTypeEnum.optional(),
+  organizationName: z.string().optional(),
 });
 
 export const insertEmployeeSchema = z.object({
