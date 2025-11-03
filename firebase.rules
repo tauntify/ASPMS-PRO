@@ -196,5 +196,65 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create, update, delete: if isPrinciple();
     }
+
+    // ============================================================================
+    // ARCHITECTURE LIFECYCLE - MEETINGS, MILESTONES, APPROVALS
+    // ============================================================================
+
+    // Meetings subcollection - read for all, write only for principle
+    match /{path=**}/meetings/{meetingId} {
+      allow read: if isAuthenticated();
+      allow create: if isPrinciple();
+      allow update: if isPrinciple() && (!resource.data.isLocked || request.resource.data.isLocked == false);
+      allow delete: if isPrinciple() && !resource.data.isLocked;
+    }
+
+    // Milestones subcollection - read for all, write only for principle
+    match /{path=**}/milestones/{milestoneId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPrinciple();
+    }
+
+    // Approvals subcollection - read for principle and assigned client, write varies
+    match /{path=**}/approvals/{approvalId} {
+      allow read: if isAuthenticated();
+      allow create: if isPrinciple();
+      allow update: if isPrinciple() || (isClient() && request.auth.uid == resource.data.clientId);
+      allow delete: if isPrinciple();
+    }
+
+    // Client notifications subcollection - read for owner, write for principle
+    match /{path=**}/notifications/{notificationId} {
+      allow read: if isAuthenticated() && (isClient() || isPrinciple());
+      allow create: if isPrinciple();
+      allow update: if isClient() || isPrinciple();
+      allow delete: if isPrinciple();
+    }
+
+    // Client activity logs subcollection - read for principle, write system only
+    match /{path=**}/activityLogs/{logId} {
+      allow read: if isPrinciple();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable
+    }
+
+    // Audit logs - read for principle, write system only
+    match /{path=**}/auditLogs/{logId} {
+      allow read: if isPrinciple();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable
+    }
+
+    // ARKA Office collections (multi-tenant support)
+    match /arka_office/data/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isPrinciple();
+    }
+
+    // Organization-specific collections (multi-tenant support)
+    match /organizations/{orgId}/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isPrinciple();
+    }
   }
 }

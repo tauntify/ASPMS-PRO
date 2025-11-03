@@ -30,7 +30,8 @@ export async function attachUser(req: Request, res: Response, next: NextFunction
     if (jwtToken) {
       const payload = verifyToken(jwtToken);
       if (payload) {
-        const user = await storage.getUser(payload.userId);
+        const { getUserById } = await import('./storage-helper');
+        const user = await getUserById(payload.userId);
         if (user) {
           req.user = user;
           return next();

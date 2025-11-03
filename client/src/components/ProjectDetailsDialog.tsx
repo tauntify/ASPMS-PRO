@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,13 +27,21 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { type Project } from "@shared/schema";
+import { type Project, type Client } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarIcon, Building2, FileText, Save } from "lucide-react";
 import { format } from "date-fns";
 
 const projectDetailsSchema = z.object({
+  clientId: z.string().optional(),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
   startDate: z.date().optional(),
@@ -55,9 +63,16 @@ export function ProjectDetailsDialog({
 }: ProjectDetailsDialogProps) {
   const { toast } = useToast();
 
+  // Fetch clients
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+    enabled: open, // Only fetch when dialog is open
+  });
+
   const form = useForm<ProjectDetailsFormValues>({
     resolver: zodResolver(projectDetailsSchema),
     defaultValues: {
+      clientId: "",
       clientName: "",
       projectTitle: "",
       startDate: undefined,
@@ -68,6 +83,7 @@ export function ProjectDetailsDialog({
   useEffect(() => {
     if (project) {
       form.reset({
+        clientId: (project as any).clientId || "",
         clientName: project.clientName || "",
         projectTitle: project.projectTitle || "",
         startDate: project.startDate ? new Date(project.startDate) : undefined,
@@ -78,7 +94,12 @@ export function ProjectDetailsDialog({
 
   const updateMutation = useMutation({
     mutationFn: async (data: ProjectDetailsFormValues) => {
-      if (!project) return;
+      if (!project) {
+        throw new Error("No project selected");
+      }
+      if (!project.id || project.id === '_placeholder' || project.id === 'undefined' || project.id === 'null') {
+        throw new Error("Invalid project ID");
+      }
       return await apiRequest("PATCH", `/api/projects/${project.id}`, data);
     },
     onSuccess: () => {
@@ -89,10 +110,10 @@ export function ProjectDetailsDialog({
       });
       onOpenChange(false);
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to update project details. Please try again.",
+        description: error.message || "Failed to update project details. Please try again.",
         variant: "destructive",
       });
     },
@@ -118,6 +139,50 @@ export function ProjectDetailsDialog({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Select Client
+                  </FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // If a client is selected, update the clientName field
+                      if (value && value !== "manual") {
+                        const selectedClient = clients.find(c => c.id === value);
+                        if (selectedClient) {
+                          form.setValue("clientName", selectedClient.company || selectedClient.email || "");
+                        }
+                      } else if (value === "manual") {
+                        // Clear clientId if manual entry is selected
+                        field.onChange("");
+                      }
+                    }}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-client">
+                        <SelectValue placeholder="Select an existing client or enter manually" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="manual">Enter Manually</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.company || client.email || `Client ${client.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="clientName"
               render={({ field }) => (
                 <FormItem>
@@ -130,6 +195,7 @@ export function ProjectDetailsDialog({
                       placeholder="Enter client name"
                       {...field}
                       data-testid="input-client-name"
+                      disabled={!!form.watch("clientId")}
                     />
                   </FormControl>
                   <FormMessage />

@@ -54,7 +54,7 @@ export default function ExpenseTracking() {
 
   // Fetch user info
   const { data: user } = useQuery<User>({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/auth/me"],
   });
 
   // Fetch projects

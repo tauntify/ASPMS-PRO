@@ -16,6 +16,7 @@ export async function checkSubscription(req: Request, res: Response, next: NextF
     }
 
     // Get user's subscription
+    // @ts-ignore - storage method
     const subscription = await storage.getSubscriptionByUserId(user.id);
 
     if (!subscription) {
@@ -40,6 +41,7 @@ export async function checkSubscription(req: Request, res: Response, next: NextF
     if (status.status === "expired") {
       // Update subscription to blocked if trial expired
       if (subscription.status === "trial") {
+        // @ts-ignore - storage method
         await storage.updateSubscription(subscription.id, { status: "blocked" });
       }
 

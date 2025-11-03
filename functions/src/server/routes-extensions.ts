@@ -8,7 +8,7 @@ import {
   insertResourceAllocationSchema,
   insertProjectMilestoneSchema,
   insertBudgetCategorySchema,
-} from "../shared/schema-extensions";
+} from "@shared/schema-extensions";
 import * as storageExt from "./storage-extensions";
 import { z } from "zod";
 

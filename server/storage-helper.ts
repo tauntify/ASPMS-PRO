@@ -23,122 +23,106 @@ export interface CollectionPaths {
 }
 
 export function getCollectionPaths(user: User): CollectionPaths {
-  // Founder/Admin - access all data across all collections
+  console.log(`🔍 Getting collection paths for user: ${user.username} (${user.role}), accountType: ${user.accountType}`);
+
+  // Founder/Super Admin - access ARKA Office data by default
   if (user.isFounder || (user.role === 'admin' && user.isArkaAdmin)) {
-    // For founders, we need to specify which organization they're viewing
-    // For now, default to arka_office for admin operations
+    console.log('   → Using ARKA Office paths (Founder/Admin)');
     return {
-      users: 'arka_office/users/users',
-      projects: 'arka_office/projects',
-      employees: 'arka_office/employees',
-      clients: 'arka_office/clients',
-      expenses: 'arka_office/expenses',
-      timesheets: 'arka_office/timesheets',
-      tasks: 'arka_office/tasks',
-      salaries: 'arka_office/salaries',
-      attendance: 'arka_office/attendance',
-      procurementItems: 'arka_office/procurementItems',
-      projectAssignments: 'arka_office/projectAssignments',
-      divisions: 'arka_office/divisions',
-      items: 'arka_office/items',
+      users: 'arka_office/data/users',
+      projects: 'arka_office/data/projects',
+      employees: 'arka_office/data/employees',
+      clients: 'arka_office/data/clients',
+      expenses: 'arka_office/data/expenses',
+      timesheets: 'arka_office/data/timesheets',
+      tasks: 'arka_office/data/tasks',
+      salaries: 'arka_office/data/salaries',
+      attendance: 'arka_office/data/attendance',
+      procurementItems: 'arka_office/data/procurementItems',
+      projectAssignments: 'arka_office/data/projectAssignments',
+      divisions: 'arka_office/data/divisions',
+      items: 'arka_office/data/items',
     };
   }
 
-  // ARKA Office account
-  if (user.organizationId === 'arka-office') {
+  // ARKA Office account (principle, employees, clients)
+  if (user.organizationId === 'arka-office' || user.accountType === 'office') {
+    console.log('   → Using ARKA Office paths');
     return {
-      users: 'arka_office/users/users',
-      projects: 'arka_office/projects',
-      employees: 'arka_office/employees',
-      clients: 'arka_office/clients',
-      expenses: 'arka_office/expenses',
-      timesheets: 'arka_office/timesheets',
-      tasks: 'arka_office/tasks',
-      salaries: 'arka_office/salaries',
-      attendance: 'arka_office/attendance',
-      procurementItems: 'arka_office/procurementItems',
-      projectAssignments: 'arka_office/projectAssignments',
-      divisions: 'arka_office/divisions',
-      items: 'arka_office/items',
+      users: 'arka_office/data/users',
+      projects: 'arka_office/data/projects',
+      employees: 'arka_office/data/employees',
+      clients: 'arka_office/data/clients',
+      expenses: 'arka_office/data/expenses',
+      timesheets: 'arka_office/data/timesheets',
+      tasks: 'arka_office/data/tasks',
+      salaries: 'arka_office/data/salaries',
+      attendance: 'arka_office/data/attendance',
+      procurementItems: 'arka_office/data/procurementItems',
+      projectAssignments: 'arka_office/data/projectAssignments',
+      divisions: 'arka_office/data/divisions',
+      items: 'arka_office/data/items',
     };
   }
 
-  // Individual user
-  if (user.accountType === 'individual' || user.subscriptionTier === 'individual') {
+  // Individual subscriber
+  if (user.accountType === 'individual') {
     const userId = user.id;
+    console.log(`   → Using Individual paths for user ${userId}`);
     return {
-      users: `individuals/ind_${userId}/users`,
-      projects: `individuals/ind_${userId}/projects`,
-      employees: `individuals/ind_${userId}/employees`,
-      clients: `individuals/ind_${userId}/clients`,
-      expenses: `individuals/ind_${userId}/expenses`,
-      timesheets: `individuals/ind_${userId}/timesheets`,
-      tasks: `individuals/ind_${userId}/tasks`,
-      salaries: `individuals/ind_${userId}/salaries`,
-      attendance: `individuals/ind_${userId}/attendance`,
-      procurementItems: `individuals/ind_${userId}/procurementItems`,
-      projectAssignments: `individuals/ind_${userId}/projectAssignments`,
-      divisions: `individuals/ind_${userId}/divisions`,
-      items: `individuals/ind_${userId}/items`,
+      users: `individuals/${userId}/data/users`,
+      projects: `individuals/${userId}/data/projects`,
+      employees: `individuals/${userId}/data/employees`,
+      clients: `individuals/${userId}/data/clients`,
+      expenses: `individuals/${userId}/data/expenses`,
+      timesheets: `individuals/${userId}/data/timesheets`,
+      tasks: `individuals/${userId}/data/tasks`,
+      salaries: `individuals/${userId}/data/salaries`,
+      attendance: `individuals/${userId}/data/attendance`,
+      procurementItems: `individuals/${userId}/data/procurementItems`,
+      projectAssignments: `individuals/${userId}/data/projectAssignments`,
+      divisions: `individuals/${userId}/data/divisions`,
+      items: `individuals/${userId}/data/items`,
     };
   }
 
-  // Custom business
-  if (user.accountType === 'custom' || user.subscriptionTier === 'custom') {
-    const orgId = user.organizationId || `cust_${user.id}`;
-    return {
-      users: `custom_businesses/${orgId}/users`,
-      projects: `custom_businesses/${orgId}/projects`,
-      employees: `custom_businesses/${orgId}/employees`,
-      clients: `custom_businesses/${orgId}/clients`,
-      expenses: `custom_businesses/${orgId}/expenses`,
-      timesheets: `custom_businesses/${orgId}/timesheets`,
-      tasks: `custom_businesses/${orgId}/tasks`,
-      salaries: `custom_businesses/${orgId}/salaries`,
-      attendance: `custom_businesses/${orgId}/attendance`,
-      procurementItems: `custom_businesses/${orgId}/procurementItems`,
-      projectAssignments: `custom_businesses/${orgId}/projectAssignments`,
-      divisions: `custom_businesses/${orgId}/divisions`,
-      items: `custom_businesses/${orgId}/items`,
-    };
-  }
-
-  // Organization
-  if (user.accountType === 'organization' || user.subscriptionTier === 'organization') {
+  // Organization subscriber
+  if (user.accountType === 'organization') {
     const orgId = user.organizationId || `org_${user.id}`;
+    console.log(`   → Using Organization paths for ${orgId}`);
     return {
-      users: `organizations/${orgId}/users`,
-      projects: `organizations/${orgId}/projects`,
-      employees: `organizations/${orgId}/employees`,
-      clients: `organizations/${orgId}/clients`,
-      expenses: `organizations/${orgId}/expenses`,
-      timesheets: `organizations/${orgId}/timesheets`,
-      tasks: `organizations/${orgId}/tasks`,
-      salaries: `organizations/${orgId}/salaries`,
-      attendance: `organizations/${orgId}/attendance`,
-      procurementItems: `organizations/${orgId}/procurementItems`,
-      projectAssignments: `organizations/${orgId}/projectAssignments`,
-      divisions: `organizations/${orgId}/divisions`,
-      items: `organizations/${orgId}/items`,
+      users: `organizations/${orgId}/data/users`,
+      projects: `organizations/${orgId}/data/projects`,
+      employees: `organizations/${orgId}/data/employees`,
+      clients: `organizations/${orgId}/data/clients`,
+      expenses: `organizations/${orgId}/data/expenses`,
+      timesheets: `organizations/${orgId}/data/timesheets`,
+      tasks: `organizations/${orgId}/data/tasks`,
+      salaries: `organizations/${orgId}/data/salaries`,
+      attendance: `organizations/${orgId}/data/attendance`,
+      procurementItems: `organizations/${orgId}/data/procurementItems`,
+      projectAssignments: `organizations/${orgId}/data/projectAssignments`,
+      divisions: `organizations/${orgId}/data/divisions`,
+      items: `organizations/${orgId}/data/items`,
     };
   }
 
-  // Default fallback (shouldn't happen, but use arka_office as safe default)
-  console.warn('⚠️  No collection path match for user:', user.username, user.accountType);
+  // Default fallback - use ARKA Office
+  console.warn('⚠️  No collection path match for user:', user.username, user.accountType, '- defaulting to ARKA Office');
   return {
-    users: 'arka_office/users/users',
-    projects: 'arka_office/projects',
-    employees: 'arka_office/employees',
-    clients: 'arka_office/clients',
-    expenses: 'arka_office/expenses',
-    timesheets: 'arka_office/timesheets',
-    tasks: 'arka_office/tasks',
-    salaries: 'arka_office/salaries',
-    attendance: 'arka_office/attendance',
-    procurementItems: 'arka_office/procurementItems',
-    projectAssignments: 'arka_office/projectAssignments',
-    divisions: 'arka_office/divisions',
-    items: 'arka_office/items',
+    users: 'arka_office/data/users',
+    projects: 'arka_office/data/projects',
+    employees: 'arka_office/data/employees',
+    clients: 'arka_office/data/clients',
+    expenses: 'arka_office/data/expenses',
+    timesheets: 'arka_office/data/timesheets',
+    tasks: 'arka_office/data/tasks',
+    salaries: 'arka_office/data/salaries',
+    attendance: 'arka_office/data/attendance',
+    procurementItems: 'arka_office/data/procurementItems',
+    projectAssignments: 'arka_office/data/projectAssignments',
+    divisions: 'arka_office/data/divisions',
+    items: 'arka_office/data/items',
   };
 }
 
@@ -147,25 +131,62 @@ export function getCollectionPaths(user: User): CollectionPaths {
  */
 export async function getUserById(userId: string): Promise<User | null> {
   try {
+    console.log(`🔍 Getting user by ID: ${userId}`);
+
     // 1. Check admins
+    console.log('   → Checking admins collection...');
     const adminDoc = await db.collection('admins').doc(userId).get();
     if (adminDoc.exists) {
-      return adminDoc.data() as User;
+      console.log('   ✅ Found in admins collection');
+      return { id: adminDoc.id, ...adminDoc.data() } as User;
     }
 
-    // 2. Check arka_office/users
-    const arkaUserDoc = await db.collection('arka_office/users/users').doc(userId).get();
+    // 2. Check arka_office/data/users (FIXED PATH)
+    console.log('   → Checking arka_office/data/users...');
+    const arkaUserDoc = await db.collection('arka_office/data/users').doc(userId).get();
     if (arkaUserDoc.exists) {
-      return arkaUserDoc.data() as User;
+      console.log('   ✅ Found in arka_office/data/users');
+      return { id: arkaUserDoc.id, ...arkaUserDoc.data() } as User;
     }
 
-    // 3. Check individuals, custom_businesses, organizations
-    // These would require searching through subcollections
-    // For now, we'll optimize by checking based on ID prefix if we add it
+    // 3. Check individuals
+    console.log('   → Checking individuals...');
+    const individualsSnapshot = await db.collection('individuals').get();
+    for (const individualDoc of individualsSnapshot.docs) {
+      if (individualDoc.id === '_placeholder') continue;
 
+      // Check profile collection
+      const profileDoc = await db.collection(`individuals/${individualDoc.id}/profile`).doc(userId).get();
+      if (profileDoc.exists) {
+        console.log(`   ✅ Found in individuals/${individualDoc.id}/profile`);
+        return { id: profileDoc.id, ...profileDoc.data() } as User;
+      }
+
+      // Check data/users subcollection
+      const userDoc = await db.collection(`individuals/${individualDoc.id}/data/users`).doc(userId).get();
+      if (userDoc.exists) {
+        console.log(`   ✅ Found in individuals/${individualDoc.id}/data/users`);
+        return { id: userDoc.id, ...userDoc.data() } as User;
+      }
+    }
+
+    // 4. Check organizations
+    console.log('   → Checking organizations...');
+    const orgsSnapshot = await db.collection('organizations').get();
+    for (const orgDoc of orgsSnapshot.docs) {
+      if (orgDoc.id === '_placeholder') continue;
+
+      const userDoc = await db.collection(`organizations/${orgDoc.id}/data/users`).doc(userId).get();
+      if (userDoc.exists) {
+        console.log(`   ✅ Found in organizations/${orgDoc.id}/data/users`);
+        return { id: userDoc.id, ...userDoc.data() } as User;
+      }
+    }
+
+    console.log('   ❌ User not found in any collection');
     return null;
   } catch (error) {
-    console.error('Error getting user by ID:', error);
+    console.error('❌ Error getting user by ID:', error);
     return null;
   }
 }
@@ -174,64 +195,77 @@ export async function getUserById(userId: string): Promise<User | null> {
  * Get user document from correct collection based on email/username
  */
 export async function getUserFromAnyCollection(usernameOrEmail: string): Promise<User | null> {
+  console.log(`🔍 Searching for user: ${usernameOrEmail}`);
+
   try {
-    // 1. Check admins collection
+    // 1. Check admins collection (founders and super admins)
+    console.log('   → Checking admins collection...');
     const adminsSnapshot = await db.collection('admins').get();
     for (const doc of adminsSnapshot.docs) {
       const user = doc.data() as User;
       if (user.username === usernameOrEmail || user.email === usernameOrEmail) {
+        console.log('   ✅ Found in admins collection');
         return user;
       }
     }
 
-    // 2. Check arka_office/users
-    const arkaUsersSnapshot = await db.collection('arka_office/users/users').get();
+    // 2. Check arka_office/data/users
+    console.log('   → Checking arka_office/data/users...');
+    const arkaUsersSnapshot = await db.collection('arka_office/data/users').get();
     for (const doc of arkaUsersSnapshot.docs) {
       const user = doc.data() as User;
       if (user.username === usernameOrEmail || user.email === usernameOrEmail) {
+        console.log('   ✅ Found in arka_office/data/users');
         return user;
       }
     }
 
     // 3. Check individuals
+    console.log('   → Checking individuals...');
     const individualsSnapshot = await db.collection('individuals').get();
     for (const individualDoc of individualsSnapshot.docs) {
+      if (individualDoc.id === '_placeholder') continue;
+
       const profileSnapshot = await db.collection(`individuals/${individualDoc.id}/profile`).get();
       for (const doc of profileSnapshot.docs) {
         const user = doc.data() as User;
         if (user.username === usernameOrEmail || user.email === usernameOrEmail) {
+          console.log(`   ✅ Found in individuals/${individualDoc.id}/profile`);
           return user;
         }
       }
-    }
 
-    // 4. Check custom_businesses
-    const customSnapshot = await db.collection('custom_businesses').get();
-    for (const customDoc of customSnapshot.docs) {
-      const usersSnapshot = await db.collection(`custom_businesses/${customDoc.id}/users`).get();
+      // Also check data/users subcollection
+      const usersSnapshot = await db.collection(`individuals/${individualDoc.id}/data/users`).get();
       for (const doc of usersSnapshot.docs) {
         const user = doc.data() as User;
         if (user.username === usernameOrEmail || user.email === usernameOrEmail) {
+          console.log(`   ✅ Found in individuals/${individualDoc.id}/data/users`);
           return user;
         }
       }
     }
 
-    // 5. Check organizations
+    // 4. Check organizations
+    console.log('   → Checking organizations...');
     const orgsSnapshot = await db.collection('organizations').get();
     for (const orgDoc of orgsSnapshot.docs) {
-      const usersSnapshot = await db.collection(`organizations/${orgDoc.id}/users`).get();
+      if (orgDoc.id === '_placeholder') continue;
+
+      const usersSnapshot = await db.collection(`organizations/${orgDoc.id}/data/users`).get();
       for (const doc of usersSnapshot.docs) {
         const user = doc.data() as User;
         if (user.username === usernameOrEmail || user.email === usernameOrEmail) {
+          console.log(`   ✅ Found in organizations/${orgDoc.id}/data/users`);
           return user;
         }
       }
     }
 
+    console.log('   ❌ User not found in any collection');
     return null;
   } catch (error) {
-    console.error('Error searching for user:', error);
+    console.error('❌ Error searching for user:', error);
     return null;
   }
 }

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { User } from '../shared/schema';
+import { User } from '@shared/schema';
 import { storage } from './storage';
 import { auth as firebaseAuth } from './firebase';
 import bcrypt from 'bcrypt';
@@ -18,82 +18,68 @@ declare global {
 // Extend express-session to include userId
 declare module 'express-session' {
   interface SessionData {
-    userId: number;
+    userId: string;
   }
 }
 
 // Middleware to verify token and attach user
 export async function attachUser(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log(`🔐 attachUser middleware - Path: ${req.path}, Auth header: ${req.headers.authorization ? 'EXISTS' : 'NONE'}`);
-
-    // Check if Authorization header exists
-    const authHeader = req.headers.authorization;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      console.log(`🎫 Token found: ${token.substring(0, 20)}...`);
-
-      // Priority 1: Try JWT token first
-      const jwtPayload = verifyToken(token);
-      if (jwtPayload) {
-        console.log(`✅ JWT payload verified: userId=${jwtPayload.userId}, role=${jwtPayload.role}`);
-        const user = await storage.getUser(String(jwtPayload.userId));
+    // Priority 1: Check for JWT token in Authorization header
+    const jwtToken = extractTokenFromHeader(req.headers.authorization);
+    if (jwtToken) {
+      const payload = verifyToken(jwtToken);
+      if (payload) {
+        const { getUserById } = await import('./storage-helper');
+        const user = await getUserById(payload.userId);
         if (user) {
           req.user = user;
-          console.log(`✅ User attached from JWT: ${user.username} (${user.role})`);
           return next();
-        } else {
-          console.warn(`⚠️ User not found in DB for userId: ${jwtPayload.userId}`);
         }
       }
+    }
 
-      // Priority 2: Try Firebase token (for Google Sign-In)
+    // Priority 2: Fallback to session-based authentication (backward compatibility)
+    if (req.session?.userId) {
+      const user = await storage.getUser(req.session.userId);
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    }
+
+    // Priority 3: Check for Firebase token (Google Sign-In)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+
       try {
+        // Try to verify as Firebase token
         const decodedToken = await firebaseAuth.verifyIdToken(token);
         req.firebaseUser = decodedToken;
-        console.log(`✅ Firebase token verified: ${decodedToken.email}`);
 
         // Get user from database by Firebase UID
         const user = await storage.getUserByFirebaseUid(decodedToken.uid);
         if (user) {
           req.user = user;
-          console.log(`✅ User attached from Firebase: ${user.username}`);
-          return next();
         }
-      } catch (firebaseError) {
-        // Not a Firebase token, that's okay
-        console.log(`ℹ️ Not a valid Firebase token (this is normal for JWT auth)`);
+      } catch (error) {
+        console.error('Error verifying Firebase token:', error);
       }
     }
 
-    // Priority 3: Fallback to session-based authentication (backward compatibility)
-    if (req.session?.userId) {
-      console.log(`🍪 Session found for userId: ${req.session.userId}`);
-      const user = await storage.getUser(String(req.session.userId));
-      if (user) {
-        req.user = user;
-        console.log(`✅ User attached from session: ${user.username}`);
-        return next();
-      }
-    }
-
-    console.log(`🏁 attachUser complete - req.user: ${req.user ? 'SET' : 'NOT SET'}`);
     next();
   } catch (error) {
-    console.error('❌ Error in attachUser middleware:', error);
+    console.error('Error in attachUser middleware:', error);
     next();
   }
 }
 
 // Middleware to check if user is authenticated
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  console.log(`🔒 requireAuth - Path: ${req.path}, req.user: ${req.user ? `${req.user.username} (${req.user.role})` : 'NOT SET'}`);
   if (!req.user) {
-    console.warn(`❌ 401 Unauthorized - No user attached to request for path: ${req.path}`);
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  console.log(`✅ requireAuth passed for ${req.user.username}`);
   next();
 }
 

@@ -66,14 +66,75 @@ export const unitTypes = [
 export const unitEnum = z.enum(unitTypes);
 export type Unit = z.infer<typeof unitEnum>;
 
+// Architecture Lifecycle Types
+export const projectTypes = ["design-only", "renovation", "new-build", "construction", "consultancy"] as const;
+export const projectTypeEnum = z.enum(projectTypes);
+export type ProjectType = z.infer<typeof projectTypeEnum>;
+
+export const projectSubTypes = ["residential", "office", "retail", "hospital", "airport", "high-rise", "mid-rise", "low-rise", "commercial", "industrial", "mixed-use"] as const;
+export const projectSubTypeEnum = z.enum(projectSubTypes);
+export type ProjectSubType = z.infer<typeof projectSubTypeEnum>;
+
+export const areaUnits = ["sqm", "sqft", "kanal", "yard"] as const;
+export const areaUnitEnum = z.enum(areaUnits);
+export type AreaUnit = z.infer<typeof areaUnitEnum>;
+
+export const projectScopes = ["concept", "schematic", "detailed", "structural", "MEP", "BOQ", "tender", "construction", "supervision", "3D", "animation", "interior"] as const;
+export const projectScopeEnum = z.enum(projectScopes);
+export type ProjectScope = z.infer<typeof projectScopeEnum>;
+
+export const feeModelTypes = ["lumpSum", "perUnit", "percentage", "hybrid"] as const;
+export const feeModelTypeEnum = z.enum(feeModelTypes);
+export type FeeModelType = z.infer<typeof feeModelTypeEnum>;
+
+export const projectStatuses = ["draft", "active", "client-review", "on-hold", "completed", "archived"] as const;
+export const projectStatusEnum = z.enum(projectStatuses);
+export type ProjectStatus = z.infer<typeof projectStatusEnum>;
+
+export const siteTypes = ["on-site", "arka-office", "virtual"] as const;
+export const siteTypeEnum = z.enum(siteTypes);
+export type SiteType = z.infer<typeof siteTypeEnum>;
+
+export interface FeeModel {
+  type: FeeModelType;
+  value: number;
+  unit?: AreaUnit; // For perUnit type
+}
+
+export interface LockedApprovingBody {
+  name: string;
+  lockedAt: Date;
+  lockedBy: string;
+}
+
 // Firebase Types
 export interface Project {
   id: string;
   name: string;
+  clientId?: string;
   clientName?: string;
   projectTitle?: string;
   startDate?: Date;
   deliveryDate?: Date;
+
+  // Architecture Lifecycle Fields
+  projectType?: ProjectType;
+  subType?: ProjectSubType;
+  area?: number;
+  areaUnit?: AreaUnit;
+  canonicalAreaSqm?: number; // Normalized to square meters
+  stories?: number;
+  projectScope?: ProjectScope[];
+  feeModel?: FeeModel;
+  constructionCostEstimate?: number;
+  supervisionPercent?: number;
+  primaryContactId?: string;
+  lockedApprovingBody?: LockedApprovingBody;
+  projectStatus?: ProjectStatus;
+  primaryAddress?: string;
+  siteGeo?: { lat: number; lng: number };
+  siteType?: SiteType;
+
   createdAt: Date;
 }
 
@@ -94,6 +155,15 @@ export interface Item {
   rate: number;
   priority: Priority;
   status: ItemStatus;
+
+  // BOQ Extensions
+  isBoqItem?: boolean;
+  itemCode?: string;
+  volume?: string; // For tender volumes: "Vol I", "Vol II", etc.
+  procurementLinks?: string[]; // Array of procurement item IDs
+  markedForApproval?: boolean;
+  approvalRequired?: boolean;
+
   createdAt: Date;
 }
 
@@ -139,6 +209,10 @@ export interface User {
   dateOfBirth?: string;
   accountType?: AccountType;
   organizationName?: string; // For organization accounts
+  organizationId?: string; // For multi-tenant data isolation
+  subscriptionTier?: AccountType; // Alias for accountType
+  isFounder?: boolean; // Founder/admin flag
+  isArkaAdmin?: boolean; // ARKA office admin flag
   isActive: boolean | number; // Firebase returns 0/1, TypeScript expects boolean
   subscriptionId?: string; // Link to subscription
   createdAt: Date;
@@ -163,15 +237,43 @@ export interface Employee {
   createdAt: Date;
 }
 
+export interface SubClient {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  relationship?: string; // e.g., "Family Member", "Representative"
+  profilePicture?: string;
+  canEditProfile: boolean;
+}
+
 export interface Client {
   id: string;
   userId: string;
+  clientName: string;
+  jobDesignation?: string;
+  assignedProjectId?: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  projectAddress?: string;
+  projectStartDate?: Date;
+  profilePicture?: string;
   company?: string;
   profession?: string;
   contactNumber?: string;
-  email?: string;
   address?: string;
-  profilePicture?: string;
+  parentClientId?: string; // For sub-clients (family members/representatives)
+  isSubClient?: boolean;
+
+  // Architecture Lifecycle Extensions
+  subClients?: SubClient[];
+  paymentTerms?: string;
+  billingContact?: string;
+  preferredCurrency?: string;
+  preferredUnit?: AreaUnit;
+  canEditProfile?: boolean;
+
   createdAt: Date;
 }
 
@@ -310,13 +412,199 @@ export interface ProjectFinancials {
   workCompleted: number;
   isArchived: boolean;
   archivedDate?: Date;
+
+  // Architecture Lifecycle Financials
+  designFee?: number;
+  supervisionFee?: number;
+  boqTotal?: number;
+  laborTotal?: number;
+  procurementTotal?: number;
+  subcontractTotal?: number;
+  contingencyPercent?: number;
+  contingencyAmount?: number;
+  overheadPercent?: number;
+  overheadAmount?: number;
+  constructionEstimate?: number;
+  projectTotal?: number;
+  amountOutstanding?: number;
+  invoices?: Array<{
+    id: string;
+    amount: number;
+    date: Date;
+    status: "draft" | "sent" | "paid" | "overdue";
+    milestoneId?: string;
+  }>;
+  milestonePayments?: Array<{
+    milestoneId: string;
+    amount: number;
+    dueDate?: Date;
+    paidDate?: Date;
+    status: "pending" | "paid" | "partial";
+  }>;
+
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Audit Log Types
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  changes?: any;
+  ipAddress?: string;
+  userAgent?: string;
+  organizationId?: string;
+  timestamp: Date;
+}
+
+// Meetings Types
+export const locationTypes = ["arka-office", "on-site", "virtual"] as const;
+export const locationTypeEnum = z.enum(locationTypes);
+export type LocationType = z.infer<typeof locationTypeEnum>;
+
+export interface MeetingAttendee {
+  userId: string;
+  name: string;
+  role: string;
+  email?: string;
+}
+
+export interface MeetingDecision {
+  id: string;
+  decision: string;
+  owner: string;
+  ownerName: string;
+  dueDate?: Date;
+  status: "pending" | "completed" | "overdue";
+  createdAt: Date;
+}
+
+export interface Meeting {
+  id: string;
+  projectId: string;
+  title: string;
+  dateTime: Date;
+  locationType: LocationType;
+  locationDetails?: string;
+  siteGeo?: { lat: number; lng: number };
+  attendees: MeetingAttendee[];
+  approvingBody?: string;
+  approvingBodyLocked?: boolean;
+  minutes?: string; // Rich text
+  decisions: MeetingDecision[];
+  attachments?: string[]; // URLs to files
+  isLocked: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Milestones Types
+export const milestoneTypes = ["designFee", "construction", "payment", "submission"] as const;
+export const milestoneTypeEnum = z.enum(milestoneTypes);
+export type MilestoneType = z.infer<typeof milestoneTypeEnum>;
+
+export const milestoneStatuses = ["pending", "in-progress", "completed", "overdue"] as const;
+export const milestoneStatusEnum = z.enum(milestoneStatuses);
+export type MilestoneStatus = z.infer<typeof milestoneStatusEnum>;
+
+export interface Milestone {
+  id: string;
+  projectId: string;
+  title: string;
+  type: MilestoneType;
+  dueDate?: Date;
+  amount?: number;
+  linkedDeliverables?: string[]; // Array of item/task/boq IDs
+  status: MilestoneStatus;
+  completedAt?: Date;
+  notes?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Client Portal Types
+export const approvalStatuses = ["pending", "approved", "objection"] as const;
+export const approvalStatusEnum = z.enum(approvalStatuses);
+export type ApprovalStatus = z.infer<typeof approvalStatusEnum>;
+
+export interface ApprovalHistory {
+  timestamp: Date;
+  action: string;
+  userId: string;
+  userName: string;
+  previousStatus?: ApprovalStatus;
+  newStatus: ApprovalStatus;
+  comment?: string;
+}
+
+export interface ClientApproval {
+  id: string;
+  projectId: string;
+  clientId: string;
+  itemRef?: string; // Can point to division/item/boq/task/meeting-decision
+  itemType: "division" | "item" | "stage" | "meeting" | "boq"; // Type of item for approval
+  itemName: string;
+  itemSnapshot?: any; // Full snapshot of item data at time of approval request
+  status: ApprovalStatus;
+  objectionComment?: string;
+  requestedBy: string;
+  requestedAt: Date;
+  respondedAt?: Date;
+  clientResponse?: {
+    comment?: string;
+    timestamp: Date;
+    responseType: "approved" | "objected" | "comment";
+  };
+  history: ApprovalHistory[];
+  createdAt: Date;
+}
+
+export interface ClientNotification {
+  id: string;
+  clientId: string;
+  projectId?: string;
+  title: string;
+  message: string;
+  type: "approval_request" | "project_update" | "general" | "comment";
+  isRead: boolean;
+  relatedApprovalId?: string;
+  createdBy: string;
+  createdAt: Date;
+}
+
+export interface ClientActivityLog {
+  id: string;
+  clientId: string;
+  activityType: "login" | "logout" | "approval" | "comment" | "view_project";
+  description: string;
+  projectId?: string;
+  relatedId?: string; // ID of approval, comment, etc.
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: Date;
+}
+
+export interface ClientComment {
+  id: string;
+  projectId: string;
+  clientId: string;
+  itemId?: string; // Optional: specific item/division
+  comment: string;
+  attachments?: string[]; // URLs to uploaded files
+  isInternal: boolean; // If true, only visible to principle/admin
+  createdAt: Date;
 }
 
 // Insert Schemas
 export const insertProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
+  clientId: z.string().optional(),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
   startDate: z.union([z.string(), z.date()]).transform(val => {
@@ -327,6 +615,29 @@ export const insertProjectSchema = z.object({
     if (!val) return undefined;
     return typeof val === 'string' ? new Date(val) : val;
   }).optional(),
+
+  // Architecture Lifecycle Fields
+  projectType: projectTypeEnum.optional(),
+  subType: projectSubTypeEnum.optional(),
+  area: z.number().min(0).optional(),
+  areaUnit: areaUnitEnum.optional(),
+  stories: z.number().int().min(0).optional(),
+  projectScope: z.array(projectScopeEnum).optional(),
+  feeModel: z.object({
+    type: feeModelTypeEnum,
+    value: z.number().min(0),
+    unit: areaUnitEnum.optional(),
+  }).optional(),
+  constructionCostEstimate: z.number().min(0).optional(),
+  supervisionPercent: z.number().min(0).max(100).optional(),
+  primaryContactId: z.string().optional(),
+  projectStatus: projectStatusEnum.optional(),
+  primaryAddress: z.string().optional(),
+  siteGeo: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }).optional(),
+  siteType: siteTypeEnum.optional(),
 });
 
 export const insertDivisionSchema = z.object({
@@ -343,11 +654,20 @@ export const insertItemSchema = z.object({
   rate: z.number().min(0, "Rate must be positive"),
   priority: priorityEnum,
   status: itemStatusEnum.optional(),
+
+  // BOQ Extensions
+  isBoqItem: z.boolean().optional(),
+  itemCode: z.string().optional(),
+  volume: z.string().optional(),
+  procurementLinks: z.array(z.string()).optional(),
+  markedForApproval: z.boolean().optional(),
+  approvalRequired: z.boolean().optional(),
 });
 
 export const updateProjectSchema = z.object({
   id: z.string(),
   name: z.string().min(1).optional(),
+  clientId: z.string().optional(),
   clientName: z.string().optional(),
   projectTitle: z.string().optional(),
   startDate: z.union([z.string(), z.date()]).transform(val => {
@@ -358,6 +678,29 @@ export const updateProjectSchema = z.object({
     if (!val) return undefined;
     return typeof val === 'string' ? new Date(val) : val;
   }).optional(),
+
+  // Architecture Lifecycle Fields
+  projectType: projectTypeEnum.optional(),
+  subType: projectSubTypeEnum.optional(),
+  area: z.number().min(0).optional(),
+  areaUnit: areaUnitEnum.optional(),
+  stories: z.number().int().min(0).optional(),
+  projectScope: z.array(projectScopeEnum).optional(),
+  feeModel: z.object({
+    type: feeModelTypeEnum,
+    value: z.number().min(0),
+    unit: areaUnitEnum.optional(),
+  }).optional(),
+  constructionCostEstimate: z.number().min(0).optional(),
+  supervisionPercent: z.number().min(0).max(100).optional(),
+  primaryContactId: z.string().optional(),
+  projectStatus: projectStatusEnum.optional(),
+  primaryAddress: z.string().optional(),
+  siteGeo: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }).optional(),
+  siteType: siteTypeEnum.optional(),
 });
 
 export const updateDivisionSchema = z.object({
@@ -412,12 +755,23 @@ export const insertEmployeeSchema = z.object({
 
 export const insertClientSchema = z.object({
   userId: z.string(),
+  clientName: z.string().min(1, "Client name is required"),
+  jobDesignation: z.string().optional(),
+  assignedProjectId: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  whatsapp: z.string().optional(),
+  projectAddress: z.string().optional(),
+  projectStartDate: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  profilePicture: z.string().optional(),
   company: z.string().optional(),
   profession: z.string().optional(),
   contactNumber: z.string().optional(),
-  email: z.string().email().optional(),
   address: z.string().optional(),
-  profilePicture: z.string().optional(),
+  parentClientId: z.string().optional(),
+  isSubClient: z.boolean().optional(),
 });
 
 export const insertProjectAssignmentSchema = z.object({
@@ -546,9 +900,124 @@ export const insertProjectFinancialsSchema = z.object({
   amountReceived: z.number().min(0).optional(),
   workCompleted: z.number().min(0).max(100).optional(),
   isArchived: z.boolean().optional(),
-  archivedDate: z.union([z.string(), z.date()]).transform(val => 
+  archivedDate: z.union([z.string(), z.date()]).transform(val =>
     typeof val === 'string' ? new Date(val) : val
   ).optional(),
+});
+
+export const insertClientApprovalSchema = z.object({
+  projectId: z.string(),
+  clientId: z.string(),
+  itemId: z.string().optional(),
+  itemType: z.enum(["division", "item", "stage"]),
+  itemName: z.string().min(1, "Item name is required"),
+  status: approvalStatusEnum.optional(),
+  objectionComment: z.string().optional(),
+  requestedBy: z.string(),
+  requestedAt: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ),
+  respondedAt: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+});
+
+export const insertClientNotificationSchema = z.object({
+  clientId: z.string(),
+  projectId: z.string().optional(),
+  title: z.string().min(1, "Title is required"),
+  message: z.string().min(1, "Message is required"),
+  type: z.enum(["approval_request", "project_update", "general", "comment"]),
+  isRead: z.boolean().optional(),
+  relatedApprovalId: z.string().optional(),
+  createdBy: z.string(),
+});
+
+export const insertClientActivityLogSchema = z.object({
+  clientId: z.string(),
+  activityType: z.enum(["login", "logout", "approval", "comment", "view_project"]),
+  description: z.string().min(1, "Description is required"),
+  projectId: z.string().optional(),
+  relatedId: z.string().optional(),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
+});
+
+export const insertClientCommentSchema = z.object({
+  projectId: z.string(),
+  clientId: z.string(),
+  itemId: z.string().optional(),
+  comment: z.string().min(1, "Comment cannot be empty"),
+  attachments: z.array(z.string()).optional(),
+  isInternal: z.boolean().optional(),
+});
+
+export const insertMeetingSchema = z.object({
+  projectId: z.string(),
+  title: z.string().min(1, "Title is required"),
+  dateTime: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ),
+  locationType: locationTypeEnum,
+  locationDetails: z.string().optional(),
+  siteGeo: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }).optional(),
+  attendees: z.array(z.object({
+    userId: z.string(),
+    name: z.string(),
+    role: z.string(),
+    email: z.string().optional(),
+  })),
+  approvingBody: z.string().optional(),
+  approvingBodyLocked: z.boolean().optional(),
+  minutes: z.string().optional(),
+  decisions: z.array(z.object({
+    id: z.string(),
+    decision: z.string(),
+    owner: z.string(),
+    ownerName: z.string(),
+    dueDate: z.union([z.string(), z.date()]).transform(val =>
+      typeof val === 'string' ? new Date(val) : val
+    ).optional(),
+    status: z.enum(["pending", "completed", "overdue"]),
+    createdAt: z.union([z.string(), z.date()]).transform(val =>
+      typeof val === 'string' ? new Date(val) : val
+    ),
+  })).optional(),
+  attachments: z.array(z.string()).optional(),
+  isLocked: z.boolean().optional(),
+  createdBy: z.string(),
+});
+
+export const insertMilestoneSchema = z.object({
+  projectId: z.string(),
+  title: z.string().min(1, "Title is required"),
+  type: milestoneTypeEnum,
+  dueDate: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  amount: z.number().min(0).optional(),
+  linkedDeliverables: z.array(z.string()).optional(),
+  status: milestoneStatusEnum.optional(),
+  completedAt: z.union([z.string(), z.date()]).transform(val =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+  notes: z.string().optional(),
+  createdBy: z.string(),
+});
+
+export const insertAuditLogSchema = z.object({
+  userId: z.string(),
+  userName: z.string(),
+  action: z.string().min(1, "Action is required"),
+  entityType: z.string().min(1, "Entity type is required"),
+  entityId: z.string(),
+  changes: z.any().optional(),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
+  organizationId: z.string().optional(),
 });
 
 // Insert Types
@@ -572,6 +1041,13 @@ export type InsertSalaryAdvance = z.infer<typeof insertSalaryAdvanceSchema>;
 export type InsertSalaryPayment = z.infer<typeof insertSalaryPaymentSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertProjectFinancials = z.infer<typeof insertProjectFinancialsSchema>;
+export type InsertClientApproval = z.infer<typeof insertClientApprovalSchema>;
+export type InsertClientNotification = z.infer<typeof insertClientNotificationSchema>;
+export type InsertClientActivityLog = z.infer<typeof insertClientActivityLogSchema>;
+export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
+export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 export interface DivisionWithItems extends Division {
   items: Item[];

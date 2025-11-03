@@ -58,7 +58,7 @@ export default function TimesheetManagement() {
 
   // Fetch user info
   const { data: user } = useQuery<User>({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/auth/me"],
   });
 
   // Fetch projects for dropdown

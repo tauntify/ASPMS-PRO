@@ -3,6 +3,7 @@ import { useAuth, logout } from "@/lib/auth";
 import { Project, User, Task, ProcurementItem, Comment, Attendance, Salary, SalaryAdvance, insertProjectSchema, insertUserSchema, InsertProject, designations } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/api";
+import { parseSafeDate } from "@/lib/date-utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,7 +106,7 @@ export default function PrincipleDashboard() {
   });
 
   const { data: allProcurement = [] } = useQuery<ProcurementItem[]>({
-    queryKey: ["/api/procurement/all"],
+    queryKey: ["/api/procurement/all", projects.map(p => p.id).sort().join(',')],
     queryFn: async () => {
       // Fetch procurement for all projects
       const procurementData: ProcurementItem[] = [];
@@ -123,10 +124,13 @@ export default function PrincipleDashboard() {
       return procurementData;
     },
     enabled: projects.length > 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: allComments = [] } = useQuery<Comment[]>({
-    queryKey: ["/api/comments/all"],
+    queryKey: ["/api/comments/all", projects.map(p => p.id).sort().join(',')],
     queryFn: async () => {
       // Fetch comments for all projects
       const commentsData: Comment[] = [];
@@ -144,10 +148,13 @@ export default function PrincipleDashboard() {
       return commentsData;
     },
     enabled: projects.length > 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: allAttendance = [] } = useQuery<Attendance[]>({
-    queryKey: ["/api/attendance/all"],
+    queryKey: ["/api/attendance/all", users.filter(u => u.role === "employee").map(e => e.id).sort().join(',')],
     queryFn: async () => {
       // Fetch attendance for all employees
       const attendanceData: Attendance[] = [];
@@ -166,18 +173,27 @@ export default function PrincipleDashboard() {
       return attendanceData;
     },
     enabled: users.length > 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Fetch all salaries
   const { data: allSalaries = [] } = useQuery<Salary[]>({
     queryKey: ["/api/salaries"],
     enabled: users.length > 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Fetch all salary advances
   const { data: allAdvances = [] } = useQuery<SalaryAdvance[]>({
     queryKey: ["/api/salary-advances"],
     enabled: users.length > 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Salary API handlers
@@ -353,12 +369,12 @@ export default function PrincipleDashboard() {
   const recentActivity = [
     ...allTasks.map((t) => ({
       type: "task" as const,
-      timestamp: new Date(t.updatedAt),
+      timestamp: parseSafeDate(t.updatedAt) || new Date(0),
       data: t,
     })),
     ...allComments.map((c) => ({
       type: "comment" as const,
-      timestamp: new Date(c.createdAt),
+      timestamp: parseSafeDate(c.createdAt) || new Date(0),
       data: c,
     })),
   ]
@@ -843,8 +859,8 @@ export default function PrincipleDashboard() {
                   const currentMonth = now.getMonth();
                   const currentYear = now.getFullYear();
                   const employeeAttendance = allAttendance.filter(a => {
-                    const attendanceDate = new Date(a.attendanceDate);
-                    return a.employeeId === employee.id &&
+                    const attendanceDate = parseSafeDate(a.attendanceDate);
+                    return attendanceDate && a.employeeId === employee.id &&
                            attendanceDate.getMonth() === currentMonth &&
                            attendanceDate.getFullYear() === currentYear;
                   });
@@ -1170,8 +1186,8 @@ export default function PrincipleDashboard() {
                   const currentYear = now.getFullYear();
                   const currentMonthStr = format(now, 'yyyy-MM');
                   const employeeAttendance = allAttendance.filter(a => {
-                    const attendanceDate = new Date(a.attendanceDate);
-                    return a.employeeId === user.id &&
+                    const attendanceDate = parseSafeDate(a.attendanceDate);
+                    return attendanceDate && a.employeeId === user.id &&
                            attendanceDate.getMonth() === currentMonth &&
                            attendanceDate.getFullYear() === currentYear;
                   });

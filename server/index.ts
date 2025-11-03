@@ -1,29 +1,31 @@
+import * as functions from "firebase-functions";
 import express from "express";
 import session from "express-session";
 import cors from "cors";
-import dotenv from "dotenv";
-import { createServer } from "http";
-import { registerRoutes } from "./routes";
-import { registerExtensionRoutes } from "./routes-extensions";
-import { createRequire } from "module";
-import { db } from "./firebase";
+import admin from "firebase-admin";
 
-// Only load .env file in development - Render provides env vars directly in production
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config();
+// Initialize Firebase Admin (uses Application Default Credentials in Cloud Functions)
+if (!admin.apps.length) {
+  admin.initializeApp();
 }
 
-const require = createRequire(import.meta.url);
+const db = admin.firestore();
+
+// Import Firestore Store (CommonJS module)
 const FirestoreStoreFactory = require("firestore-store");
 const FirestoreStore = FirestoreStoreFactory(session);
+
+// Import routes dynamically
+import { registerRoutes } from "./server/routes";
+import { registerExtensionRoutes } from "./server/routes-extensions";
+import { attachUser } from "./server/auth";
+import { requestLogger, errorLogger, logger } from "./server/logger";
 
 const app = express();
 app.use(express.json());
 app.set("trust proxy", 1);
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 1. Correct CORS Configuration                                           */
-/* -------------------------------------------------------------------------- */
+// CORS - Firebase hosting same domain
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5000",
@@ -38,13 +40,11 @@ app.use(
   })
 );
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 2. Session Configuration with Firestore                                 */
-/* -------------------------------------------------------------------------- */
+// Session with same-domain cookies (for backward compatibility)
 app.use(
   session({
     store: new FirestoreStore({ database: db, collection: "sessions" }),
-    secret: process.env.SESSION_SECRET || "dev_secret_key",
+    secret: process.env.SESSION_SECRET || "aspms_production_secret_2025",
     resave: false,
     saveUninitialized: false,
     name: "connect.sid",
@@ -52,92 +52,76 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: true,
-      sameSite: "none",
-      partitioned: true,
+      sameSite: "lax", // Same domain
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   })
 );
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 3. Attach Logged-in User to Request (JWT & Session Auth)                */
-/* -------------------------------------------------------------------------- */
-// Import attachUser middleware that handles both JWT and session auth
-import { attachUser } from "./auth.js";
+// Request logging middleware
+app.use(requestLogger);
+
+// Attach user to request (checks JWT token first, then session)
 app.use(attachUser);
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 4. Health Check Endpoint (for Render and monitoring)                    */
-/* -------------------------------------------------------------------------- */
+// Health Check - Updated with new admin features
 app.get("/api/health", async (_req, res) => {
   try {
-    // Test Firestore connection
-    const testQuery = await db.collection('_health_check').limit(1).get();
-
+    await db.collection('_health_check').limit(1).get();
     res.status(200).json({
       status: "ok",
       timestamp: new Date().toISOString(),
       firebase: "connected",
-      firestore: "operational"
+      firestore: "operational",
+      hosting: "Firebase Cloud Functions",
+      version: "2.0.0"
     });
   } catch (error) {
-    console.error("❌ Health check failed - Firebase connection issue:", error);
+    console.error("Health check failed:", error);
     res.status(503).json({
       status: "degraded",
-      timestamp: new Date().toISOString(),
-      firebase: "error",
-      firestore: "failed",
       error: error instanceof Error ? error.message : String(error)
     });
   }
 });
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 5. API Routes                                                           */
-/* -------------------------------------------------------------------------- */
+// Register all routes
 registerRoutes(app);
 registerExtensionRoutes(app);
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 6. API 404 Handler (No Static File Serving on Backend)                 */
-/* -------------------------------------------------------------------------- */
-// Backend should ONLY serve API endpoints, not static files
+// 404 handler
 app.use("*", (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: "API endpoint not found",
-    path: req.originalUrl,
-    message: "This backend server only serves API endpoints under /api"
+    path: req.originalUrl
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* ✅ 7. Global Error Handling                                                */
-/* -------------------------------------------------------------------------- */
-// API Error Handler Middleware
+// Error logging middleware
+app.use(errorLogger);
+
+// Error handler
 app.use((err: any, req: any, res: any, next: any) => {
-  // Only handle API errors
-  if (req.path.startsWith("/api")) {
-    console.error("❌ API Error:", err);
-    return res.status(err.status || 500).json({
-      error: err.message || "Internal server error",
-      details: process.env.NODE_ENV === "development" ? err.stack : undefined
-    });
-  }
-  next(err);
+  logger.error("Unhandled API error", err, {
+    path: req.path,
+    method: req.method,
+  });
+
+  return res.status(err.status || 500).json({
+    error: err.message || "Internal server error"
+  });
 });
 
-process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught Exception:", error);
-});
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("❌ Unhandled Rejection at:", promise, "Reason:", reason);
-});
-
-/* -------------------------------------------------------------------------- */
-/* ✅ 8. Start Server                                                         */
-/* -------------------------------------------------------------------------- */
-const PORT = process.env.PORT || 5000;
-const httpServer = createServer(app);
-httpServer.listen(PORT, () =>
-  console.log(`🚀 ASPMS running on port ${PORT} [Mode: ${process.env.NODE_ENV}]`)
+// Export Cloud Function (2nd Gen)
+// Note: Not setting invoker to allow Firebase Hosting internal access
+export const api = functions.https.onRequest(
+  {
+    region: "us-central1",
+    memory: "512MiB",
+    timeoutSeconds: 60,
+    maxInstances: 10,
+    secrets: ["JWT_SECRET"], // Make JWT_SECRET available as environment variable
+  },
+  app
 );
+// Updated Mon, Nov  3, 2025  3:23:07 AM

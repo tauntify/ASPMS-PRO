@@ -30,7 +30,19 @@ import {
   InsertProcurementItem,
   ProjectAssignment,
   InsertProjectAssignment,
-  SalaryAdvance
+  SalaryAdvance,
+  Meeting,
+  InsertMeeting,
+  Milestone,
+  InsertMilestone,
+  ClientApproval,
+  InsertClientApproval,
+  ClientNotification,
+  InsertClientNotification,
+  ClientActivityLog,
+  InsertClientActivityLog,
+  AuditLog,
+  InsertAuditLog
 } from "@shared/schema";
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -40,6 +52,20 @@ function toTimestamp(date: Date | undefined): Timestamp | undefined {
 
 function fromTimestamp(timestamp: any): Date | undefined {
   return timestamp?.toDate ? timestamp.toDate() : undefined;
+}
+
+/**
+ * Serialize a Date to ISO string or null
+ * This ensures dates are never undefined in JSON responses
+ */
+function serializeDate(date: Date | undefined): string | null {
+  if (!date) return null;
+  try {
+    return date.toISOString();
+  } catch (error) {
+    console.error('Invalid date serialization:', date, error);
+    return null;
+  }
 }
 
 function generateId(): string {
@@ -58,11 +84,12 @@ export async function getProjectsForUser(user: User): Promise<Project[]> {
     return {
       ...data,
       id: doc.id,
-      startDate: fromTimestamp(data.startDate),
-      endDate: fromTimestamp(data.endDate),
-      createdAt: fromTimestamp(data.createdAt),
-      updatedAt: fromTimestamp(data.updatedAt),
-    } as Project;
+      startDate: serializeDate(fromTimestamp(data.startDate)),
+      endDate: serializeDate(fromTimestamp(data.endDate)),
+      deliveryDate: serializeDate(fromTimestamp(data.deliveryDate)),
+      createdAt: serializeDate(fromTimestamp(data.createdAt)),
+      updatedAt: serializeDate(fromTimestamp(data.updatedAt)),
+    } as any;
   });
 }
 
@@ -77,7 +104,7 @@ export async function createProjectForUser(user: User, project: InsertProject): 
     ...project,
     id,
     startDate: toTimestamp(project.startDate),
-    endDate: toTimestamp(project.endDate),
+    deliveryDate: toTimestamp(project.deliveryDate),
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };
@@ -87,7 +114,7 @@ export async function createProjectForUser(user: User, project: InsertProject): 
   return {
     ...projectData,
     startDate: project.startDate,
-    endDate: project.endDate,
+    deliveryDate: project.deliveryDate,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as Project;
@@ -108,7 +135,7 @@ export async function updateProjectForUser(user: User, project: UpdateProject): 
   const updateData = {
     ...project,
     startDate: toTimestamp(project.startDate),
-    endDate: toTimestamp(project.endDate),
+    deliveryDate: toTimestamp(project.deliveryDate),
     updatedAt: Timestamp.now(),
   };
 
@@ -117,10 +144,12 @@ export async function updateProjectForUser(user: User, project: UpdateProject): 
   const updated = await docRef.get();
   const data = updated.data()!;
 
+  // @ts-ignore - Type assertion for Firebase document data
   return {
     ...data,
+    id: updated.id,
     startDate: fromTimestamp(data.startDate),
-    endDate: fromTimestamp(data.endDate),
+    deliveryDate: fromTimestamp(data.deliveryDate),
     createdAt: fromTimestamp(data.createdAt),
     updatedAt: fromTimestamp(data.updatedAt),
   } as Project;
@@ -154,9 +183,9 @@ export async function getEmployeesForUser(user: User): Promise<Employee[]> {
     return {
       ...data,
       id: doc.id,
-      joiningDate: fromTimestamp(data.joiningDate),
-      createdAt: fromTimestamp(data.createdAt),
-    } as Employee;
+      joiningDate: serializeDate(fromTimestamp(data.joiningDate)),
+      createdAt: serializeDate(fromTimestamp(data.createdAt)),
+    } as any;
   });
 }
 
@@ -271,6 +300,33 @@ export async function createClientForUser(user: User, client: InsertClient): Pro
 }
 
 /**
+ * Update client in user's context
+ */
+export async function updateClientForUser(user: User, clientId: string, updates: Partial<InsertClient>): Promise<Client> {
+  const paths = getCollectionPaths(user);
+  const clientRef = db.collection(paths.clients).doc(clientId);
+
+  await clientRef.update(updates);
+
+  const updated = await clientRef.get();
+  const data = updated.data();
+
+  return {
+    ...data,
+    id: updated.id,
+    createdAt: fromTimestamp(data?.createdAt),
+  } as Client;
+}
+
+/**
+ * Delete client from user's context
+ */
+export async function deleteClientForUser(user: User, clientId: string): Promise<void> {
+  const paths = getCollectionPaths(user);
+  await db.collection(paths.clients).doc(clientId).delete();
+}
+
+/**
  * Get tasks for a specific user's context
  */
 export async function getTasksForUser(user: User): Promise<Task[]> {
@@ -282,10 +338,10 @@ export async function getTasksForUser(user: User): Promise<Task[]> {
     return {
       ...data,
       id: doc.id,
-      dueDate: fromTimestamp(data.dueDate),
-      createdAt: fromTimestamp(data.createdAt),
-      updatedAt: fromTimestamp(data.updatedAt),
-    } as Task;
+      dueDate: serializeDate(fromTimestamp(data.dueDate)),
+      createdAt: serializeDate(fromTimestamp(data.createdAt)),
+      updatedAt: serializeDate(fromTimestamp(data.updatedAt)),
+    } as any;
   });
 }
 
@@ -415,8 +471,8 @@ export async function getUsersForUser(user: User): Promise<User[]> {
     return {
       ...data,
       id: doc.id,
-      createdAt: fromTimestamp(data.createdAt),
-    } as User;
+      createdAt: serializeDate(fromTimestamp(data.createdAt)),
+    } as any;
   });
 }
 
@@ -730,6 +786,7 @@ export async function getProjectAssignmentsForUser(user: User): Promise<ProjectA
 
   return snapshot.docs.map(doc => {
     const data = doc.data();
+    // @ts-ignore - Type assertion for Firebase document data
     return {
       ...data,
       id: doc.id,
@@ -753,6 +810,7 @@ export async function createProjectAssignmentForUser(user: User, assignment: Ins
 
   await db.collection(paths.projectAssignments).doc(id).set(assignmentData);
 
+  // @ts-ignore - Type assertion for Firebase document data
   return {
     ...assignmentData,
     assignedAt: new Date(),
@@ -764,10 +822,12 @@ export async function createProjectAssignmentForUser(user: User, assignment: Ins
  */
 export async function getSalaryAdvancesForUser(user: User): Promise<SalaryAdvance[]> {
   const paths = getCollectionPaths(user);
+  // @ts-ignore - salaryAdvances collection path
   const snapshot = await db.collection(paths.salaryAdvances).get();
 
   return snapshot.docs.map(doc => {
     const data = doc.data();
+    // @ts-ignore - Type assertion for Firebase document data
     return {
       ...data,
       id: doc.id,
@@ -775,6 +835,603 @@ export async function getSalaryAdvancesForUser(user: User): Promise<SalaryAdvanc
       createdAt: fromTimestamp(data.createdAt),
     } as SalaryAdvance;
   });
+}
+
+/**
+ * MEETINGS - Context-aware storage functions
+ */
+export async function getMeetingsForUser(user: User, projectId?: string): Promise<Meeting[]> {
+  const paths = getCollectionPaths(user);
+
+  if (projectId) {
+    // Get meetings for specific project (subcollection)
+    const snapshot = await db
+      .collection(paths.projects)
+      .doc(projectId)
+      .collection('meetings')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        dateTime: fromTimestamp(data.dateTime),
+        createdAt: fromTimestamp(data.createdAt),
+        updatedAt: fromTimestamp(data.updatedAt),
+        decisions: data.decisions?.map((d: any) => ({
+          ...d,
+          dueDate: fromTimestamp(d.dueDate),
+          createdAt: fromTimestamp(d.createdAt),
+        })) || [],
+        lockedApprovingBody: data.lockedApprovingBody ? {
+          ...data.lockedApprovingBody,
+          lockedAt: fromTimestamp(data.lockedApprovingBody.lockedAt),
+        } : undefined,
+      } as any;
+    });
+  }
+
+  // Get all meetings across projects
+  const projectsSnapshot = await db.collection(paths.projects).get();
+  const allMeetings: Meeting[] = [];
+
+  for (const projectDoc of projectsSnapshot.docs) {
+    const meetingsSnapshot = await projectDoc.ref.collection('meetings').get();
+    const meetings = meetingsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        projectId: projectDoc.id,
+        dateTime: fromTimestamp(data.dateTime),
+        createdAt: fromTimestamp(data.createdAt),
+        updatedAt: fromTimestamp(data.updatedAt),
+        decisions: data.decisions?.map((d: any) => ({
+          ...d,
+          dueDate: fromTimestamp(d.dueDate),
+          createdAt: fromTimestamp(d.createdAt),
+        })) || [],
+      } as any;
+    });
+    allMeetings.push(...meetings);
+  }
+
+  return allMeetings;
+}
+
+export async function createMeetingForUser(user: User, meeting: InsertMeeting): Promise<Meeting> {
+  const paths = getCollectionPaths(user);
+  const id = generateId();
+
+  const meetingData = {
+    ...meeting,
+    id,
+    dateTime: toTimestamp(meeting.dateTime),
+    decisions: meeting.decisions?.map(d => ({
+      ...d,
+      dueDate: toTimestamp(d.dueDate),
+      createdAt: toTimestamp(d.createdAt),
+    })) || [],
+    isLocked: meeting.isLocked || false,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  };
+
+  await db
+    .collection(paths.projects)
+    .doc(meeting.projectId)
+    .collection('meetings')
+    .doc(id)
+    .set(meetingData);
+
+  // If approvingBody is locked, update project's lockedApprovingBody
+  if (meeting.approvingBodyLocked && meeting.approvingBody) {
+    await db.collection(paths.projects).doc(meeting.projectId).update({
+      lockedApprovingBody: {
+        name: meeting.approvingBody,
+        lockedAt: Timestamp.now(),
+        lockedBy: user.id,
+      },
+    });
+
+    // Create audit log
+    await createAuditLogForUser(user, {
+      userId: user.id,
+      userName: user.fullName,
+      action: 'LOCK_APPROVING_BODY',
+      entityType: 'meeting',
+      entityId: id,
+      changes: { approvingBody: meeting.approvingBody },
+    });
+  }
+
+  return {
+    ...meetingData,
+    id,
+    dateTime: meeting.dateTime,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    decisions: meeting.decisions || [],
+  } as any;
+}
+
+export async function updateMeetingForUser(
+  user: User,
+  projectId: string,
+  meetingId: string,
+  updates: Partial<InsertMeeting>
+): Promise<Meeting | null> {
+  const paths = getCollectionPaths(user);
+  const meetingRef = db
+    .collection(paths.projects)
+    .doc(projectId)
+    .collection('meetings')
+    .doc(meetingId);
+
+  const meetingDoc = await meetingRef.get();
+  if (!meetingDoc.exists) return null;
+
+  const existingData = meetingDoc.data();
+
+  // Prevent updates if meeting is locked
+  if (existingData?.isLocked && updates.isLocked !== false) {
+    throw new Error('Cannot update locked meeting');
+  }
+
+  const updateData = {
+    ...updates,
+    dateTime: updates.dateTime ? toTimestamp(updates.dateTime) : undefined,
+    decisions: updates.decisions?.map(d => ({
+      ...d,
+      dueDate: toTimestamp(d.dueDate),
+      createdAt: toTimestamp(d.createdAt),
+    })),
+    updatedAt: Timestamp.now(),
+  };
+
+  // Remove undefined fields
+  Object.keys(updateData).forEach(key =>
+    updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]
+  );
+
+  await meetingRef.update(updateData);
+
+  const updated = await meetingRef.get();
+  const data = updated.data();
+
+  return {
+    ...data,
+    id: updated.id,
+    projectId,
+    dateTime: fromTimestamp(data?.dateTime),
+    createdAt: fromTimestamp(data?.createdAt),
+    updatedAt: fromTimestamp(data?.updatedAt),
+    decisions: data?.decisions?.map((d: any) => ({
+      ...d,
+      dueDate: fromTimestamp(d.dueDate),
+      createdAt: fromTimestamp(d.createdAt),
+    })) || [],
+  } as any;
+}
+
+/**
+ * MILESTONES - Context-aware storage functions
+ */
+export async function getMilestonesForUser(user: User, projectId?: string): Promise<Milestone[]> {
+  const paths = getCollectionPaths(user);
+
+  if (projectId) {
+    const snapshot = await db
+      .collection(paths.projects)
+      .doc(projectId)
+      .collection('milestones')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        dueDate: fromTimestamp(data.dueDate),
+        completedAt: fromTimestamp(data.completedAt),
+        createdAt: fromTimestamp(data.createdAt),
+        updatedAt: fromTimestamp(data.updatedAt),
+      } as any;
+    });
+  }
+
+  // Get all milestones across projects
+  const projectsSnapshot = await db.collection(paths.projects).get();
+  const allMilestones: Milestone[] = [];
+
+  for (const projectDoc of projectsSnapshot.docs) {
+    const milestonesSnapshot = await projectDoc.ref.collection('milestones').get();
+    const milestones = milestonesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        projectId: projectDoc.id,
+        dueDate: fromTimestamp(data.dueDate),
+        completedAt: fromTimestamp(data.completedAt),
+        createdAt: fromTimestamp(data.createdAt),
+        updatedAt: fromTimestamp(data.updatedAt),
+      } as any;
+    });
+    allMilestones.push(...milestones);
+  }
+
+  return allMilestones;
+}
+
+export async function createMilestoneForUser(user: User, milestone: InsertMilestone): Promise<Milestone> {
+  const paths = getCollectionPaths(user);
+  const id = generateId();
+
+  const milestoneData = {
+    ...milestone,
+    id,
+    dueDate: toTimestamp(milestone.dueDate),
+    completedAt: toTimestamp(milestone.completedAt),
+    status: milestone.status || 'pending',
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  };
+
+  await db
+    .collection(paths.projects)
+    .doc(milestone.projectId)
+    .collection('milestones')
+    .doc(id)
+    .set(milestoneData);
+
+  return {
+    ...milestoneData,
+    id,
+    dueDate: milestone.dueDate,
+    completedAt: milestone.completedAt,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as any;
+}
+
+export async function updateMilestoneForUser(
+  user: User,
+  projectId: string,
+  milestoneId: string,
+  updates: Partial<InsertMilestone & { status: string }>
+): Promise<Milestone | null> {
+  const paths = getCollectionPaths(user);
+  const milestoneRef = db
+    .collection(paths.projects)
+    .doc(projectId)
+    .collection('milestones')
+    .doc(milestoneId);
+
+  const milestoneDoc = await milestoneRef.get();
+  if (!milestoneDoc.exists) return null;
+
+  const updateData = {
+    ...updates,
+    dueDate: updates.dueDate ? toTimestamp(updates.dueDate) : undefined,
+    completedAt: updates.completedAt ? toTimestamp(updates.completedAt) : undefined,
+    updatedAt: Timestamp.now(),
+  };
+
+  // Remove undefined fields
+  Object.keys(updateData).forEach(key =>
+    updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]
+  );
+
+  await milestoneRef.update(updateData);
+
+  const updated = await milestoneRef.get();
+  const data = updated.data();
+
+  return {
+    ...data,
+    id: updated.id,
+    projectId,
+    dueDate: fromTimestamp(data?.dueDate),
+    completedAt: fromTimestamp(data?.completedAt),
+    createdAt: fromTimestamp(data?.createdAt),
+    updatedAt: fromTimestamp(data?.updatedAt),
+  } as any;
+}
+
+/**
+ * APPROVALS - Context-aware storage functions
+ */
+export async function getApprovalsForUser(user: User, projectId?: string): Promise<ClientApproval[]> {
+  const paths = getCollectionPaths(user);
+
+  if (projectId) {
+    const snapshot = await db
+      .collection(paths.projects)
+      .doc(projectId)
+      .collection('approvals')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        requestedAt: fromTimestamp(data.requestedAt),
+        respondedAt: fromTimestamp(data.respondedAt),
+        clientResponse: data.clientResponse ? {
+          ...data.clientResponse,
+          timestamp: fromTimestamp(data.clientResponse.timestamp),
+        } : undefined,
+        history: data.history?.map((h: any) => ({
+          ...h,
+          timestamp: fromTimestamp(h.timestamp),
+        })) || [],
+        createdAt: fromTimestamp(data.createdAt),
+      } as any;
+    });
+  }
+
+  // Get all approvals across projects
+  const projectsSnapshot = await db.collection(paths.projects).get();
+  const allApprovals: ClientApproval[] = [];
+
+  for (const projectDoc of projectsSnapshot.docs) {
+    const approvalsSnapshot = await projectDoc.ref.collection('approvals').get();
+    const approvals = approvalsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        projectId: projectDoc.id,
+        requestedAt: fromTimestamp(data.requestedAt),
+        respondedAt: fromTimestamp(data.respondedAt),
+        clientResponse: data.clientResponse ? {
+          ...data.clientResponse,
+          timestamp: fromTimestamp(data.clientResponse.timestamp),
+        } : undefined,
+        history: data.history?.map((h: any) => ({
+          ...h,
+          timestamp: fromTimestamp(h.timestamp),
+        })) || [],
+        createdAt: fromTimestamp(data.createdAt),
+      } as any;
+    });
+    allApprovals.push(...approvals);
+  }
+
+  return allApprovals;
+}
+
+export async function createApprovalForUser(user: User, approval: InsertClientApproval): Promise<ClientApproval> {
+  const paths = getCollectionPaths(user);
+  const id = generateId();
+
+  const approvalData = {
+    ...approval,
+    id,
+    status: approval.status || 'pending',
+    requestedAt: toTimestamp(approval.requestedAt),
+    respondedAt: toTimestamp(approval.respondedAt),
+    history: [],
+    createdAt: Timestamp.now(),
+  };
+
+  await db
+    .collection(paths.projects)
+    .doc(approval.projectId)
+    .collection('approvals')
+    .doc(id)
+    .set(approvalData);
+
+  // Create notification for client
+  await createClientNotificationForUser(user, {
+    clientId: approval.clientId,
+    projectId: approval.projectId,
+    title: 'New Approval Request',
+    message: `You have a new approval request for: ${approval.itemName}`,
+    type: 'approval_request',
+    relatedApprovalId: id,
+    createdBy: user.id,
+  });
+
+  return {
+    ...approvalData,
+    id,
+    requestedAt: approval.requestedAt,
+    respondedAt: approval.respondedAt,
+    history: [],
+    createdAt: new Date(),
+  } as any;
+}
+
+export async function updateApprovalForUser(
+  user: User,
+  projectId: string,
+  approvalId: string,
+  updates: {
+    status?: string;
+    objectionComment?: string;
+    clientResponse?: {
+      comment?: string;
+      timestamp: Date;
+      responseType: "approved" | "objected" | "comment";
+    };
+  }
+): Promise<ClientApproval | null> {
+  const paths = getCollectionPaths(user);
+  const approvalRef = db
+    .collection(paths.projects)
+    .doc(projectId)
+    .collection('approvals')
+    .doc(approvalId);
+
+  const approvalDoc = await approvalRef.get();
+  if (!approvalDoc.exists) return null;
+
+  const existingData = approvalDoc.data();
+
+  // Add to history
+  const historyEntry = {
+    timestamp: Timestamp.now(),
+    action: updates.status ? `Status changed to ${updates.status}` : 'Updated',
+    userId: user.id,
+    userName: user.fullName,
+    previousStatus: existingData?.status,
+    newStatus: updates.status || existingData?.status,
+    comment: updates.objectionComment || updates.clientResponse?.comment,
+  };
+
+  const updateData = {
+    ...updates,
+    clientResponse: updates.clientResponse ? {
+      ...updates.clientResponse,
+      timestamp: toTimestamp(updates.clientResponse.timestamp),
+    } : undefined,
+    respondedAt: updates.status ? Timestamp.now() : existingData?.respondedAt,
+    history: [...(existingData?.history || []), historyEntry],
+  };
+
+  await approvalRef.update(updateData);
+
+  // Create activity log
+  await createClientActivityLogForUser(user, {
+    clientId: existingData?.clientId,
+    activityType: 'approval',
+    description: `${updates.status === 'approved' ? 'Approved' : 'Objected to'} ${existingData?.itemName}`,
+    projectId,
+    relatedId: approvalId,
+  });
+
+  const updated = await approvalRef.get();
+  const data = updated.data();
+
+  return {
+    ...data,
+    id: updated.id,
+    projectId,
+    requestedAt: fromTimestamp(data?.requestedAt),
+    respondedAt: fromTimestamp(data?.respondedAt),
+    clientResponse: data?.clientResponse ? {
+      ...data.clientResponse,
+      timestamp: fromTimestamp(data.clientResponse.timestamp),
+    } : undefined,
+    history: data?.history?.map((h: any) => ({
+      ...h,
+      timestamp: fromTimestamp(h.timestamp),
+    })) || [],
+    createdAt: fromTimestamp(data?.createdAt),
+  } as any;
+}
+
+/**
+ * CLIENT NOTIFICATIONS - Context-aware storage functions
+ */
+export async function getClientNotificationsForUser(user: User, clientId?: string): Promise<ClientNotification[]> {
+  const paths = getCollectionPaths(user);
+  const snapshot = await db.collection(`${paths.clients}`).get();
+
+  const allNotifications: ClientNotification[] = [];
+
+  for (const clientDoc of snapshot.docs) {
+    if (clientId && clientDoc.id !== clientId) continue;
+
+    const notificationsSnapshot = await clientDoc.ref.collection('notifications').get();
+    const notifications = notificationsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        clientId: clientDoc.id,
+        createdAt: fromTimestamp(data.createdAt),
+      } as any;
+    });
+    allNotifications.push(...notifications);
+  }
+
+  return allNotifications;
+}
+
+export async function createClientNotificationForUser(
+  user: User,
+  notification: InsertClientNotification
+): Promise<ClientNotification> {
+  const paths = getCollectionPaths(user);
+  const id = generateId();
+
+  const notificationData = {
+    ...notification,
+    id,
+    isRead: notification.isRead || false,
+    createdAt: Timestamp.now(),
+  };
+
+  await db
+    .collection(paths.clients)
+    .doc(notification.clientId)
+    .collection('notifications')
+    .doc(id)
+    .set(notificationData);
+
+  return {
+    ...notificationData,
+    id,
+    createdAt: new Date(),
+  } as any;
+}
+
+/**
+ * CLIENT ACTIVITY LOGS - Context-aware storage functions
+ */
+export async function createClientActivityLogForUser(
+  user: User,
+  log: InsertClientActivityLog
+): Promise<ClientActivityLog> {
+  const paths = getCollectionPaths(user);
+  const id = generateId();
+
+  const logData = {
+    ...log,
+    id,
+    createdAt: Timestamp.now(),
+  };
+
+  await db
+    .collection(paths.clients)
+    .doc(log.clientId)
+    .collection('activityLogs')
+    .doc(id)
+    .set(logData);
+
+  return {
+    ...logData,
+    id,
+    createdAt: new Date(),
+  } as any;
+}
+
+/**
+ * AUDIT LOGS - Context-aware storage functions
+ */
+export async function createAuditLogForUser(user: User, log: InsertAuditLog): Promise<AuditLog> {
+  const paths = getCollectionPaths(user);
+  const id = generateId();
+
+  const logData = {
+    ...log,
+    id,
+    organizationId: user.organizationId,
+    timestamp: Timestamp.now(),
+  };
+
+  await db.collection(`${paths.clients.replace('/clients', '')}/auditLogs`).doc(id).set(logData);
+
+  return {
+    ...logData,
+    id,
+    timestamp: new Date(),
+  } as any;
 }
 
 // Export all context-aware functions
@@ -814,4 +1471,18 @@ export const contextStorage = {
   getProjectAssignmentsForUser,
   createProjectAssignmentForUser,
   getSalaryAdvancesForUser,
+  // Architecture Lifecycle functions
+  getMeetingsForUser,
+  createMeetingForUser,
+  updateMeetingForUser,
+  getMilestonesForUser,
+  createMilestoneForUser,
+  updateMilestoneForUser,
+  getApprovalsForUser,
+  createApprovalForUser,
+  updateApprovalForUser,
+  getClientNotificationsForUser,
+  createClientNotificationForUser,
+  createClientActivityLogForUser,
+  createAuditLogForUser,
 };

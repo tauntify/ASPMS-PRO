@@ -30,12 +30,14 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/hooks/use-subscription";
 import { CookieConsent } from "@/components/cookie-consent";
+import { setupGlobalErrorHandlers, setTrackingUserId } from "@/lib/error-tracking";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { data: subscriptionData, isLoading: subLoading } = useSubscription();
 
-  if (isLoading || (isAuthenticated && subLoading)) {
+  // Show loading only while checking authentication
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -50,9 +52,21 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
     return <Redirect to="/login" />;
   }
 
-  // Admin users bypass subscription checks
+  // Admin users bypass subscription checks completely
   if (user?.role === "admin") {
     return <Component />;
+  }
+
+  // For non-admin users, wait for subscription data to load
+  if (subLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" data-testid="loader-auth"></div>
+          <p className="mt-4 text-muted-foreground" data-testid="text-loading">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   // Check if account is blocked
@@ -143,18 +157,36 @@ function Router() {
   );
 }
 
+function AppContent() {
+  const { user } = useAuth();
+
+  // Set user ID for tracking when user logs in
+  useEffect(() => {
+    if (user?.id) {
+      setTrackingUserId(user.id);
+    }
+  }, [user?.id]);
+
+  return (
+    <TooltipProvider>
+      <Toaster />
+      <CookieConsent />
+      <Router />
+    </TooltipProvider>
+  );
+}
+
 function App() {
   useEffect(() => {
     document.documentElement.classList.add("dark");
+
+    // Setup global error handlers
+    setupGlobalErrorHandlers();
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <CookieConsent />
-        <Router />
-      </TooltipProvider>
+      <AppContent />
     </QueryClientProvider>
   );
 }

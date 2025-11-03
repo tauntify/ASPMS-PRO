@@ -19,6 +19,7 @@ const FirestoreStore = FirestoreStoreFactory(session);
 import { registerRoutes } from "./server/routes";
 import { registerExtensionRoutes } from "./server/routes-extensions";
 import { attachUser } from "./server/auth";
+import { requestLogger, errorLogger, logger } from "./server/logger";
 
 const app = express();
 app.use(express.json());
@@ -57,6 +58,9 @@ app.use(
   })
 );
 
+// Request logging middleware
+app.use(requestLogger);
+
 // Attach user to request (checks JWT token first, then session)
 app.use(attachUser);
 
@@ -93,9 +97,16 @@ app.use("*", (req, res) => {
   });
 });
 
+// Error logging middleware
+app.use(errorLogger);
+
 // Error handler
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error("API Error:", err);
+  logger.error("Unhandled API error", err, {
+    path: req.path,
+    method: req.method,
+  });
+
   return res.status(err.status || 500).json({
     error: err.message || "Internal server error"
   });

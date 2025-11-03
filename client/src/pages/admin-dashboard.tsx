@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
+import { formatSafeDate } from "@/lib/date-utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -518,17 +519,13 @@ export default function AdminDashboard() {
                           </TableCell>
                           <TableCell>{project.clientName || "-"}</TableCell>
                           <TableCell className="text-sm">
-                            {project.startDate
-                              ? new Date(project.startDate).toLocaleDateString()
-                              : "-"}
+                            {formatSafeDate(project.startDate)}
                           </TableCell>
                           <TableCell className="text-sm">
-                            {project.deliveryDate
-                              ? new Date(project.deliveryDate).toLocaleDateString()
-                              : "-"}
+                            {formatSafeDate(project.deliveryDate)}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {new Date(project.createdAt).toLocaleDateString()}
+                            {formatSafeDate(project.createdAt)}
                           </TableCell>
                         </TableRow>
                       ))}

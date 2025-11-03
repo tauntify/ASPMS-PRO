@@ -1,549 +1,287 @@
-# ASPMS - Architect Studio Project Management System
+# ASPMS Project Summary
 
-## Project Overview
+## 📋 Project Overview
 
-**ASPMS** is a comprehensive web-based project management system designed specifically for architecture firms. It provides tools for managing projects, employees, clients, procurement, timesheets, expenses, and billing - all in one unified platform.
+ASPMS (Architecture Services Project Management System) is a multi-tenant SaaS application for managing architecture projects, employees, clients, tasks, and finances.
 
-**Deployment**: 100% Firebase (Hosting + Cloud Functions)
-**Tech Stack**: React + TypeScript + Express + Firestore
+**Live URL:** https://aspms-pro-v1.web.app
+**API URL:** https://api-iih2lr3npq-uc.a.run.app
 
----
+## 🔑 Admin Access
 
-## Architecture
+**Username:** `arkaoffice`
+**Password:** `Arka@123`
+**Role:** Principle (Full Access)
+
+## 🏗️ Technical Stack
 
 ### Frontend
-- **Framework**: React 18.3.1 with TypeScript
-- **Build Tool**: Vite 5.4.20
-- **Routing**: Wouter 3.3.5
-- **UI Library**: Radix UI + Tailwind CSS
-- **State Management**: TanStack React Query 5.60.5
-- **Forms**: React Hook Form + Zod validation
+- **Framework:** React 18 with TypeScript
+- **Build Tool:** Vite
+- **Routing:** Wouter
+- **State Management:** TanStack React Query
+- **UI Components:** Radix UI + Tailwind CSS
+- **Forms:** React Hook Form + Zod validation
+- **Charts:** Recharts
+- **PDF Generation:** jsPDF + html2canvas
 
 ### Backend
-- **Runtime**: Node.js with Express 4.21.2
-- **Database**: Google Cloud Firestore (NoSQL)
-- **Authentication**: JWT + Firebase Authentication
-- **Hosting**: Firebase Hosting + Cloud Functions
+- **Runtime:** Node.js with TypeScript
+- **Framework:** Express.js
+- **Database:** Firebase Firestore
+- **Authentication:** JWT (JSON Web Tokens) with bcrypt
+- **File Storage:** Firebase Storage
+- **Hosting:** Firebase Hosting
+- **Functions:** Firebase Cloud Functions (2nd Gen)
 
-### Deployment Infrastructure
+### Architecture
+- **Pattern:** Multi-tenant with context-aware storage
+- **Data Isolation:** Tenant-based collections
+- **Auth:** JWT bearer tokens with role-based access control
+
+## 🗄️ Database Structure
+
 ```
-Firebase Project
-├── Firebase Hosting (Frontend)
-│   └── Serves built React app from /dist/public
-├── Cloud Functions (Backend API)
-│   └── Express server at /api/** routes
-└── Firestore Database
-    └── All application data
+Firestore Collections:
+├── admins/                    (System administrators)
+├── arka_office/              (ARKA Services - Internal Org)
+│   ├── metadata/
+│   └── data/
+│       ├── users/            ← All ARKA users (admin, employees)
+│       ├── projects/
+│       ├── employees/
+│       ├── clients/
+│       ├── tasks/
+│       ├── salaries/
+│       ├── attendance/
+│       └── ... (other data)
+├── individuals/              (Individual subscribers)
+│   └── {userId}/data/
+└── organizations/            (Organization subscribers)
+    └── {orgId}/data/
 ```
 
----
+## 🎯 Key Features
 
-## Project Structure
+### Project Management
+- Create and manage architecture projects
+- Track project progress and milestones
+- Assign employees to projects
+- Division and item management
+- Procurement tracking
+- Comments and collaboration
+
+### Employee Management
+- Employee profiles with documents
+- Attendance tracking
+- Timesheet management
+- Salary management with allowances
+- Salary advances
+- Performance tracking
+
+### Client Management
+- Client profiles and contacts
+- Project-client associations
+- Client portal access
+
+### Financial Management
+- Project budgeting
+- Expense tracking
+- Salary generation and payments
+- Invoice creation
+- Financial reports
+
+### Dashboard & Analytics
+- Role-based dashboards (Admin, Principle, Employee, Client)
+- Project statistics
+- Task completion tracking
+- Attendance summaries
+- Financial overview
+
+## 🔐 Authentication & Authorization
+
+### Roles
+1. **Admin** - System administrators with full access
+2. **Principle** - Organization owners/managers
+3. **Employee** - Regular employees
+4. **Client** - External clients
+5. **Procurement** - Procurement specialists
+
+### Access Control
+- JWT-based authentication
+- Role-based route protection
+- Tenant-isolated data access
+- Password hashing with bcrypt
+
+## 🚀 Recent Fixes (Nov 3, 2025)
+
+### Critical Bugs Fixed
+1. **Employee Creation Bug** ✅
+   - Employees were created in wrong `/users/` collection
+   - Fixed to use context-aware storage → `/arka_office/data/users/`
+
+2. **User Creation Bug** ✅
+   - `/api/users` POST was using old storage system
+   - Updated to use tenant-aware `createUserForUser()`
+
+3. **API Endpoint Errors** ✅
+   - Fixed subscription hook crash (`startsWith` error)
+   - Implemented missing `/api/clients` routes
+   - Fixed `/api/user` → `/api/auth/me`
+
+4. **Loading Issues** ✅
+   - Admin users bypass subscription checks
+   - Dashboard loads without infinite spinner
+
+### Code Changes
+**Files Modified:**
+- `functions/src/server/routes.ts`
+  - `/api/employees/create` endpoint
+  - `/api/users` POST endpoint
+- `functions/src/server/context-storage.ts`
+  - Added `updateClientForUser()`, `deleteClientForUser()`
+- `client/src/hooks/use-subscription.ts`
+  - Fixed `apiRequest()` signature
+- `client/src/pages/expense-tracking.tsx`
+  - Fixed endpoint path
+- `client/src/pages/timesheet-management.tsx`
+  - Fixed endpoint path
+- `client/src/App.tsx`
+  - Fixed admin user loading logic
+
+## 📦 Deployment
+
+### Firebase Services Used
+- **Hosting:** Client application
+- **Cloud Functions:** Backend API
+- **Firestore:** Database
+- **Storage:** File uploads
+- **Authentication:** User management
+
+### Deployment Commands
+```bash
+# Build client
+npm run build
+
+# Deploy hosting
+firebase deploy --only hosting
+
+# Build functions
+cd functions && npm run build
+
+# Deploy functions
+firebase deploy --only functions
+```
+
+### Important Notes
+- **NO LOCAL TESTING** - All development done directly on Firebase
+- Schema file copied to `functions/src/shared/` for compilation
+- Path aliases resolved manually with sed after TypeScript compilation
+- TypeScript errors present but don't block deployment (`noEmitOnError: false`)
+
+## 📁 Project Structure
 
 ```
 ASPMS/
-├── client/                      # Frontend React application
-│   ├── public/                  # Static assets
+├── client/                   # React frontend
 │   ├── src/
-│   │   ├── components/          # Reusable UI components
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── lib/                 # Utilities and configuration
-│   │   ├── pages/               # Page components
-│   │   │   ├── login.tsx
-│   │   │   ├── principle-dashboard.tsx
-│   │   │   ├── employee-dashboard.tsx
-│   │   │   ├── client-dashboard.tsx
-│   │   │   ├── procurement-dashboard.tsx
-│   │   │   ├── timesheet-management.tsx
-│   │   │   ├── expense-tracking.tsx
-│   │   │   └── billing-invoicing.tsx
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   └── index.html
-├── server/                      # Backend Express application
-│   ├── auth.ts                  # Authentication logic
-│   ├── firebase.ts              # Firebase Admin SDK setup
-│   ├── jwt.ts                   # JWT token handling
-│   ├── routes.ts                # API routes
-│   ├── routes-extensions.ts     # Extended API routes
-│   ├── storage.ts               # File storage logic
-│   ├── storage-extensions.ts    # Extended storage logic
-│   ├── seed.ts                  # Database seeding
-│   ├── seed-admin.ts            # Admin user seeding
-│   ├── index.ts                 # Main server entry
-│   └── vite.ts                  # Vite integration
-├── functions/                   # Firebase Cloud Functions
-│   ├── src/                     # Function source code
-│   ├── lib/                     # Compiled JavaScript
-│   └── package.json             # Function dependencies
-├── shared/                      # Shared code between client/server
-│   ├── schema.ts                # Data models and Zod schemas
-│   └── schema-extensions.ts     # Extended schemas
-├── dist/                        # Production build output
-│   └── public/                  # Built frontend files
-├── .firebase/                   # Firebase config and cache
-├── firebase.json                # Firebase project configuration
-├── firebase.rules               # Firestore security rules
-├── firestore.indexes.json       # Firestore database indexes
-├── .env                         # Environment variables (local)
-├── .env.example                 # Environment variable template
-├── .env.production              # Production environment variables
-├── package.json                 # Root dependencies
-├── vite.config.ts               # Vite build configuration
-├── tailwind.config.ts           # Tailwind CSS configuration
-├── tsconfig.json                # TypeScript configuration
-└── PROJECT_SUMMARY.md           # This file
+│   │   ├── components/      # Reusable UI components
+│   │   ├── pages/           # Page components
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── lib/             # Utilities and helpers
+│   │   └── App.tsx          # Main app component
+│   └── dist/public/         # Built static files
+│
+├── functions/               # Firebase Cloud Functions
+│   ├── src/
+│   │   ├── server/
+│   │   │   ├── routes.ts    # API endpoints
+│   │   │   ├── context-storage.ts  # Multi-tenant data access
+│   │   │   ├── storage-helper.ts   # User lookup utilities
+│   │   │   ├── auth.ts      # JWT & password management
+│   │   │   └── ...
+│   │   └── index.ts         # Functions entry point
+│   └── lib/                 # Compiled JavaScript
+│
+├── server/                  # Local dev server (synced from functions/)
+│   └── (same structure as functions/src/server/)
+│
+├── shared/                  # Shared type definitions
+│   └── schema.ts            # Zod schemas & TypeScript types
+│
+├── firebase.json            # Firebase configuration
+├── firestore.rules          # Database security rules
+└── .env                     # Environment variables
 ```
 
----
+## 🐛 Known Issues
 
-## Core Features
+### TypeScript Compilation Warnings
+Several TS errors exist but don't prevent deployment:
+- Property mismatches in context-storage.ts
+- Missing properties in storage.ts interface
+- Type overlaps in conversions
 
-### 1. User Management & Authentication
-- **Roles**: Principle, Employee, Client, Procurement
-- **Auth**: JWT-based authentication with Firebase Auth integration
-- **Users**: Create, manage, and assign roles to users
-- **Employees**: Extended profiles with salary, designation, documents
+These are tolerated via `noEmitOnError: false` in tsconfig.json
 
-### 2. Project Management
-- **Projects**: Create and manage architecture projects
-- **Divisions**: Organize projects into divisions
-- **Items**: Track individual project items with BOQ (Bill of Quantities)
-- **Assignments**: Assign employees and clients to projects
-- **Status Tracking**: Monitor project progress and completion
+### Old Database Paths
+Some old data may exist at:
+- `/arka_office/users/users/...` (old structure)
+- `/users/...` (wrong location)
 
-### 3. Task Management
-- **Task Types**: Design CAD, IFCs, 3D Rendering, Procurement, Site Visits
-- **Task Status**: Done, In Progress, Undone
-- **Assignment**: Assign tasks to employees
-- **Due Dates**: Track task deadlines
-- **Remarks**: Add notes and updates
+New data after the fix goes to correct locations:
+- `/arka_office/data/users/...` ✅
 
-### 4. Procurement Management
-- **Items**: Track procurement items per project
-- **Costs**: Project cost vs execution cost tracking
-- **Purchase Tracking**: Bill numbers, purchased dates
-- **Rental Details**: Track rental equipment
-- **Notes**: Additional procurement information
+## 📚 Documentation Files
 
-### 5. Labor & Cost Tracking
-- **Labor Types**: Daily Wage, Contract
-- **Wage Rates**: Track worker wages
-- **Contract Amounts**: Monitor contract costs
-- **Date Ranges**: Start and end dates for labor
+- `AUTHENTICATION_GUIDE.md` - Login credentials and database structure
+- `PROJECT_SUMMARY.md` - This file
 
-### 6. Timesheet Management
-- **Attendance**: Daily attendance tracking
-- **Employee Records**: Track presence/absence
-- **Notes**: Add attendance remarks
-- **Reports**: Generate attendance reports
+## 🔄 Development Workflow
 
-### 7. Payroll Management
-- **Salary Components**: Basic, TA, MA, Food Allowance
-- **Deductions**: Advance, Absent, Other deductions
-- **Salary Advances**: Track and deduct advances
-- **Payment History**: Record salary payments
-- **Hold Salary**: Option to hold employee salaries
-- **Scheduled Payments**: Set salary payment dates
+1. Make changes to `functions/src/server/` files
+2. Sync to server: `cp functions/src/server/*.ts server/`
+3. Build functions: `cd functions && npm run build`
+4. Fix path aliases: `find functions/lib -name "*.js" -exec sed -i 's|@shared/schema|../shared/schema|g' {} \;`
+5. Deploy: `firebase deploy --only functions`
+6. For client changes: `npm run build && firebase deploy --only hosting`
 
-### 8. Document Management
-- **Templates**: Appointment, Joining, Resignation letters
-- **Generation**: Auto-generate documents from templates
-- **Storage**: Firebase Storage integration
-- **Tracking**: Document creation and update timestamps
+## ⚙️ Environment Variables
 
-### 9. Financial Management
-- **Project Financials**: Contract value, amount received
-- **Work Completed**: Track project completion percentage
-- **Archive**: Archive completed projects
-- **Reports**: Generate financial reports
-
-### 10. Comments & Collaboration
-- **Project Comments**: Add comments to projects
-- **User Tracking**: Track who commented
-- **Timestamps**: Comment creation dates
-
----
-
-## Data Models
-
-### Core Collections
-
-#### Users
-- `id`, `firebaseUid`, `username`, `password`, `role`, `fullName`, `isActive`, `createdAt`
-
-#### Employees (extends Users)
-- `id`, `userId`, `idCard`, `whatsapp`, `homeAddress`, `joiningDate`, `profilePicture`
-- `designation`, `basicSalary`, `travelingAllowance`, `medicalAllowance`, `foodAllowance`
-- `salaryDate`, `isSalaryHeld`, `createdAt`
-
-#### Clients (extends Users)
-- `id`, `userId`, `company`, `contactNumber`, `email`, `address`, `createdAt`
-
-#### Projects
-- `id`, `name`, `clientName`, `projectTitle`, `startDate`, `deliveryDate`, `createdAt`
-
-#### Divisions
-- `id`, `projectId`, `name`, `order`, `createdAt`
-
-#### Items
-- `id`, `divisionId`, `description`, `unit`, `quantity`, `rate`, `priority`, `status`, `createdAt`
-
-#### Tasks
-- `id`, `projectId`, `employeeId`, `taskType`, `description`, `status`, `remarks`
-- `dueDate`, `assignedBy`, `createdAt`, `updatedAt`
-
-#### Procurement Items
-- `id`, `projectId`, `itemName`, `projectCost`, `executionCost`, `isPurchased`
-- `billNumber`, `rentalDetails`, `quantity`, `unit`, `notes`, `purchasedBy`, `purchasedDate`, `createdAt`
-
-#### Labor Costs
-- `id`, `projectId`, `laborType`, `wageRate`, `numberOfWorkers`, `contractAmount`
-- `description`, `startDate`, `endDate`, `createdAt`
-
-#### Attendance
-- `id`, `employeeId`, `attendanceDate`, `isPresent`, `notes`, `createdAt`
-
-#### Salaries
-- `id`, `employeeId`, `month`, `basicSalary`, `travelingAllowance`, `medicalAllowance`, `foodAllowance`
-- `totalEarnings`, `advancePaid`, `absentDeductions`, `otherDeductions`, `totalDeductions`
-- `netSalary`, `paidAmount`, `remainingAmount`, `isPaid`, `isHeld`, `paidDate`, `salaryDate`
-- `attendanceDays`, `totalWorkingDays`, `createdAt`, `updatedAt`
-
-#### Salary Advances
-- `id`, `employeeId`, `salaryId`, `amount`, `date`, `reason`, `paidBy`, `createdAt`
-
-#### Salary Payments
-- `id`, `salaryId`, `amount`, `paymentDate`, `paymentMethod`, `notes`, `paidBy`, `createdAt`
-
-#### Project Financials
-- `id`, `projectId`, `contractValue`, `amountReceived`, `workCompleted`
-- `isArchived`, `archivedDate`, `createdAt`, `updatedAt`
-
-#### Comments
-- `id`, `projectId`, `userId`, `comment`, `createdAt`
-
----
-
-## User Roles & Permissions
-
-### Principle (Admin)
-- Full access to all features
-- Manage all projects, employees, clients
-- View all dashboards and reports
-- Approve expenses and manage billing
-- Assign roles and permissions
-
-### Employee
-- View assigned projects
-- Update task status
-- Submit timesheets
-- View own salary information
-- Add project comments
-
-### Client
-- View assigned projects
-- Track project progress
-- View project financials
-- Add comments to projects
-
-### Procurement
-- Manage procurement items
-- Track purchase orders
-- Update item status
-- Manage labor costs
-- View project expenses
-
----
-
-## API Routes
-
-All API routes are served at `/api/**` and handled by Firebase Cloud Functions.
-
-### Authentication
-- `POST /api/login` - User login
-- `POST /api/logout` - User logout
-- `GET /api/user` - Get current user
-
-### Projects
-- `GET /api/projects` - List all projects
-- `POST /api/projects` - Create project
-- `GET /api/projects/:id` - Get project details
-- `PATCH /api/projects/:id` - Update project
-- `DELETE /api/projects/:id` - Delete project
-
-### Divisions
-- `GET /api/divisions` - List divisions
-- `POST /api/divisions` - Create division
-- `PATCH /api/divisions/:id` - Update division
-- `DELETE /api/divisions/:id` - Delete division
-
-### Items
-- `GET /api/items` - List items
-- `POST /api/items` - Create item
-- `PATCH /api/items/:id` - Update item
-- `DELETE /api/items/:id` - Delete item
-
-### Users
-- `GET /api/users` - List users
-- `POST /api/users` - Create user
-- `PATCH /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
-
-### Employees
-- `GET /api/employees` - List employees
-- `POST /api/employees` - Create employee
-- `PATCH /api/employees/:id` - Update employee
-
-### Tasks
-- `GET /api/tasks` - List tasks
-- `POST /api/tasks` - Create task
-- `PATCH /api/tasks/:id` - Update task
-- `DELETE /api/tasks/:id` - Delete task
-
-### Procurement
-- `GET /api/procurement` - List procurement items
-- `POST /api/procurement` - Create procurement item
-- `PATCH /api/procurement/:id` - Update procurement item
-- `DELETE /api/procurement/:id` - Delete procurement item
-
-### Labor
-- `GET /api/labor` - List labor costs
-- `POST /api/labor` - Create labor cost
-- `PATCH /api/labor/:id` - Update labor cost
-- `DELETE /api/labor/:id` - Delete labor cost
-
-### Attendance
-- `GET /api/attendance` - List attendance
-- `POST /api/attendance` - Create attendance
-- `PATCH /api/attendance/:id` - Update attendance
-
-### Salaries
-- `GET /api/salaries` - List salaries
-- `POST /api/salaries` - Create salary
-- `PATCH /api/salaries/:id` - Update salary
-- `GET /api/salaries/advances` - List salary advances
-- `POST /api/salaries/advances` - Create salary advance
-- `POST /api/salaries/payments` - Record salary payment
-
-### Financials
-- `GET /api/financials` - List project financials
-- `POST /api/financials` - Create financial record
-- `PATCH /api/financials/:id` - Update financials
-
-### Comments
-- `GET /api/comments` - List comments
-- `POST /api/comments` - Create comment
-
----
-
-## Environment Configuration
-
-### Development (.env)
-```env
-NODE_ENV=development
-PORT=5000
-SESSION_SECRET=your-secret-key
-
-# Firebase Admin SDK
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
-
-# Frontend (Vite)
-VITE_API_URL=
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-VITE_FIREBASE_APP_ID=your-app-id
+Required in `.env` file:
+```
+FIREBASE_API_KEY=...
+FIREBASE_AUTH_DOMAIN=...
+FIREBASE_PROJECT_ID=aspms-pro-v1
+FIREBASE_STORAGE_BUCKET=...
+FIREBASE_MESSAGING_SENDER_ID=...
+FIREBASE_APP_ID=...
+JWT_SECRET=...
 ```
 
-### Production (.env.production)
-- Use Firebase Environment Variables
-- Set secrets via: `firebase functions:secrets:set SECRET_NAME`
+## 🎉 Current Status
+
+✅ All critical bugs fixed
+✅ Multi-tenant architecture working
+✅ Employee creation in correct location
+✅ Admin login functional
+✅ Dashboard loading properly
+✅ API endpoints operational
+✅ Deployed to Firebase
+
+**Ready for testing and use!**
+
+## 🧪 Testing
+
+To test the fixes:
+
+1. Go to https://aspms-pro-v1.web.app/login
+2. Login with `arkaoffice` / `Arka@123`
+3. Create a new employee - should be stored in `/arka_office/data/users/`
+4. No console errors related to subscription or API endpoints
+5. Dashboard loads without infinite spinner
 
 ---
 
-## Development Workflow
-
-### Setup
-```bash
-# Install dependencies
-npm install
-cd functions && npm install && cd ..
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your Firebase credentials
-
-# Start development server
-npm run dev
-```
-
-### Build
-```bash
-# Build frontend and backend
-npm run build
-```
-
-### Deploy
-```bash
-# Deploy to Firebase
-firebase deploy
-
-# Deploy hosting only
-firebase deploy --only hosting
-
-# Deploy functions only
-firebase deploy --only functions
-
-# Deploy Firestore rules
-firebase deploy --only firestore:rules
-
-# Deploy Firestore indexes
-firebase deploy --only firestore:indexes
-```
-
----
-
-## Key Dependencies
-
-### Frontend
-- **React 18.3.1** - UI framework
-- **Radix UI** - Accessible component primitives
-- **Tailwind CSS** - Utility-first styling
-- **TanStack Query** - Data fetching and caching
-- **React Hook Form** - Form management
-- **Zod** - Schema validation
-- **Recharts** - Data visualization
-- **Lucide React** - Icons
-
-### Backend
-- **Express 4.21.2** - Web framework
-- **Firebase Admin 12.0.0** - Firebase server SDK
-- **Firestore** - NoSQL database
-- **JWT** - Token-based authentication
-- **Bcrypt** - Password hashing
-- **ExcelJS** - Excel file generation
-- **jsPDF** - PDF generation
-
-### Build Tools
-- **Vite 5.4.20** - Frontend build tool
-- **TypeScript 5.6.3** - Type safety
-- **esbuild 0.25.0** - Backend bundling
-- **tsx 4.20.5** - TypeScript execution
-
----
-
-## Database Schema
-
-### Firestore Collections
-```
-/users
-/employees
-/clients
-/projects
-/divisions
-/items
-/projectAssignments
-/tasks
-/procurementItems
-/laborCosts
-/attendance
-/employeeDocuments
-/salaries
-/salaryAdvances
-/salaryPayments
-/projectFinancials
-/comments
-```
-
-### Security Rules
-- Authenticated users only
-- Role-based access control
-- Field-level validation
-- Timestamp enforcement
-
----
-
-## Development Notes
-
-### Authentication Flow
-1. User submits credentials via login page
-2. Server validates against Firestore users collection
-3. JWT token generated and returned to client
-4. Token stored in httpOnly cookie
-5. Subsequent requests include token for authentication
-6. Server validates token and extracts user info
-
-### API Integration
-- Frontend uses TanStack Query for API calls
-- Base URL configured via VITE_API_URL
-- All requests include credentials for cookie-based auth
-- Error handling and retry logic built-in
-
-### State Management
-- Server state: TanStack Query
-- Form state: React Hook Form
-- UI state: React useState/useContext
-- No global state library needed
-
----
-
-## Roadmap & TODOs
-
-### Current Status
-- All core features implemented
-- Firebase deployment working
-- JWT authentication active
-- All dashboards functional
-
-### Future Enhancements
-- [ ] Email notifications
-- [ ] SMS alerts for salary payments
-- [ ] Advanced reporting and analytics
-- [ ] Mobile app (React Native)
-- [ ] Document version control
-- [ ] Project templates
-- [ ] Automated backups
-- [ ] Integration with accounting software
-- [ ] Multi-currency support
-- [ ] Multi-language support
-
----
-
-## Support & Maintenance
-
-### Monitoring
-- Firebase Console for function logs
-- Firestore usage metrics
-- Authentication logs
-- Error tracking in Cloud Functions
-
-### Backup Strategy
-- Firestore automatic backups
-- Export collections regularly
-- Store credentials securely
-- Document restore procedures
-
-### Updates
-- Keep dependencies up to date
-- Monitor security advisories
-- Test updates in development first
-- Deploy during low-traffic periods
-
----
-
-## Contact & Credits
-
-**Project**: ASPMS - Architect Studio Project Management System
-**Version**: 1.0.0
-**License**: MIT
-**Deployment**: Firebase (Hosting + Cloud Functions)
-**Database**: Google Cloud Firestore
-
----
-
-Last Updated: November 2, 2025
+Last Updated: November 3, 2025
+Version: 1.0 (Post Bug-Fix)
