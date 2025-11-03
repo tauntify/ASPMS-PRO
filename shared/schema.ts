@@ -111,6 +111,7 @@ export interface LockedApprovingBody {
 export interface Project {
   id: string;
   name: string;
+  displayName?: string; // Permanent header display name (for rename feature)
   clientId?: string;
   clientName?: string;
   projectTitle?: string;
@@ -1078,3 +1079,304 @@ export interface ProjectSummary {
     cost: number;
   }[];
 }
+
+// ============================================================================
+// OFIVIO SETTINGS & INTEGRATIONS SYSTEM
+// ============================================================================
+
+// Theme System
+export const themeKeys = ["default", "modern-slate", "warm-architect"] as const;
+export const themeKeyEnum = z.enum(themeKeys);
+export type ThemeKey = z.infer<typeof themeKeyEnum>;
+
+export interface Theme {
+  key: ThemeKey;
+  name: string;
+  primary: string;
+  accent: string;
+  background: string;
+  text: string;
+  cardBg?: string;
+  borderColor?: string;
+  exampleCSS?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const insertThemeSchema = z.object({
+  key: themeKeyEnum,
+  name: z.string().min(1),
+  primary: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  accent: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  background: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  text: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  cardBg: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  borderColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  exampleCSS: z.string().optional(),
+});
+
+export type InsertTheme = z.infer<typeof insertThemeSchema>;
+
+// I18n Configuration
+export const supportedLanguages = ["en", "ur", "ar", "fr", "es", "it", "nl", "zh"] as const;
+export const languageEnum = z.enum(supportedLanguages);
+export type SupportedLanguage = z.infer<typeof languageEnum>;
+
+export interface I18nConfig {
+  enabledLanguages: SupportedLanguage[];
+  defaultLanguage: SupportedLanguage;
+  translationsPath?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// News Ticker Configuration
+export const newsSourceTypes = ["rss", "manual"] as const;
+export const newsSourceTypeEnum = z.enum(newsSourceTypes);
+export type NewsSourceType = z.infer<typeof newsSourceTypeEnum>;
+
+export interface NewsTickerSource {
+  type: NewsSourceType;
+  url?: string;
+  enabled: boolean;
+  manualItems?: NewsItem[];
+  refreshInterval?: number; // minutes
+}
+
+export interface NewsItem {
+  id: string;
+  title: string;
+  url?: string;
+  publishedAt: Date;
+}
+
+// Social Connections
+export const socialProviders = ["github", "google", "facebook", "twitter", "pinterest", "instagram", "snapchat"] as const;
+export const socialProviderEnum = z.enum(socialProviders);
+export type SocialProvider = z.infer<typeof socialProviderEnum>;
+
+export interface SocialConnection {
+  id: string;
+  provider: SocialProvider;
+  connected: boolean;
+  meta?: {
+    username?: string;
+    profileUrl?: string;
+    accessToken?: string; // Reference to Secret Manager, not actual token
+    scope?: string[];
+    connectedAt?: Date;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const insertSocialConnectionSchema = z.object({
+  provider: socialProviderEnum,
+  connected: z.boolean().default(false),
+  meta: z.object({
+    username: z.string().optional(),
+    profileUrl: z.string().url().optional(),
+    accessToken: z.string().optional(),
+    scope: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+export type InsertSocialConnection = z.infer<typeof insertSocialConnectionSchema>;
+
+// Organization Settings
+export interface OrganizationSettings {
+  id: string;
+  orgId: string;
+  studioName: string;
+  logoURL?: string;
+  tagline?: string;
+  contactEmail: string;
+  contactPhone?: string;
+  defaultCurrency: string;
+  defaultAreaUnit: AreaUnit;
+  timezone: string;
+  workingHours?: {
+    start: string;
+    end: string;
+  };
+  theme: ThemeKey;
+  customColors?: {
+    primary?: string;
+    accent?: string;
+    background?: string;
+  };
+  languages: SupportedLanguage[];
+  newsTickerSource?: NewsTickerSource;
+  socialConnections?: Record<string, { connected: boolean; meta?: any }>;
+  blogEnabled: boolean;
+  blogConfig?: {
+    homepageEnabled: boolean;
+    featuredPostId?: string;
+    postsPerPage?: number;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const insertOrganizationSettingsSchema = z.object({
+  orgId: z.string(),
+  studioName: z.string().min(1, "Studio name is required"),
+  logoURL: z.string().url().optional(),
+  tagline: z.string().optional(),
+  contactEmail: z.string().email("Valid email required"),
+  contactPhone: z.string().optional(),
+  defaultCurrency: z.string().default("PKR"),
+  defaultAreaUnit: areaUnitEnum.default("sqm"),
+  timezone: z.string().default("Asia/Karachi"),
+  workingHours: z.object({
+    start: z.string(),
+    end: z.string(),
+  }).optional(),
+  theme: themeKeyEnum.default("default"),
+  customColors: z.object({
+    primary: z.string().optional(),
+    accent: z.string().optional(),
+    background: z.string().optional(),
+  }).optional(),
+  languages: z.array(languageEnum).default(["en"]),
+  newsTickerSource: z.object({
+    type: newsSourceTypeEnum,
+    url: z.string().url().optional(),
+    enabled: z.boolean().default(false),
+    refreshInterval: z.number().optional(),
+  }).optional(),
+  blogEnabled: z.boolean().default(false),
+  blogConfig: z.object({
+    homepageEnabled: z.boolean().default(false),
+    featuredPostId: z.string().optional(),
+    postsPerPage: z.number().default(10),
+  }).optional(),
+});
+
+export const updateOrganizationSettingsSchema = insertOrganizationSettingsSchema.partial().omit({ orgId: true });
+
+export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
+export type UpdateOrganizationSettings = z.infer<typeof updateOrganizationSettingsSchema>;
+
+// Blog System
+export const blogPostStatuses = ["draft", "published", "archived"] as const;
+export const blogPostStatusEnum = z.enum(blogPostStatuses);
+export type BlogPostStatus = z.infer<typeof blogPostStatusEnum>;
+
+export interface BlogPost {
+  id: string;
+  postId: string;
+  orgId: string;
+  title: string;
+  slug: string;
+  summary: string;
+  contentHtml: string;
+  contentMarkdown?: string;
+  authorId: string;
+  authorName?: string;
+  coverUrl?: string;
+  tags: string[];
+  status: BlogPostStatus;
+  published: boolean;
+  publishedAt?: Date;
+  views?: number;
+  likes?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const insertBlogPostSchema = z.object({
+  orgId: z.string(),
+  title: z.string().min(1, "Title is required"),
+  slug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Slug must be lowercase with hyphens"),
+  summary: z.string().min(1, "Summary is required"),
+  contentHtml: z.string().min(1, "Content is required"),
+  contentMarkdown: z.string().optional(),
+  authorId: z.string(),
+  coverUrl: z.string().url().optional(),
+  tags: z.array(z.string()).default([]),
+  status: blogPostStatusEnum.default("draft"),
+  published: z.boolean().default(false),
+});
+
+export const updateBlogPostSchema = insertBlogPostSchema.partial().omit({ orgId: true, authorId: true });
+
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type UpdateBlogPost = z.infer<typeof updateBlogPostSchema>;
+
+// User Preferences
+export interface UserPreferences {
+  id: string;
+  userId: string;
+  theme: ThemeKey;
+  language: SupportedLanguage;
+  notifications: {
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+  };
+  timezone?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const insertUserPreferencesSchema = z.object({
+  userId: z.string(),
+  theme: themeKeyEnum.default("default"),
+  language: languageEnum.default("en"),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(true),
+    sms: z.boolean().default(false),
+  }).default({ email: true, push: true, sms: false }),
+  timezone: z.string().optional(),
+});
+
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+
+// Project Display Name History (for rename tracking)
+export interface ProjectNameHistory {
+  id: string;
+  projectId: string;
+  oldName: string;
+  newName: string;
+  changedBy: string;
+  changedByName: string;
+  timestamp: Date;
+  reason?: string;
+}
+
+// News Cache (for RSS feeds)
+export interface NewsCache {
+  id: string;
+  orgId: string;
+  items: NewsItem[];
+  lastFetchedAt: Date;
+  expiresAt: Date;
+}
+
+// Webhook Configuration
+export interface WebhookConfig {
+  id: string;
+  orgId: string;
+  name: string;
+  url: string;
+  events: string[]; // e.g., ['project.created', 'task.completed']
+  enabled: boolean;
+  secret?: string;
+  headers?: Record<string, string>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const insertWebhookConfigSchema = z.object({
+  orgId: z.string(),
+  name: z.string().min(1),
+  url: z.string().url(),
+  events: z.array(z.string()),
+  enabled: z.boolean().default(true),
+  secret: z.string().optional(),
+  headers: z.record(z.string()).optional(),
+});
+
+export type InsertWebhookConfig = z.infer<typeof insertWebhookConfigSchema>;
