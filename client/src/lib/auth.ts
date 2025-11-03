@@ -50,7 +50,12 @@ export function useAuth() {
       }
     },
     staleTime: Infinity,
-    retry: false
+    gcTime: Infinity,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   return {
