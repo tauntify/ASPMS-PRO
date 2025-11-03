@@ -48,7 +48,9 @@
       "Bash(firebase functions:list:*)",
       "Bash(npm run build:client:*)",
       "Bash(npm run:*)",
-      "Bash(copy /Y \"client\\src\\pages\\principle-dashboard-v2.tsx\" \"client\\src\\pages\\principle-dashboard.tsx\")"
+      "Bash(copy /Y \"client\\src\\pages\\principle-dashboard-v2.tsx\" \"client\\src\\pages\\principle-dashboard.tsx\")",
+      "Bash(git checkout:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
