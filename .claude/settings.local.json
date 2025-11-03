@@ -45,7 +45,10 @@
       "Bash(copy /Y \"functions\\src\\server\\routes.ts\" \"server\\routes.ts\")",
       "Bash(copy /Y \"server\\routes.ts\" \"functions\\src\\server\\routes.ts\")",
       "Bash(cp:*)",
-      "Bash(firebase functions:list:*)"
+      "Bash(firebase functions:list:*)",
+      "Bash(npm run build:client:*)",
+      "Bash(npm run:*)",
+      "Bash(copy /Y \"client\\src\\pages\\principle-dashboard-v2.tsx\" \"client\\src\\pages\\principle-dashboard.tsx\")"
     ],
     "deny": [],
     "ask": []
