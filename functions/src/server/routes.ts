@@ -21,7 +21,7 @@ import {
   insertProjectAssignmentSchema,
   insertCommentSchema,
   insertProjectFinancialsSchema,
-} from "../shared/schema";
+} from "@shared/schema";
 import { requireAuth, requireRole, attachUser, hashPassword, verifyPassword } from "./auth";
 import { createTrialSubscription } from "./subscription-utils";
 import { z } from "zod";
@@ -35,16 +35,19 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/projects", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      let projects = await storage.getProjects();
-      
+      const { getProjectsForUser } = await import("./context-storage");
+      let projects = await getProjectsForUser(user);
+
       // Filter by role - clients and employees only see assigned projects
       if (user.role === "client" || user.role === "employee") {
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const assignedProjectIds = assignments.map(a => a.projectId);
         projects = projects.filter(p => assignedProjectIds.includes(p.id));
       }
       // Principle and procurement see all projects
-      
+
       res.json(projects);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch projects" });
@@ -61,7 +64,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       }
 
       console.log("✅ Project validation passed:", parsed.data);
-      const project = await storage.createProject(parsed.data);
+      const { createProjectForUser } = await import("./context-storage");
+      const project = await createProjectForUser(req.user!, parsed.data);
       console.log("✅ Project created successfully:", project.id);
       res.status(201).json(project);
     } catch (error) {
@@ -78,7 +82,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid project data", details: parsed.error });
       }
 
-      const project = await storage.updateProject(parsed.data);
+      const { updateProjectForUser } = await import("./context-storage");
+      const project = await updateProjectForUser(req.user!, parsed.data);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
@@ -91,7 +96,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.delete("/api/projects/:id", requireAuth, requireRole("principle"), async (req, res) => {
     try {
-      const deleted = await storage.deleteProject(req.params.id);
+      const { deleteProjectForUser } = await import("./context-storage");
+      const deleted = await deleteProjectForUser(req.user!, req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Project not found" });
       }
@@ -110,7 +116,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Employee ID is required" });
       }
 
-      const assignment = await storage.createProjectAssignment({
+      const { createProjectAssignmentForUser } = await import("./context-storage");
+      const assignment = await createProjectAssignmentForUser(req.user!, {
         projectId: req.params.id,
         userId: employeeId,
         assignedBy: req.user!.id,
@@ -128,11 +135,15 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     try {
       const user = req.user!;
       const projectId = (req.query.projectId as string) || undefined;
-      let divisions = await storage.getDivisions(projectId);
+      const { getDivisionsForUser } = await import("./context-storage");
+      let divisions = await getDivisionsForUser(req.user!);
+      if (projectId) divisions = divisions.filter(d => d.projectId === projectId);
       
       // Filter by role - clients and employees only see divisions for assigned projects
       if (user.role === "client" || user.role === "employee") {
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const assignedProjectIds = assignments.map(a => a.projectId);
         divisions = divisions.filter(d => assignedProjectIds.includes(d.projectId));
       }
@@ -153,7 +164,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       }
 
       console.log("✅ Division validation passed:", parsed.data);
-      const division = await storage.createDivision(parsed.data);
+      const { createDivisionForUser } = await import("./context-storage");
+      const division = await createDivisionForUser(req.user!, parsed.data);
       console.log("✅ Division created successfully:", division.id);
       res.status(201).json(division);
     } catch (error) {
@@ -170,7 +182,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid division data", details: parsed.error });
       }
 
-      const division = await storage.updateDivision(parsed.data);
+      const { updateDivisionForUser } = await import("./context-storage");
+      const division = await updateDivisionForUser(req.user!, parsed.data);
       if (!division) {
         return res.status(404).json({ error: "Division not found" });
       }
@@ -183,7 +196,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.delete("/api/divisions/:id", requireAuth, requireRole("principle"), async (req, res) => {
     try {
-      const deleted = await storage.deleteDivision(req.params.id);
+      const { deleteDivisionForUser } = await import("./context-storage");
+      const deleted = await deleteDivisionForUser(req.user!, req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Division not found" });
       }
@@ -199,11 +213,15 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     try {
       const user = req.user!;
       const projectId = (req.query.projectId as string) || undefined;
-      let items = await storage.getItems(projectId);
+      const { getItemsForUser } = await import("./context-storage");
+      let items = await getItemsForUser(req.user!);
+      if (projectId) items = items.filter(i => i.projectId === projectId || divisions.some(d => d.id === i.divisionId && d.projectId === projectId));
       
       // Filter by role - clients and employees only see items for divisions in assigned projects
       if (user.role === "client" || user.role === "employee") {
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const assignedProjectIds = assignments.map(a => a.projectId);
         
         // Get all divisions for assigned projects
@@ -228,7 +246,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid item data", details: parsed.error });
       }
 
-      const item = await storage.createItem(parsed.data);
+      const { createItemForUser } = await import("./context-storage");
+      const item = await createItemForUser(req.user!, parsed.data);
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: "Failed to create item" });
@@ -242,7 +261,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid item data", details: parsed.error });
       }
 
-      const item = await storage.updateItem(parsed.data);
+      const { updateItemForUser } = await import("./context-storage");
+      const item = await updateItemForUser(req.user!, parsed.data);
       if (!item) {
         return res.status(404).json({ error: "Item not found" });
       }
@@ -255,7 +275,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.delete("/api/items/:id", requireAuth, requireRole("principle"), async (req, res) => {
     try {
-      const deleted = await storage.deleteItem(req.params.id);
+      const { deleteItemForUser } = await import("./context-storage");
+      const deleted = await deleteItemForUser(req.user!, req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Item not found" });
       }
@@ -274,7 +295,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       
       // Filter by role - clients and employees only see summary for assigned projects
       if (user.role === "client" || user.role === "employee") {
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const assignedProjectIds = assignments.map(a => a.projectId);
         
         // If a specific project is requested, verify user has access
@@ -285,11 +308,13 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         // If no project specified, calculate summary only for assigned projects
         if (!projectId) {
           // Get summary for all assigned projects by filtering divisions and items
-          const allDivisions = await storage.getDivisions();
+          const { getDivisionsForUser } = await import("./context-storage");
+      const allDivisions = await getDivisionsForUser(req.user!);
           const assignedDivisions = allDivisions.filter(d => assignedProjectIds.includes(d.projectId));
           const assignedDivisionIds = assignedDivisions.map(d => d.id);
           
-          const allItems = await storage.getItems();
+          const { getItemsForUser } = await import("./context-storage");
+      const allItems = await getItemsForUser(req.user!);
           const assignedItems = allItems.filter(item => assignedDivisionIds.includes(item.divisionId));
           
           // Calculate custom summary for assigned projects only
@@ -508,7 +533,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       let user;
       try {
-        user = await storage.getUserByUsername(username);
+        // Import the new helper function
+        const { getUserFromAnyCollection } = await import("./storage-helper");
+        user = await getUserFromAnyCollection(username);
         console.log("✅ User query completed:", user ? "User found" : "User not found");
       } catch (dbError) {
         console.error("❌ Database query failed:", dbError);
@@ -613,7 +640,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       }
 
       // Check if email already exists
-      const usersSnapshot = await storage.getUsers();
+      const { getUsersForUser } = await import("./context-storage");
+      const usersSnapshot = await getUsersForUser(req.user!);
       const emailExists = usersSnapshot.some(u => u.email === email);
       if (emailExists) {
         console.error("❌ Email already exists:", email);
@@ -649,7 +677,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       // Generate JWT token
       const token = generateToken({
-        userId: user.id as any,
+        userId: user.id,
         username: user.username,
         role: user.role,
       });
@@ -799,7 +827,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       // Generate JWT token for Google Sign-In
       console.log("🔑 Generating JWT token for Google user:", user.id);
       const token = generateToken({
-        userId: Number(user.id),
+        userId: user.id,
         username: user.username,
         role: user.role,
       });
@@ -829,7 +857,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       }
 
       // Check if email is already taken by another user
-      const users = await storage.getUsers();
+      const { getUsersForUser } = await import("./context-storage");
+      const users = await getUsersForUser(req.user!);
       const emailTaken = users.some(u => u.email === email && u.id !== userId);
       if (emailTaken) {
         return res.status(400).json({ error: "Email already in use by another account" });
@@ -912,7 +941,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.get("/api/auth/me", async (req, res) => {
     try {
-      let userId: number | undefined;
+      let userId: string | undefined;
 
       // Try JWT token first (from Authorization header)
       const token = extractTokenFromHeader(req.headers.authorization);
@@ -934,8 +963,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      // Get user from storage
-      const user = await storage.getUser(String(userId));
+      // Get user from storage - search across all collections
+      const { getUserById } = await import("./storage-helper");
+      const user = await getUserById(userId);
 
       if (!user) {
         // Clear invalid session if using sessions
@@ -1001,12 +1031,27 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   // User Management Routes (Principle only)
   app.get("/api/users", requireAuth, requireRole("principle"), async (_req, res) => {
     try {
-      const users = await storage.getUsers();
+      const { getUsersForUser } = await import("./context-storage");
+      const users = await getUsersForUser(req.user!);
       // Remove passwords from all users
       const usersWithoutPasswords = users.map(({ password: _, ...user }) => user);
       res.json(usersWithoutPasswords);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      // Remove password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user" });
     }
   });
 
@@ -1029,19 +1074,6 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       res.status(201).json(userWithoutPassword);
     } catch (error) {
       res.status(500).json({ error: "Failed to create user" });
-    }
-  });
-
-  app.get("/api/users/:id", requireAuth, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch user" });
     }
   });
 
@@ -1094,9 +1126,10 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   });
 
   // Employee Management Routes
-  app.get("/api/employees", requireAuth, requireRole('principle'), async (_req, res) => {
+  app.get("/api/employees", requireAuth, requireRole('principle'), async (req, res) => {
     try {
-      const employees = await storage.getEmployees();
+      const { getEmployeesForUser } = await import("./context-storage");
+      const employees = await getEmployeesForUser(req.user!);
       res.json(employees);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch employees" });
@@ -1106,13 +1139,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/employees/:id", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      // Try to get employee by employee ID first, then by user ID
-      let employee = await storage.getEmployee(req.params.id);
-
-      // If not found by employee ID, try by user ID
-      if (!employee) {
-        employee = await storage.getEmployeeByUserId(req.params.id);
-      }
+      const { getEmployeeForUser } = await import("./context-storage");
+      const employee = await getEmployeeForUser(user, req.params.id);
 
       if (!employee) {
         return res.status(404).json({ error: "Employee not found" });
@@ -1137,7 +1165,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid employee data", details: parsed.error });
       }
 
-      const employee = await storage.createEmployee(parsed.data);
+      const { createEmployeeForUser } = await import("./context-storage");
+      const employee = await createEmployeeForUser(req.user!, parsed.data);
       res.status(201).json(employee);
     } catch (error) {
       res.status(500).json({ error: "Failed to create employee" });
@@ -1150,7 +1179,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         idCard: z.string().optional(),
         whatsapp: z.string().optional(),
         homeAddress: z.string().optional(),
-        joiningDate: z.union([z.string(), z.date()]).transform(val => 
+        joiningDate: z.union([z.string(), z.date()]).transform(val =>
           typeof val === 'string' ? new Date(val) : val
         ).optional(),
         profilePicture: z.string().optional(),
@@ -1161,7 +1190,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid employee data", details: parsed.error });
       }
 
-      const employee = await storage.updateEmployee(req.params.id, parsed.data);
+      const { updateEmployeeForUser } = await import("./context-storage");
+      const employee = await updateEmployeeForUser(req.user!, req.params.id, parsed.data);
       if (!employee) {
         return res.status(404).json({ error: "Employee not found" });
       }
@@ -1176,26 +1206,33 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
+      const { getTasksForUser } = await import("./context-storage");
+      let tasks = await getTasksForUser(user);
+
+      // Apply filters
       const projectId = req.query.projectId as string | undefined;
       const employeeId = req.query.employeeId as string | undefined;
-      
-      let tasks;
-      
+
       if (user.role === "employee") {
-        // Employees only see tasks assigned to them (tasks store user ID, not employee table ID)
-        tasks = await storage.getTasks(projectId, user.id);
+        // Employees only see tasks assigned to them
+        tasks = tasks.filter(t => t.employeeId === user.id);
       } else if (user.role === "client") {
         // Clients only see tasks for their assigned projects
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const projectIds = assignments.map(a => a.projectId);
-        
-        tasks = await storage.getTasks(projectId, employeeId);
         tasks = tasks.filter(t => projectIds.includes(t.projectId));
-      } else {
-        // Principle and procurement see all tasks
-        tasks = await storage.getTasks(projectId, employeeId);
       }
-      
+
+      // Apply query filters
+      if (projectId) {
+        tasks = tasks.filter(t => t.projectId === projectId);
+      }
+      if (employeeId) {
+        tasks = tasks.filter(t => t.employeeId === employeeId);
+      }
+
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch tasks" });
@@ -1209,7 +1246,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid task data", details: parsed.error });
       }
 
-      const task = await storage.createTask(parsed.data);
+      const { createTaskForUser } = await import("./context-storage");
+      const task = await createTaskForUser(req.user!, parsed.data);
       res.status(201).json(task);
     } catch (error) {
       res.status(500).json({ error: "Failed to create task" });
@@ -1234,7 +1272,10 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid task data", details: parsed.error });
       }
 
-      const task = await storage.getTask(req.params.id);
+      const { getTasksForUser, updateTaskForUser } = await import("./context-storage");
+      const tasks = await getTasksForUser(user);
+      const task = tasks.find(t => t.id === req.params.id);
+
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
@@ -1242,7 +1283,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       // Allow principle to update any task OR employee to update their own task
       if (user.role !== 'principle') {
         if (user.role === "employee") {
-          // Check if task is assigned to this employee (tasks store user ID, not employee table ID)
+          // Check if task is assigned to this employee
           if (task.employeeId !== user.id) {
             return res.status(403).json({ error: "Forbidden: You can only update your own tasks" });
           }
@@ -1252,7 +1293,7 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         }
       }
 
-      const updatedTask = await storage.updateTask(req.params.id, parsed.data);
+      const updatedTask = await updateTaskForUser(user, req.params.id, parsed.data);
       if (!updatedTask) {
         return res.status(404).json({ error: "Task not found" });
       }
@@ -1337,11 +1378,15 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "projectId query parameter is required" });
       }
 
-      let items = await storage.getProcurementItems(projectId);
+      const { getProcurementItemsForUser } = await import("./context-storage");
+      let items = await getProcurementItemsForUser(req.user!);
+      if (projectId) items = items.filter(i => i.projectId === projectId);
 
       if (user.role === "client") {
         // Clients only see procurement for their assigned projects
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const projectIds = assignments.map(a => a.projectId);
         
         if (!projectIds.includes(projectId)) {
@@ -1368,7 +1413,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid procurement item data", details: parsed.error });
       }
 
-      const item = await storage.createProcurementItem(parsed.data);
+      const { createProcurementItemForUser } = await import("./context-storage");
+      const item = await createProcurementItemForUser(req.user!, parsed.data);
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: "Failed to create procurement item" });
@@ -1404,7 +1450,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       if (updates.projectCost !== undefined) updates.projectCost = updates.projectCost.toString();
       if (updates.executionCost !== undefined) updates.executionCost = updates.executionCost.toString();
 
-      const item = await storage.updateProcurementItem(req.params.id, updates);
+      const { updateProcurementItemForUser } = await import("./context-storage");
+      const item = await updateProcurementItemForUser(req.user!, req.params.id, updates);
       if (!item) {
         return res.status(404).json({ error: "Procurement item not found" });
       }
@@ -1417,7 +1464,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
   app.delete("/api/procurement/:id", requireAuth, requireRole("principle", "procurement"), async (req, res) => {
     try {
-      const deleted = await storage.deleteProcurementItem(req.params.id);
+      const { deleteProcurementItemForUser } = await import("./context-storage");
+      const deleted = await deleteProcurementItemForUser(req.user!, req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Procurement item not found" });
       }
@@ -1433,42 +1481,22 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
     try {
       const user = req.user!;
       const employeeId = req.query.employeeId as string | undefined;
+      const { getSalariesForUser } = await import("./context-storage");
+      let salaries = await getSalariesForUser(user);
 
-      // If no employeeId provided, return all salaries (principle only)
-      if (!employeeId) {
-        if (user.role !== "principle") {
-          return res.status(403).json({ error: "Forbidden: Only principle can view all salaries" });
-        }
-
-        // Get all salaries for all employees
-        const allUsers = await storage.getUsers();
-        const employeeUsers = allUsers.filter(u => u.role === "employee");
-
-        let allSalaries: any[] = [];
-        for (const emp of employeeUsers) {
-          const empSalaries = await storage.getSalaries(emp.id);
-          allSalaries = [...allSalaries, ...empSalaries];
-        }
-
-        return res.json(allSalaries);
-      }
-
-      // Employees can only see their own salaries
+      // Filter by role
       if (user.role === "employee") {
-        // employeeId in the query can be either user ID or employee table ID
-        // First check if it matches user ID directly
-        if (employeeId !== user.id) {
-          // If not, check if it matches employee table ID
-          const employee = await storage.getEmployeeByUserId(user.id);
-          if (!employee || employee.id !== employeeId) {
-            return res.status(403).json({ error: "Forbidden: You can only view your own salary data" });
-          }
-        }
+        // Employees can only see their own salaries
+        salaries = salaries.filter(s => s.employeeId === user.id);
       } else if (user.role !== "principle") {
         return res.status(403).json({ error: "Forbidden: Only employees and principle can view salaries" });
       }
 
-      const salaries = await storage.getSalaries(employeeId);
+      // Filter by employeeId if provided
+      if (employeeId) {
+        salaries = salaries.filter(s => s.employeeId === employeeId);
+      }
+
       res.json(salaries);
     } catch (error) {
       console.error("Failed to fetch salaries:", error);
@@ -1587,7 +1615,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
       const absentDays = workingDays - presentDays;
 
       // Get salary advances for this month
-      const advances = await storage.getSalaryAdvances(employeeId, month);
+      const { getSalaryAdvancesForUser } = await import("./context-storage");
+      let advances = await getSalaryAdvancesForUser(req.user!);
+      advances = advances.filter(a => a.employeeId === employeeId, month);
       const advancePaid = advances.reduce((sum, adv) => sum + adv.amount, 0);
 
       // Calculate earnings
@@ -1679,7 +1709,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         }
 
         // Get all advances for all employees
-        const allUsers = await storage.getUsers();
+        const { getUsersForUser } = await import("./context-storage");
+      const allUsers = await getUsersForUser(req.user!);
         const employeeUsers = allUsers.filter(u => u.role === "employee");
 
         let allAdvances: any[] = [];
@@ -1696,7 +1727,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      const advances = await storage.getSalaryAdvances(employeeId, month);
+      const { getSalaryAdvancesForUser } = await import("./context-storage");
+      let advances = await getSalaryAdvancesForUser(req.user!);
+      advances = advances.filter(a => a.employeeId === employeeId, month);
       res.json(advances);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch salary advances" });
@@ -1786,24 +1819,32 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   app.get("/api/attendance", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const employeeId = req.query.employeeId as string;
-      
-      if (!employeeId) {
-        return res.status(400).json({ error: "employeeId query parameter is required" });
-      }
+      const employeeId = req.query.employeeId as string | undefined;
+      const { getAttendanceForUser } = await import("./context-storage");
+      let attendance = await getAttendanceForUser(user);
 
-      // Employees can only see their own attendance
+      // Filter by role
       if (user.role === "employee") {
-        // employeeId in attendance table references users.id, not employee table id
-        if (employeeId !== user.id) {
-          return res.status(403).json({ error: "Forbidden: You can only view your own attendance data" });
-        }
+        // Employees can only see their own attendance
+        attendance = attendance.filter(a => a.employeeId === user.id);
       } else if (user.role !== "principle") {
         return res.status(403).json({ error: "Forbidden: Only employees and principle can view attendance" });
       }
 
+      // Filter by employeeId if provided
+      if (employeeId) {
+        attendance = attendance.filter(a => a.employeeId === employeeId);
+      }
+
+      // Filter by month if provided
       const month = req.query.month as string | undefined;
-      const attendance = await storage.getAttendance(employeeId, month);
+      if (month) {
+        attendance = attendance.filter(a => {
+          const attendanceMonth = a.attendanceDate.toISOString().substring(0, 7);
+          return attendanceMonth === month;
+        });
+      }
+
       res.json(attendance);
     } catch (error) {
       console.error("Failed to fetch attendance:", error);
@@ -1821,14 +1862,15 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       // Employees can only mark their own attendance
       if (user.role === "employee") {
-        // Verify employee is marking their own attendance (employeeId in attendance table references users.id)
+        // Verify employee is marking their own attendance
         if (parsed.data.employeeId !== user.id) {
           return res.status(403).json({ error: "Forbidden: You can only mark your own attendance" });
         }
       }
       // Principle can mark anyone's attendance (no additional check needed)
 
-      const attendance = await storage.createAttendance(parsed.data);
+      const { createAttendanceForUser } = await import("./context-storage");
+      const attendance = await createAttendanceForUser(user, parsed.data);
       res.status(201).json(attendance);
     } catch (error) {
       res.status(500).json({ error: "Failed to create attendance record" });
@@ -1912,7 +1954,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
         return res.status(400).json({ error: "Invalid assignment data", details: parsed.error });
       }
 
-      const assignment = await storage.createProjectAssignment(parsed.data);
+      const { createProjectAssignmentForUser } = await import("./context-storage");
+      const assignment = await createProjectAssignmentForUser(req.user!, parsed.data);
       res.status(201).json(assignment);
     } catch (error) {
       res.status(500).json({ error: "Failed to create project assignment" });
@@ -1944,7 +1987,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       // Clients can only see comments for their assigned projects
       if (user.role === "client") {
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const projectIds = assignments.map(a => a.projectId);
         
         if (!projectIds.includes(projectId)) {
@@ -2006,7 +2051,9 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
 
       // Clients can only view financials for their assigned projects
       if (user.role === "client") {
-        const assignments = await storage.getProjectAssignments(user.id);
+        const { getProjectAssignmentsForUser } = await import("./context-storage");
+      let assignments = await getProjectAssignmentsForUser(req.user!);
+      assignments = assignments.filter(a => a.userId === user.id);
         const projectIds = assignments.map(a => a.projectId);
         
         if (!projectIds.includes(projectId)) {
@@ -2224,7 +2271,8 @@ export async function registerRoutes(app: Express, server?: Server): Promise<Ser
   // Admin routes - only accessible to admin role
   app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
     try {
-      const users = await storage.getUsers();
+      const { getUsersForUser } = await import("./context-storage");
+      const users = await getUsersForUser(req.user!);
       // Remove password hashes from response
       const usersWithoutPasswords = users.map(({ password, ...user }) => user);
       res.json(usersWithoutPasswords);

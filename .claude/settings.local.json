@@ -15,7 +15,14 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsx:*)",
       "Bash(findstr:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(xcopy:*)",
+      "Bash(robocopy:*)",
+      "Bash(copy /Y serverstorage-helper.ts functionssrcserver )",
+      "Bash(copy /Y servercontext-storage.ts functionssrcserver )",
+      "Bash(copy /Y serverroutes.ts functionssrcserver)",
+      "Bash(index.ts)",
+      "Bash(firebase functions:delete:*)"
     ],
     "deny": [],
     "ask": []
