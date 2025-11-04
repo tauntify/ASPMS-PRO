@@ -54,6 +54,7 @@ import { RecentActivities } from "@/components/RecentActivities";
 import { ReportsSection } from "@/components/ReportsSection";
 import { ComprehensiveOverview } from "@/components/ComprehensiveOverview";
 import { AdminPanelView } from "@/components/AdminPanelView";
+import { DashboardFooter } from "@/components/DashboardFooter";
 
 type ActiveView = "overview" | "project-view" | "clients" | "employees" | "hr" | "accounts" | "timesheet" | "procurement" | "invoices" | "reports";
 
@@ -306,21 +307,24 @@ export default function PrincipleDashboardNew() {
       </div>
 
       {/* Main Content - Full Width */}
-      <div className="flex-1 overflow-hidden">
-        {overviewMode === "comprehensive" ? (
-          <ComprehensiveOverview projects={projects} users={users} tasks={tasks} />
-        ) : (
-          <AdminPanelView
-            projects={projects}
-            users={users}
-            tasks={tasks}
-            onOpenProject={(projectId) => {
-              setSelectedProjectId(projectId);
-              setActiveView("project-view");
-            }}
-            onCreateProject={() => setShowCreateProject(true)}
-          />
-        )}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-auto">
+          {overviewMode === "comprehensive" ? (
+            <ComprehensiveOverview projects={projects} users={users} tasks={tasks} />
+          ) : (
+            <AdminPanelView
+              projects={projects}
+              users={users}
+              tasks={tasks}
+              onOpenProject={(projectId) => {
+                setSelectedProjectId(projectId);
+                setActiveView("project-view");
+              }}
+              onCreateProject={() => setShowCreateProject(true)}
+            />
+          )}
+        </div>
+        <DashboardFooter />
       </div>
 
       {/* Dialogs */}
