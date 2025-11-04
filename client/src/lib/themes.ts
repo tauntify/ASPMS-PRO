@@ -11,36 +11,58 @@ export interface ThemeColors {
 
 export const themes: Record<ThemeKey, { name: string; colors: ThemeColors }> = {
   default: {
-    name: "Default Blue",
+    name: "Default",
     colors: {
-      primary: "#2B6CB0",
-      accent: "#60A5FA",
-      background: "#F8F9FA",
-      text: "#1F2937",
-      cardBg: "#FFFFFF",
-      borderColor: "#E5E7EB",
+      primary: "#7e8987",
+      accent: "#8db580",
+      background: "#ddd1c7",
+      text: "#4b4a67",
+      cardBg: "#d0d0bd",
+      borderColor: "#c2cfb2",
     },
   },
-  "modern-slate": {
-    name: "Modern Slate",
+  interior: {
+    name: "Interior Mode",
     colors: {
-      primary: "#1F2937",
-      accent: "#7C3AED",
-      background: "#0F172A",
-      text: "#F9FAFB",
-      cardBg: "#1E293B",
-      borderColor: "#334155",
+      primary: "#b97375",
+      accent: "#c4929a",
+      background: "#f1e4e8",
+      text: "#2d2d34",
+      cardBg: "#d8c7ce",
+      borderColor: "#ceb1be",
     },
   },
-  "warm-architect": {
-    name: "Warm Architect",
+  architect: {
+    name: "Architect Mode",
     colors: {
-      primary: "#3B2F2F",
-      accent: "#F6AD55",
-      background: "#FFF7ED",
-      text: "#292524",
-      cardBg: "#FFFBF5",
-      borderColor: "#FED7AA",
+      primary: "#ff7f11",
+      accent: "#ffbf87",
+      background: "#414141",
+      text: "#ffefdf",
+      cardBg: "#80807e",
+      borderColor: "#ffdfc2",
+    },
+  },
+  workload: {
+    name: "Work Load",
+    colors: {
+      primary: "#80b6cc",
+      accent: "#9fb9c2",
+      background: "#bd9391",
+      text: "#414141",
+      cardBg: "#b5a7a7",
+      borderColor: "#adbabd",
+    },
+  },
+  corporate: {
+    name: "Corporate",
+    colors: {
+      primary: "#5d5c90",
+      accent: "#b497d6",
+      background: "#e1e2ef",
+      text: "#05122b",
+      cardBg: "#cbbde3",
+      borderColor: "#b497d6",
     },
   },
 };

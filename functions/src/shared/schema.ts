@@ -1085,7 +1085,7 @@ export interface ProjectSummary {
 // ============================================================================
 
 // Theme System
-export const themeKeys = ["default", "modern-slate", "warm-architect"] as const;
+export const themeKeys = ["default", "interior", "architect", "workload", "corporate"] as const;
 export const themeKeyEnum = z.enum(themeKeys);
 export type ThemeKey = z.infer<typeof themeKeyEnum>;
 
