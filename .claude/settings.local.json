@@ -50,7 +50,8 @@
       "Bash(npm run:*)",
       "Bash(copy /Y \"client\\src\\pages\\principle-dashboard-v2.tsx\" \"client\\src\\pages\\principle-dashboard.tsx\")",
       "Bash(git checkout:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(copy /Y \"server\\routes-ofivio.ts\" \"functions\\src\\server\\routes-ofivio.ts\")"
     ],
     "deny": [],
     "ask": []

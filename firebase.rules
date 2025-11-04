@@ -256,5 +256,43 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isPrinciple();
     }
+
+    // ============================================================================
+    // OFIVIO ROUTES
+    // ============================================================================
+
+    // Organization Settings
+    match /org_settings/{orgId} {
+      allow read: if isAuthenticated();
+      allow write: if isPrinciple();
+    }
+
+    // Blog Posts
+    match /blogs/{blogId} {
+      allow read: if resource.data.published == true || isPrinciple();
+      allow write: if isPrinciple();
+    }
+
+    // Social Connections (admin only)
+    match /social_connections/{connectionId} {
+      allow read, write: if isPrinciple();
+    }
+
+    // User Preferences
+    match /user_preferences/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // Project Name History
+    match /project_name_history/{historyId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server-only
+    }
+
+    // News Cache (read-only for all authenticated users)
+    match /news_cache/{orgId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server-only
+    }
   }
 }

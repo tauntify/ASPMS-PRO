@@ -26,11 +26,17 @@ import PricingNew from "@/pages/pricing-new";
 import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import NotFound from "@/pages/not-found";
+import SettingsPage from "@/pages/settings";
+import BlogHome from "@/pages/blog";
+import BlogPostView from "@/pages/blog/[slug]";
+import BlogEditor from "@/pages/blog/editor";
+import HeaderSleek from "@/components/HeaderSleek";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/hooks/use-subscription";
 import { CookieConsent } from "@/components/cookie-consent";
 import { setupGlobalErrorHandlers, setTrackingUserId } from "@/lib/error-tracking";
+import "@/lib/i18n";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -151,6 +157,16 @@ function Router() {
         {() => <ProtectedRoute component={PackageBuilder} />}
       </Route>
 
+      {/* Ofivio Routes */}
+      <Route path="/settings">
+        {() => <ProtectedRoute component={SettingsPage} />}
+      </Route>
+      <Route path="/blog" component={BlogHome} />
+      <Route path="/blog/editor">
+        {() => <ProtectedRoute component={BlogEditor} />}
+      </Route>
+      <Route path="/blog/:slug" component={BlogPostView} />
+
       {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
@@ -158,7 +174,7 @@ function Router() {
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // Set user ID for tracking when user logs in
   useEffect(() => {
@@ -171,6 +187,7 @@ function AppContent() {
     <TooltipProvider>
       <Toaster />
       <CookieConsent />
+      {isAuthenticated && <HeaderSleek />}
       <Router />
     </TooltipProvider>
   );

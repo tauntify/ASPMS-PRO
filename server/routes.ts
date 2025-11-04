@@ -28,12 +28,16 @@ import { z } from "zod";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
+import { registerOfivioRoutes } from "./routes-ofivio";
 
 export async function registerRoutes(app: Express, server?: Server): Promise<Server> {
   // Note: attachUser middleware is already attached in index.ts, no need to add it here
 
   // Register Architecture Lifecycle routes
   registerLifecycleRoutes(app);
+
+  // Register Ofivio routes (settings, blog, news, social)
+  registerOfivioRoutes(app);
 
   // Project routes - requireAuth for all authenticated users
   app.get("/api/projects", requireAuth, async (req, res) => {

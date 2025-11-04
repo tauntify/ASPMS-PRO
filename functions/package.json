@@ -23,6 +23,7 @@
     "firestore-store": "^2.0.2",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
+    "rss-parser": "^3.13.0",
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"
   },
