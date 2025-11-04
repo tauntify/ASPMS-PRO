@@ -1,44 +1,84 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth, logout } from "@/lib/auth";
-import { Project, User, Task } from "@shared/schema";
+import { useAuth } from "@/lib/auth";
+import {
+  Project, User, Task, Division, Item, ProjectSummary,
+  projectTypes, projectSubTypes, areaUnits, projectScopes, feeModelTypes, projectStatuses, siteTypes
+} from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Briefcase,
   Users,
   CheckCircle2,
   DollarSign,
   Plus,
-  Search,
-  Bell,
-  Settings,
-  LogOut,
   Clock,
-  TrendingUp,
-  Activity,
-  Calendar,
   FileText,
   ChevronRight,
-  X,
+  UserPlus,
+  ClipboardList,
+  Receipt,
+  TrendingUp,
+  Calendar,
+  Download,
+  BarChart3,
+  ArrowLeft,
+  Info,
+  Settings,
 } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { DivisionSidebar } from "@/components/DivisionSidebar";
+import { ItemManagement } from "@/components/ItemManagement";
+import { Analytics } from "@/components/Analytics";
+import { MasterSummary } from "@/components/MasterSummary";
+import { ExportModal } from "@/components/ExportModal";
+import { ProjectDetailsDialog } from "@/components/ProjectDetailsDialog";
+import { AssignTaskDialog, EditUserDialog } from "@/pages/principle-dashboard-dialogs";
+import { HRManagement } from "@/components/HRManagement";
+import { AccountsManagement } from "@/components/AccountsManagement";
+import { TimesheetManagement } from "@/components/TimesheetManagement";
+import { ProcurementManagement } from "@/components/ProcurementManagement";
+import { InvoiceManagement } from "@/components/InvoiceManagement";
+import { UpcomingMeetings } from "@/components/UpcomingMeetings";
+import { RecentActivities } from "@/components/RecentActivities";
+import { ReportsSection } from "@/components/ReportsSection";
+import { ComprehensiveOverview } from "@/components/ComprehensiveOverview";
+import { AdminPanelView } from "@/components/AdminPanelView";
 
-type ActiveView = "dashboard" | "projects" | "clients" | "employees" | "procurement" | "billing" | "meetings" | "tasks" | "reports" | "admin";
+type ActiveView = "overview" | "project-view" | "clients" | "employees" | "hr" | "accounts" | "timesheet" | "procurement" | "invoices" | "reports";
 
-export default function PrincipleDashboardV2() {
+export default function PrincipleDashboardNew() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeView, setActiveView] = useState<ActiveView>("dashboard");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Main navigation state
+  const [activeView, setActiveView] = useState<ActiveView>("overview");
+  const [overviewMode, setOverviewMode] = useState<"comprehensive" | "admin">("comprehensive");
+
+  // Project view state (when viewing a specific project)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showProjectDetails, setShowProjectDetails] = useState(false);
+
+  // Dialog states
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showAssignTask, setShowAssignTask] = useState(false);
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [newUserRole, setNewUserRole] = useState<"client" | "employee" | "procurement" | "accountant" | "hr">("employee");
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   // Fetch data
   const { data: projects = [] } = useQuery<Project[]>({
@@ -53,777 +93,781 @@ export default function PrincipleDashboardV2() {
     queryKey: ["/api/tasks"],
   });
 
-  // Filter projects by search
-  const filteredProjects = projects.filter(p =>
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.clientName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Project-specific data
+  const { data: divisions = [], isLoading: divisionsLoading } = useQuery<Division[]>({
+    queryKey: [`/api/divisions?projectId=${selectedProjectId}`],
+    enabled: !!selectedProjectId && activeView === "project-view",
+  });
 
-  // Calculate stats
-  const activeProjects = projects.filter(p => p.projectStatus !== "completed" && p.projectStatus !== "archived").length;
-  const pendingApprovals = 7; // TODO: Get from approvals API
-  const tasksDueToday = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === new Date().toDateString()).length;
-  const monthlyRevenue = 12300000; // TODO: Calculate from financials
+  const { data: items = [], isLoading: itemsLoading } = useQuery<Item[]>({
+    queryKey: [`/api/items?projectId=${selectedProjectId}`],
+    enabled: !!selectedProjectId && activeView === "project-view",
+  });
 
-  // Recent activities (mock data for now)
-  const recentActivities = [
-    { id: 1, user: "Ayesha Khan", action: "commented on", target: "DHA Villa Project", time: "2 hours ago", type: "comment" },
-    { id: 2, user: "Client: Ahmed", action: "approved", target: "BOQ Item #B-33", time: "4 hours ago", type: "approval" },
-    { id: 3, user: "Procurement Team", action: "marked orders received for", target: "Mall Retail Fitout", time: "5 hours ago", type: "procurement" },
-    { id: 4, user: "Sara Ali", action: "submitted", target: "MEP Drawings - Level 2", time: "1 day ago", type: "submission" },
-  ];
+  const { data: summary } = useQuery<ProjectSummary>({
+    queryKey: [`/api/summary?projectId=${selectedProjectId}`],
+    enabled: !!selectedProjectId && activeView === "project-view",
+  });
 
-  // Upcoming meetings (mock data)
-  const upcomingMeetings = [
-    { id: 1, title: "Site Walk — DHA Villa", date: "Apr 14", location: "On-site", attendees: 5 },
-    { id: 2, title: "Approval Call — MEP", date: "Apr 16", location: "ARKA Office", attendees: 3 },
-    { id: 3, title: "Client Review", date: "Apr 18", location: "Virtual", attendees: 8 },
-  ];
+  // Computed data
+  const activeProjects = projects.filter(p => p.projectStatus !== "completed" && p.projectStatus !== "archived");
+  const clients = users.filter(u => u.role === "client");
+  const employees = users.filter(u => u.role === "employee");
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const selectedDivision = divisions.find(d => d.id === selectedDivisionId);
+  const divisionItems = items.filter(item => item.divisionId === selectedDivisionId);
 
-  // Notifications (mock data)
-  const notifications = [
-    { id: 1, title: "New approval request", message: "Client awaiting approval for MEP drawings", time: "1 hour ago", read: false },
-    { id: 2, title: "Task overdue", message: "5 tasks are past their due date", time: "3 hours ago", read: false },
-    { id: 3, title: "Payment received", message: "PKR 2.5M received from DHA Villa", time: "1 day ago", read: true },
-  ];
+  // Handlers
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setShowEditUser(true);
+  };
+  const handleOpenProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setActiveView("project-view");
+  };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const handleBackToProjects = () => {
+    setSelectedProjectId(null);
+    setSelectedDivisionId(null);
+    setShowSummary(false);
+    setActiveView("overview");
+  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200">
-        <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                ASPMS Studio
-              </span>
-            </div>
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/users", {
+        ...data,
+        organizationId: user?.organizationId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowCreateUser(false);
+      toast({ title: "Success", description: "User created successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
 
-            {/* Global Search */}
-            <div className="relative ml-6 w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search projects, tasks, clients..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => toast({ title: "Create new project" })}
-            >
-              <Plus className="w-4 h-4" />
-              Create
-            </Button>
-
-            {/* Notifications */}
-            <div className="relative">
+  // If viewing a specific project, show the project dashboard
+  if (activeView === "project-view" && selectedProjectId) {
+    return (
+      <div className="h-screen w-full bg-background overflow-hidden flex flex-col">
+        {/* Project Header */}
+        <header className="border-b border-primary/30 bg-card/50 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative"
+                onClick={handleBackToProjects}
+                className="mr-2"
               >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                )}
+                <ArrowLeft className="w-5 h-5" />
               </Button>
+              <div className="w-10 h-10 rounded-md bg-primary/20 border border-primary/50 flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-display font-bold text-foreground tracking-wide">
+                  {selectedProject?.name || "PROJECT"}
+                </h1>
+                <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                  {selectedProject?.clientName || "Project Dashboard"}
+                </p>
+              </div>
+            </div>
 
-              {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50">
-                  <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="font-semibold">Notifications</h3>
-                    <Button variant="ghost" size="sm" onClick={() => setShowNotifications(false)}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <ScrollArea className="h-96">
-                    {notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${!notif.read ? 'bg-blue-50/50' : ''}`}
-                      >
-                        <div className="flex gap-3">
-                          <div className={`w-2 h-2 rounded-full mt-2 ${!notif.read ? 'bg-blue-500' : 'bg-gray-300'}`} />
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{notif.title}</p>
-                            <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-                            <p className="text-xs text-gray-400 mt-2">{notif.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </ScrollArea>
+            <div className="flex items-center gap-4">
+              {summary && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary/10 border border-primary/40">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Total Budget
+                  </span>
+                  <span className="text-2xl font-mono font-bold text-primary">
+                    {summary.totalCost.toLocaleString('en-PK')} PKR
+                  </span>
                 </div>
               )}
+
+              <Button
+                onClick={() => setShowProjectDetails(true)}
+                variant="outline"
+                className="border-purple-500/50 hover:border-purple-500"
+              >
+                <Info className="w-4 h-4 mr-2" />
+                Project Details
+              </Button>
+
+              <Button
+                onClick={() => setShowSummary(!showSummary)}
+                variant="outline"
+                className="border-accent/50 hover:border-accent"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                {showSummary ? "Hide" : "Show"} Summary
+              </Button>
+
+              <Button
+                onClick={() => setShowExport(true)}
+                variant="default"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
             </div>
+          </div>
+        </header>
 
-            <Button variant="ghost" size="icon">
-              <Settings className="w-5 h-5" />
+        {/* Project Content */}
+        <div className="flex-1 flex overflow-hidden">
+          <DivisionSidebar
+            projectId={selectedProjectId}
+            divisions={divisions}
+            items={items}
+            selectedDivisionId={selectedDivisionId}
+            onSelectDivision={setSelectedDivisionId}
+            isLoading={divisionsLoading}
+          />
+
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {showSummary ? (
+              <MasterSummary summary={summary} divisions={divisions} items={items} />
+            ) : (
+              <ItemManagement
+                division={selectedDivision}
+                items={divisionItems}
+                isLoading={itemsLoading}
+              />
+            )}
+          </div>
+
+          <Analytics
+            summary={summary}
+            divisions={divisions}
+            items={items}
+          />
+        </div>
+
+        <ProjectDetailsDialog
+          project={selectedProject || null}
+          open={showProjectDetails}
+          onOpenChange={setShowProjectDetails}
+        />
+
+        {showExport && selectedProject && (
+          <ExportModal
+            onClose={() => setShowExport(false)}
+            project={selectedProject}
+            projectName={selectedProject.name}
+            divisions={divisions}
+            items={items}
+            summary={summary}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Main principle dashboard with all sections
+  return (
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-background">
+      {/* Black Navigation Bar - Only Overview and Admin Panel */}
+      <div className="bg-gray-900 text-white border-b border-gray-800">
+        <div className="flex items-center justify-between px-6 py-3">
+          <div>
+            <h1 className="text-xl font-bold">Principal Dashboard</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setOverviewMode("comprehensive")}
+              variant={overviewMode === "comprehensive" ? "default" : "ghost"}
+              size="sm"
+              className={overviewMode === "comprehensive" ? "" : "text-white hover:bg-gray-800"}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
             </Button>
-
-            <Avatar className="w-9 h-9 cursor-pointer">
-              <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-700 text-white font-semibold">
-                {user?.fullName?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <Button
+              onClick={() => setOverviewMode("admin")}
+              variant={overviewMode === "admin" ? "default" : "ghost"}
+              size="sm"
+              className={overviewMode === "admin" ? "" : "text-white hover:bg-gray-800"}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Admin Panel
+            </Button>
           </div>
         </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 min-h-screen bg-white/60 backdrop-blur-sm border-r border-gray-200 p-4">
-          <nav className="space-y-1">
-            {[
-              { id: "dashboard", icon: Activity, label: "Dashboard" },
-              { id: "projects", icon: Briefcase, label: "Projects" },
-              { id: "clients", icon: Users, label: "Clients" },
-              { id: "employees", icon: Users, label: "Employees" },
-              { id: "procurement", icon: FileText, label: "Procurement" },
-              { id: "billing", icon: DollarSign, label: "Billing" },
-              { id: "meetings", icon: Calendar, label: "Meetings" },
-              { id: "tasks", icon: CheckCircle2, label: "Tasks" },
-              { id: "reports", icon: TrendingUp, label: "Reports" },
-              { id: "admin", icon: Settings, label: "Admin" },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveView(item.id as ActiveView)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-                  activeView === item.id
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-200'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          {activeView === "dashboard" && (
-            <>
-              {/* Page Header */}
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Studio Control — Overview</h1>
-                <p className="text-sm text-gray-500 mt-1">All projects & live pipelines</p>
-              </div>
-
-              {/* Metrics */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                <Card className="p-5 bg-gradient-to-br from-white to-blue-50/30 border-blue-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Total Active Projects</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">{activeProjects}</p>
-                      <p className="text-xs text-gray-500 mt-1">3 new this week</p>
-                    </div>
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Briefcase className="w-5 h-5 text-blue-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-5 bg-gradient-to-br from-white to-amber-50/30 border-amber-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Pending Approvals</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">{pendingApprovals}</p>
-                      <p className="text-xs text-gray-500 mt-1">Awaiting client responses</p>
-                    </div>
-                    <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-amber-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-5 bg-gradient-to-br from-white to-green-50/30 border-green-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Tasks Due Today</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">{tasksDueToday}</p>
-                      <p className="text-xs text-gray-500 mt-1">Critical: 5</p>
-                    </div>
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-5 bg-gradient-to-br from-white to-purple-50/30 border-purple-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Monthly Revenue</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">PKR {(monthlyRevenue / 1000000).toFixed(1)}M</p>
-                      <p className="text-xs text-gray-500 mt-1">Invoice due: PKR 2.1M</p>
-                    </div>
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-purple-600" />
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-3 gap-6">
-                {/* Projects Section */}
-                <div className="col-span-2 space-y-4">
-                  <Card className="p-6">
-                    <h3 className="text-lg font-bold mb-4">Projects</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {filteredProjects.slice(0, 6).map((project) => (
-                        <Card
-                          key={project.id}
-                          className="p-4 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-white to-gray-50/50 border-gray-200"
-                          onClick={() => setSelectedProject(project)}
-                        >
-                          <div className="h-24 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg flex items-center justify-center mb-3">
-                            <span className="text-sm font-semibold text-blue-700">{project.projectType || 'Project'}</span>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h4 className="font-bold text-sm">{project.name}</h4>
-                                <p className="text-xs text-gray-500">{project.clientName} • {project.area} {project.areaUnit}</p>
-                              </div>
-                              <Badge variant="outline" className="text-xs">
-                                {project.projectStatus || 'Active'}
-                              </Badge>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-gradient-to-r from-blue-600 to-blue-500 h-2 rounded-full"
-                                style={{ width: `${Math.random() * 100}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-gray-500">
-                              <span>Tasks: 32</span>
-                              <Button size="sm" variant="ghost" className="h-7 text-xs">
-                                Open <ChevronRight className="w-3 h-3 ml-1" />
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-4">
-                  {/* Upcoming Meetings */}
-                  <Card className="p-5">
-                    <h4 className="font-bold text-sm mb-4">Upcoming Meetings</h4>
-                    <div className="space-y-3">
-                      {upcomingMeetings.map((meeting) => (
-                        <div key={meeting.id} className="flex gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Calendar className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-sm">{meeting.title}</p>
-                            <p className="text-xs text-gray-500">{meeting.date} • {meeting.location}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-
-                  {/* Recent Activity */}
-                  <Card className="p-5">
-                    <h4 className="font-bold text-sm mb-4">Recent Activity</h4>
-                    <div className="space-y-3">
-                      {recentActivities.map((activity) => (
-                        <div key={activity.id} className="flex gap-3">
-                          <Avatar className="w-8 h-8 flex-shrink-0">
-                            <AvatarFallback className="bg-gradient-to-br from-gray-200 to-gray-100 text-gray-700 text-xs">
-                              {activity.user.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="text-sm">
-                              <span className="font-semibold">{activity.user}</span>{' '}
-                              <span className="text-gray-600">{activity.action}</span>{' '}
-                              <span className="font-medium">{activity.target}</span>
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-
-                  {/* Quick Actions */}
-                  <Card className="p-5">
-                    <h4 className="font-bold text-sm mb-4">Quick Actions</h4>
-                    <div className="space-y-2">
-                      <Button className="w-full justify-start gap-2 bg-gradient-to-r from-blue-600 to-blue-700">
-                        <Plus className="w-4 h-4" />
-                        Create Project
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <Users className="w-4 h-4" />
-                        Add Client
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <Users className="w-4 h-4" />
-                        Add Employee
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeView === "billing" && (
-            <div>
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Billing & Invoicing</h1>
-                <p className="text-sm text-gray-500 mt-1">Comprehensive financial tracking and invoice management</p>
-              </div>
-
-              {/* Billing Summary Cards */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                <Card className="p-5 bg-gradient-to-br from-white to-green-50/30 border-green-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Total Revenue (YTD)</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">PKR 45.2M</p>
-                      <p className="text-xs text-green-600 mt-1">+23.4% from last year</p>
-                    </div>
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-green-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-5 bg-gradient-to-br from-white to-blue-50/30 border-blue-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Total Invoiced</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">PKR 8.9M</p>
-                      <p className="text-xs text-gray-500 mt-1">42 invoices this month</p>
-                    </div>
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-5 bg-gradient-to-br from-white to-purple-50/30 border-purple-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Collected</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">PKR 6.2M</p>
-                      <p className="text-xs text-gray-500 mt-1">70% collection rate</p>
-                    </div>
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-purple-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-5 bg-gradient-to-br from-white to-amber-50/30 border-amber-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">Outstanding</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">PKR 2.7M</p>
-                      <p className="text-xs text-amber-600 mt-1">7 invoices overdue</p>
-                    </div>
-                    <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-amber-600" />
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-3 gap-6">
-                {/* Recent Invoices */}
-                <div className="col-span-2">
-                  <Card className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold">Recent Invoices</h3>
-                      <Button size="sm" className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        New Invoice
-                      </Button>
-                    </div>
-                    <div className="space-y-3">
-                      {[
-                        { id: "INV-2025-042", project: "DHA Villa Renovation", client: "Ahmed Malik", amount: 850000, status: "Paid", date: "Apr 10, 2025" },
-                        { id: "INV-2025-041", project: "Mall Retail Fitout", client: "Retail Corp", amount: 1200000, status: "Sent", date: "Apr 8, 2025" },
-                        { id: "INV-2025-040", project: "Office Interior - Phase 2", client: "TechHub Ltd", amount: 450000, status: "Overdue", date: "Mar 28, 2025" },
-                        { id: "INV-2025-039", project: "Residence New Build", client: "Sara Khan", amount: 2100000, status: "Paid", date: "Apr 5, 2025" },
-                        { id: "INV-2025-038", project: "Hospital MEP Design", client: "HealthCare Pvt", amount: 750000, status: "Draft", date: "Apr 12, 2025" },
-                      ].map((invoice) => (
-                        <div key={invoice.id} className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all cursor-pointer bg-white">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                                <FileText className="w-5 h-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-sm">{invoice.id}</p>
-                                <p className="text-xs text-gray-500">{invoice.project}</p>
-                                <p className="text-xs text-gray-400">{invoice.client} • {invoice.date}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-sm">PKR {(invoice.amount / 1000).toFixed(0)}K</p>
-                            <Badge
-                              variant={invoice.status === "Paid" ? "outline" : invoice.status === "Overdue" ? "destructive" : "secondary"}
-                              className={invoice.status === "Paid" ? "bg-green-50 text-green-700 border-green-200" : ""}
-                            >
-                              {invoice.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-4">
-                  {/* Revenue by Project Type */}
-                  <Card className="p-5">
-                    <h4 className="font-bold text-sm mb-4">Revenue by Project Type</h4>
-                    <div className="space-y-3">
-                      {[
-                        { type: "Design & Consultancy", amount: 18500000, percentage: 41, color: "bg-blue-600" },
-                        { type: "Renovation", amount: 12300000, percentage: 27, color: "bg-purple-600" },
-                        { type: "New Build", amount: 9800000, percentage: 22, color: "bg-green-600" },
-                        { type: "Supervision", amount: 4600000, percentage: 10, color: "bg-amber-600" },
-                      ].map((item) => (
-                        <div key={item.type}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-700">{item.type}</span>
-                            <span className="text-xs font-bold text-gray-900">PKR {(item.amount / 1000000).toFixed(1)}M</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className={`${item.color} h-2 rounded-full`} style={{ width: `${item.percentage}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-
-                  {/* Payment Milestones */}
-                  <Card className="p-5">
-                    <h4 className="font-bold text-sm mb-4">Upcoming Payment Milestones</h4>
-                    <div className="space-y-3">
-                      {[
-                        { project: "DHA Villa", milestone: "MEP Approval", amount: 450000, due: "Apr 18" },
-                        { project: "Mall Fitout", milestone: "Construction - 50%", amount: 1200000, due: "Apr 22" },
-                        { project: "Office Interior", milestone: "Final Handover", amount: 320000, due: "Apr 28" },
-                      ].map((milestone, idx) => (
-                        <div key={idx} className="flex gap-3">
-                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <DollarSign className="w-5 h-5 text-purple-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-sm">{milestone.project}</p>
-                            <p className="text-xs text-gray-500">{milestone.milestone}</p>
-                            <p className="text-xs text-gray-900 font-bold mt-1">PKR {(milestone.amount / 1000).toFixed(0)}K • {milestone.due}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-
-                  {/* Quick Actions */}
-                  <Card className="p-5">
-                    <h4 className="font-bold text-sm mb-4">Billing Actions</h4>
-                    <div className="space-y-2">
-                      <Button className="w-full justify-start gap-2 bg-gradient-to-r from-blue-600 to-blue-700">
-                        <Plus className="w-4 h-4" />
-                        Create Invoice
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <FileText className="w-4 h-4" />
-                        View All Invoices
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <DollarSign className="w-4 h-4" />
-                        Record Payment
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeView === "projects" && (
-            <div>
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">All Projects</h1>
-                <p className="text-sm text-gray-500 mt-1">Manage and track all projects</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                {filteredProjects.map((project) => (
-                  <Card
-                    key={project.id}
-                    className="p-5 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-white to-gray-50/50 border-gray-200"
-                    onClick={() => setSelectedProject(project)}
-                  >
-                    <div className="h-32 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg flex items-center justify-center mb-4">
-                      <span className="text-lg font-semibold text-blue-700">{project.projectType || 'Project'}</span>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-bold text-base">{project.name}</h4>
-                          <p className="text-sm text-gray-500">{project.clientName}</p>
-                          <p className="text-xs text-gray-400 mt-1">{project.area} {project.areaUnit} • {project.subType}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {project.projectStatus || 'Active'}
-                        </Badge>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-600 to-blue-500 h-2 rounded-full"
-                          style={{ width: `${Math.random() * 100}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>Tasks: 32 • Team: 8</span>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs">
-                          Details <ChevronRight className="w-3 h-3 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeView === "clients" && (
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-                  <p className="text-sm text-gray-500 mt-1">Manage client relationships and projects</p>
-                </div>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Client
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {users.filter(u => u.role === "client").slice(0, 8).map((client) => (
-                  <Card key={client.id} className="p-5 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="w-14 h-14">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg">
-                          {client.fullName?.charAt(0) || 'C'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-base">{client.fullName}</h4>
-                        <p className="text-sm text-gray-500">{client.email}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className="text-xs">
-                            {projects.filter(p => p.clientId === client.id).length} Projects
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">Active</Badge>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="ghost">
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeView === "employees" && (
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Team Members</h1>
-                  <p className="text-sm text-gray-500 mt-1">Manage employees and assignments</p>
-                </div>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Employee
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                {users.filter(u => u.role === "employee" || u.role === "admin").map((employee) => (
-                  <Card key={employee.id} className="p-5 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex flex-col items-center text-center">
-                      <Avatar className="w-16 h-16 mb-3">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-600 to-purple-700 text-white font-bold text-xl">
-                          {employee.fullName?.charAt(0) || 'E'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <h4 className="font-bold text-base">{employee.fullName}</h4>
-                      <p className="text-sm text-gray-500">{employee.email}</p>
-                      <div className="flex items-center gap-2 mt-3">
-                        <Badge variant={employee.role === "admin" ? "default" : "secondary"} className="text-xs">
-                          {employee.role}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2 mt-4 w-full">
-                        <Button size="sm" variant="outline" className="flex-1 text-xs">
-                          View Tasks
-                        </Button>
-                        <Button size="sm" variant="ghost" className="flex-1 text-xs">
-                          Details
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeView === "meetings" && (
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Meetings</h1>
-                  <p className="text-sm text-gray-500 mt-1">Schedule and manage project meetings</p>
-                </div>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Schedule Meeting
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {upcomingMeetings.map((meeting) => (
-                  <Card key={meeting.id} className="p-5 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-4">
-                        <div className="w-16 h-16 bg-blue-100 rounded-lg flex flex-col items-center justify-center">
-                          <span className="text-xs text-blue-600 font-medium">APR</span>
-                          <span className="text-2xl font-bold text-blue-700">{meeting.date.split(' ')[1]}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-base">{meeting.title}</h4>
-                          <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                            <Calendar className="w-4 h-4" />
-                            {meeting.date} • {meeting.location}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">{meeting.attendees} attendees</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">Join</Button>
-                        <Button size="sm" variant="ghost">
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeView === "tasks" && (
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-                  <p className="text-sm text-gray-500 mt-1">Track and manage all tasks</p>
-                </div>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Create Task
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {tasks.slice(0, 10).map((task) => (
-                  <Card key={task.id} className="p-4 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          task.status === "completed" ? "bg-green-100" :
-                          task.status === "in_progress" ? "bg-blue-100" : "bg-gray-100"
-                        }`}>
-                          <CheckCircle2 className={`w-5 h-5 ${
-                            task.status === "completed" ? "text-green-600" :
-                            task.status === "in_progress" ? "text-blue-600" : "text-gray-400"
-                          }`} />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-sm">{task.taskType}</h4>
-                          <p className="text-xs text-gray-500">Assigned to: {task.assignedTo}</p>
-                          <p className="text-xs text-gray-400">Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</p>
-                        </div>
-                      </div>
-                      <Badge variant={
-                        task.status === "completed" ? "outline" :
-                        task.status === "in_progress" ? "default" : "secondary"
-                      } className={task.status === "completed" ? "bg-green-50 text-green-700 border-green-200" : ""}>
-                        {task.status}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-        </main>
       </div>
 
-      {/* Project Drawer */}
-      {selectedProject && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end" onClick={() => setSelectedProject(null)}>
-          <div
-            className="w-[520px] h-full bg-white shadow-2xl overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">{selectedProject.name}</h2>
-                  <p className="text-sm text-gray-500">{selectedProject.clientName} • {selectedProject.projectType} • {selectedProject.area} {selectedProject.areaUnit}</p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setSelectedProject(null)}>
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
+      {/* Main Content - Full Width */}
+      <div className="flex-1 overflow-hidden">
+        {overviewMode === "comprehensive" ? (
+          <ComprehensiveOverview projects={projects} users={users} tasks={tasks} />
+        ) : (
+          <AdminPanelView
+            projects={projects}
+            users={users}
+            tasks={tasks}
+            onOpenProject={(projectId) => {
+              setSelectedProjectId(projectId);
+              setActiveView("project-view");
+            }}
+            onCreateProject={() => setShowCreateProject(true)}
+          />
+        )}
+      </div>
 
-              <div className="space-y-4">
-                <Card className="p-4">
-                  <h3 className="font-bold mb-2">Project Details</h3>
-                  <p className="text-sm text-gray-600">Detailed project information will appear here</p>
-                </Card>
+      {/* Dialogs */}
+      <AssignTaskDialog
+        open={showAssignTask}
+        onOpenChange={setShowAssignTask}
+        projects={projects}
+      />
+
+      <EditUserDialog
+        open={showEditUser}
+        onOpenChange={setShowEditUser}
+        user={editingUser}
+      />
+
+      <CreateProjectDialog
+        open={showCreateProject}
+        onOpenChange={setShowCreateProject}
+        clients={clients}
+      />
+
+      <CreateUserDialog
+        open={showCreateUser}
+        onOpenChange={setShowCreateUser}
+        role={newUserRole}
+      />
+    </div>
+  );
+}
+
+// Create Project Dialog Component
+function CreateProjectDialog({
+  open,
+  onOpenChange,
+  clients,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clients: User[];
+}) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: "",
+    clientId: "",
+    projectTitle: "",
+    projectType: "",
+    subType: "",
+    area: "",
+    areaUnit: "sqm" as any,
+    stories: "",
+    projectScope: [] as string[],
+    feeModelType: "",
+    feeModelValue: "",
+    feeModelUnit: "",
+    constructionCostEstimate: "",
+    supervisionPercent: "",
+    projectStatus: "active" as any,
+    primaryAddress: "",
+    siteType: "on-site" as any,
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to create project");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project created successfully" });
+      onOpenChange(false);
+      // Reset form
+      setFormData({
+        name: "",
+        clientId: "",
+        projectTitle: "",
+        projectType: "",
+        subType: "",
+        area: "",
+        areaUnit: "sqm",
+        stories: "",
+        projectScope: [],
+        feeModelType: "",
+        feeModelValue: "",
+        feeModelUnit: "",
+        constructionCostEstimate: "",
+        supervisionPercent: "",
+        projectStatus: "active",
+        primaryAddress: "",
+        siteType: "on-site",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create project",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const projectData: any = {
+      name: formData.name,
+      clientId: formData.clientId || undefined,
+      clientName: formData.clientId ? clients.find(c => c.id === formData.clientId)?.fullName : undefined,
+      projectTitle: formData.projectTitle || undefined,
+      projectType: formData.projectType || undefined,
+      subType: formData.subType || undefined,
+      area: formData.area ? parseFloat(formData.area) : undefined,
+      areaUnit: formData.areaUnit || undefined,
+      stories: formData.stories ? parseInt(formData.stories) : undefined,
+      projectScope: formData.projectScope.length > 0 ? formData.projectScope : undefined,
+      constructionCostEstimate: formData.constructionCostEstimate ? parseFloat(formData.constructionCostEstimate) : undefined,
+      supervisionPercent: formData.supervisionPercent ? parseFloat(formData.supervisionPercent) : undefined,
+      projectStatus: formData.projectStatus,
+      primaryAddress: formData.primaryAddress || undefined,
+      siteType: formData.siteType || undefined,
+    };
+
+    // Add fee model if provided
+    if (formData.feeModelType && formData.feeModelValue) {
+      projectData.feeModel = {
+        type: formData.feeModelType,
+        value: parseFloat(formData.feeModelValue),
+        unit: formData.feeModelType === "perUnit" ? formData.feeModelUnit : undefined,
+      };
+    }
+
+    createProjectMutation.mutate(projectData);
+  };
+
+  const toggleScope = (scope: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      projectScope: prev.projectScope.includes(scope)
+        ? prev.projectScope.filter((s) => s !== scope)
+        : [...prev.projectScope, scope],
+    }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Project</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Project Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectTitle">Project Title</Label>
+                <Input
+                  id="projectTitle"
+                  value={formData.projectTitle}
+                  onChange={(e) => setFormData({ ...formData, projectTitle: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientId">Client</Label>
+                <Select value={formData.clientId} onValueChange={(v) => setFormData({ ...formData, clientId: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectStatus">Project Status</Label>
+                <Select value={formData.projectStatus} onValueChange={(v: any) => setFormData({ ...formData, projectStatus: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+
+          {/* Project Details */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Project Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="projectType">Project Type</Label>
+                <Select value={formData.projectType} onValueChange={(v) => setFormData({ ...formData, projectType: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subType">Sub Type</Label>
+                <Select value={formData.subType} onValueChange={(v) => setFormData({ ...formData, subType: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sub type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectSubTypes.map((subType) => (
+                      <SelectItem key={subType} value={subType}>
+                        {subType}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="area">Area</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="area"
+                    type="number"
+                    value={formData.area}
+                    onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                    placeholder="0"
+                  />
+                  <Select value={formData.areaUnit} onValueChange={(v: any) => setFormData({ ...formData, areaUnit: v })}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areaUnits.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="stories">Number of Stories</Label>
+                <Input
+                  id="stories"
+                  type="number"
+                  value={formData.stories}
+                  onChange={(e) => setFormData({ ...formData, stories: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Project Scope */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Project Scope</h3>
+            <div className="grid grid-cols-4 gap-3">
+              {projectScopes.map((scope) => (
+                <div key={scope} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={scope}
+                    checked={formData.projectScope.includes(scope)}
+                    onCheckedChange={() => toggleScope(scope)}
+                  />
+                  <Label htmlFor={scope} className="text-sm font-normal cursor-pointer">
+                    {scope}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Financial Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Financial Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="feeModelType">Fee Model Type</Label>
+                <Select value={formData.feeModelType} onValueChange={(v) => setFormData({ ...formData, feeModelType: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select fee model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {feeModelTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="feeModelValue">Fee Value</Label>
+                <Input
+                  id="feeModelValue"
+                  type="number"
+                  value={formData.feeModelValue}
+                  onChange={(e) => setFormData({ ...formData, feeModelValue: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              {formData.feeModelType === "perUnit" && (
+                <div className="space-y-2">
+                  <Label htmlFor="feeModelUnit">Fee Unit</Label>
+                  <Select value={formData.feeModelUnit} onValueChange={(v) => setFormData({ ...formData, feeModelUnit: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areaUnits.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="constructionCost">Construction Cost Estimate</Label>
+                <Input
+                  id="constructionCost"
+                  type="number"
+                  value={formData.constructionCostEstimate}
+                  onChange={(e) => setFormData({ ...formData, constructionCostEstimate: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supervision">Supervision %</Label>
+                <Input
+                  id="supervision"
+                  type="number"
+                  value={formData.supervisionPercent}
+                  onChange={(e) => setFormData({ ...formData, supervisionPercent: e.target.value })}
+                  placeholder="0"
+                  max="100"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Location Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Location Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="primaryAddress">Primary Address</Label>
+                <Input
+                  id="primaryAddress"
+                  value={formData.primaryAddress}
+                  onChange={(e) => setFormData({ ...formData, primaryAddress: e.target.value })}
+                  placeholder="Enter address"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="siteType">Site Type</Label>
+                <Select value={formData.siteType} onValueChange={(v: any) => setFormData({ ...formData, siteType: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {siteTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createProjectMutation.isPending}>
+              {createProjectMutation.isPending ? "Creating..." : "Create Project"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Create User Dialog Component
+function CreateUserDialog({
+  open,
+  onOpenChange,
+  role,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  role: "client" | "employee" | "procurement" | "accountant" | "hr";
+}) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    username: "",
+    fullName: "",
+    password: "",
+    email: "",
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create user");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "User created successfully" });
+      onOpenChange(false);
+      setFormData({
+        username: "",
+        fullName: "",
+        password: "",
+        email: "",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const userData = {
+      username: formData.username,
+      fullName: formData.fullName,
+      password: formData.password,
+      email: formData.email || undefined,
+      role: role,
+    };
+
+    createUserMutation.mutate(userData);
+  };
+
+  const getRoleTitle = () => {
+    const titles: Record<typeof role, string> = {
+      client: "Client",
+      employee: "Employee",
+      procurement: "Procurement Manager",
+      accountant: "Accountant",
+      hr: "HR Manager",
+    };
+    return titles[role];
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create New {getRoleTitle()}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name *</Label>
+            <Input
+              id="fullName"
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="username">Username *</Label>
+            <Input
+              id="username"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              required
+              minLength={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="optional"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password *</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              minLength={6}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createUserMutation.isPending}>
+              {createUserMutation.isPending ? "Creating..." : `Create ${getRoleTitle()}`}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
