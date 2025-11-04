@@ -10,6 +10,7 @@ import {
   Palette,
   Globe,
   Info,
+  FolderOpen,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import Communication from "./communication";
 import ThemesTab from "./themes";
 import LanguageTab from "./language";
 import SystemInfo from "./system-info";
+import ProjectSettings from "./project-settings";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -33,6 +35,12 @@ export default function SettingsPage() {
       label: t("settings.studioProfile"),
       icon: Building2,
       component: StudioProfile,
+    },
+    {
+      value: "projects",
+      label: "Project Settings",
+      icon: FolderOpen,
+      component: ProjectSettings,
     },
     {
       value: "users",
@@ -94,7 +102,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 lg:grid-cols-9 gap-2 h-auto p-2 bg-muted/50">
+        <TabsList className="grid grid-cols-3 lg:grid-cols-10 gap-2 h-auto p-2 bg-muted/50">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}

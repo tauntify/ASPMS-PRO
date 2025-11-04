@@ -51,7 +51,19 @@
       "Bash(copy /Y \"client\\src\\pages\\principle-dashboard-v2.tsx\" \"client\\src\\pages\\principle-dashboard.tsx\")",
       "Bash(git checkout:*)",
       "Bash(test:*)",
-      "Bash(copy /Y \"server\\routes-ofivio.ts\" \"functions\\src\\server\\routes-ofivio.ts\")"
+      "Bash(copy /Y \"server\\routes-ofivio.ts\" \"functions\\src\\server\\routes-ofivio.ts\")",
+      "Bash(firebase hosting:channel:list:*)",
+      "Bash(firebase hosting:sites:list:*)",
+      "Bash(firebase hosting:channel:open:*)",
+      "Bash(copy /Y \"server\\routes-extensions.ts\" \"functions\\src\\server\\routes-extensions.ts\")",
+      "Bash(copy /Y \"server\\auth.ts\" \"functions\\src\\server\\auth.ts\")",
+      "Bash(copy /Y \"server\\logger.ts\" \"functions\\src\\server\\logger.ts\")",
+      "Bash(vite build:*)",
+      "Bash(npx vite build)",
+      "Bash(timeout 10 bash:*)",
+      "Bash(copy /Y \"server\\routes-lifecycle.ts\" \"functions\\src\\server\\routes-lifecycle.ts\")",
+      "Bash(copy /Y \"server\\index.ts\" \"functions\\src\\index.ts\")",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

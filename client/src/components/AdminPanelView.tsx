@@ -38,7 +38,7 @@ interface Props {
 
 export function AdminPanelView({ projects, users, tasks, onOpenProject, onCreateProject }: Props) {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [drawerType, setDrawerType] = useState<"project" | "summary" | "tasks" | null>(null);
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -57,11 +57,11 @@ export function AdminPanelView({ projects, users, tasks, onOpenProject, onCreate
   const openDrawer = (project: Project, type: "project" | "summary" | "tasks") => {
     setSelectedProject(project);
     setDrawerType(type);
-    setDrawerOpen(true);
+    setRightSidebarOpen(true);
   };
 
   const closeDrawer = () => {
-    setDrawerOpen(false);
+    setRightSidebarOpen(false);
     setTimeout(() => {
       setSelectedProject(null);
       setDrawerType(null);
@@ -202,18 +202,33 @@ export function AdminPanelView({ projects, users, tasks, onOpenProject, onCreate
               <BarChart3 className="w-5 h-5" />
               <span>Reports</span>
             </button>
-            <button
-              onClick={() => setActiveNav("admin")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
-                activeNav === "admin"
-                  ? "bg-blue-50 text-blue-700 font-medium"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <Settings className="w-5 h-5" />
-              <span>Admin</span>
-            </button>
               </nav>
+
+              {/* Admin & Settings at Bottom */}
+              <div className="mt-auto border-t border-gray-200 pt-3 space-y-1">
+                <button
+                  onClick={() => setActiveNav("admin")}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
+                    activeNav === "admin"
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Admin</span>
+                </button>
+                <button
+                  onClick={() => setActiveNav("settings")}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
+                    activeNav === "settings"
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -560,12 +575,10 @@ export function AdminPanelView({ projects, users, tasks, onOpenProject, onCreate
         </aside>
       </div>
 
-      {/* SLIDING DRAWER - Slides from right */}
-      <div
-        className={`fixed right-0 top-0 bottom-0 w-[540px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
-          drawerOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+      {/* RIGHT SIDEBAR - Fixed position below black bar */}
+      {rightSidebarOpen && (
+        <div className="fixed right-0 top-[52px] bottom-0 w-[1000px] bg-white shadow-2xl transition-all duration-300 ease-in-out z-50 border-l border-gray-200">
+
         <div className="h-full flex flex-col">
           {/* Drawer Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -813,14 +826,7 @@ export function AdminPanelView({ projects, users, tasks, onOpenProject, onCreate
             )}
           </div>
         </div>
-      </div>
-
-      {/* Backdrop overlay */}
-      {drawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
-          onClick={closeDrawer}
-        />
+        </div>
       )}
 
       {/* Floating Action Button */}

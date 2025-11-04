@@ -16,10 +16,10 @@ const FirestoreStoreFactory = require("firestore-store");
 const FirestoreStore = FirestoreStoreFactory(session);
 
 // Import routes dynamically
-import { registerRoutes } from "./server/routes";
-import { registerExtensionRoutes } from "./server/routes-extensions";
-import { attachUser } from "./server/auth";
-import { requestLogger, errorLogger, logger } from "./server/logger";
+import { registerRoutes } from "./routes";
+import { registerExtensionRoutes } from "./routes-extensions";
+import { attachUser } from "./auth";
+import { requestLogger, errorLogger, logger } from "./logger";
 
 const app = express();
 app.use(express.json());

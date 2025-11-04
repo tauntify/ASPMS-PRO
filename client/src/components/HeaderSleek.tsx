@@ -11,6 +11,7 @@ import {
   Palette,
   User,
   ChevronDown,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
@@ -95,7 +96,7 @@ export default function HeaderSleek() {
     <div className="w-full">
       {/* Fixed Ofivio Header - Cannot be removed or edited by users */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white border-b border-blue-700">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="w-full px-6 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="font-bold text-lg tracking-wide">OFIVIO</div>
             {newsItems && newsItems.length > 0 && (
@@ -134,7 +135,7 @@ export default function HeaderSleek() {
 
       {/* User-specific Header */}
       <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="w-full px-6 py-3">
           <div className="flex items-center justify-between gap-4">
             {/* Left: Organization/User Info */}
             <div className="flex items-center gap-3">
@@ -219,23 +220,66 @@ export default function HeaderSleek() {
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>{t("common.language")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => changeLanguage("en")}
                     className={i18n.language === "en" ? "bg-blue-50" : ""}
                   >
-                    English
+                    🇬🇧 English (EN)
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => changeLanguage("ur")}
                     className={i18n.language === "ur" ? "bg-blue-50" : ""}
                   >
-                    '1/H (Urdu)
+                    🇵🇰 اردو (Urdu)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => changeLanguage("ar")}
+                    className={i18n.language === "ar" ? "bg-blue-50" : ""}
+                  >
+                    🇸🇦 عربي (Arabic)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => changeLanguage("fr")}
+                    className={i18n.language === "fr" ? "bg-blue-50" : ""}
+                  >
+                    🇫🇷 Français (French)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => changeLanguage("es")}
+                    className={i18n.language === "es" ? "bg-blue-50" : ""}
+                  >
+                    🇪🇸 Español (Spanish)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => changeLanguage("it")}
+                    className={i18n.language === "it" ? "bg-blue-50" : ""}
+                  >
+                    🇮🇹 Italiano (Italian)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => changeLanguage("nl")}
+                    className={i18n.language === "nl" ? "bg-blue-50" : ""}
+                  >
+                    🇳🇱 Nederlands (Dutch)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => changeLanguage("zh")}
+                    className={i18n.language === "zh" ? "bg-blue-50" : ""}
+                  >
+                    🇨🇳 中文 (Chinese)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Blog Link */}
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/blog">
+                  <BookOpen className="h-4 w-4" />
+                </Link>
+              </Button>
 
               {/* Notifications */}
               <Button variant="ghost" size="sm" className="relative">

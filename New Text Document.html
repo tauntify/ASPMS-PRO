@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ofivio — Dashboard Prototype</title>
+<style>
+  :root{
+    --bg:#F7F8FA; --card:#FFFFFF; --muted:#9AA5B1; --accent:#2B6CB0;
+    --accent-2:#60A5FA; --success:#38A169; --danger:#E53E3E; --glass:rgba(255,255,255,0.6);
+    --radius:12px; --shadow: 0 6px 18px rgba(22,28,37,0.06);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:linear-gradient(180deg,#F8FAFC 0,#F7F8FA 100%);
+    color:#12202b; -webkit-font-smoothing:antialiased;
+  }
+
+  /* Layout */
+  .app{display:grid; grid-template-columns: 260px 1fr 360px; grid-template-rows: 64px 1fr; gap:20px; height:100vh; padding:18px;}
+  .header{grid-column:1/-1; display:flex; align-items:center; gap:16px; padding:10px 20px; background:transparent;}
+  .logo{display:flex;gap:10px; align-items:center; font-weight:700; font-size:18px; color:var(--accent)}
+  .search{margin-left:8px; flex:1; position:relative}
+  .search input{width:100%; padding:10px 14px; border-radius:10px; border:1px solid #E6EEF6; background:#fff}
+  .icon-btn{background:var(--card); padding:10px; border-radius:10px; box-shadow:var(--shadow); display:inline-flex; align-items:center; justify-content:center}
+  .sidebar{background:transparent; padding:8px; align-self:start}
+  .nav{background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.75)); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow)}
+  .nav a{display:flex; gap:12px; padding:10px; border-radius:10px; color:#21303b; text-decoration:none; align-items:center; margin-bottom:6px}
+  .nav a.active{background:linear-gradient(90deg,var(--accent-2),var(--accent)); color:white; font-weight:600}
+  .main{padding:6px 0 24px 0}
+  .right{align-self:start; padding:8px}
+  .card{background:var(--card); border-radius:12px; padding:16px; box-shadow:var(--shadow)}
+  .summary{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px}
+  .metric{display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:12px; background:linear-gradient(180deg, #fff, #FAFBFF)}
+  .metric h3{margin:0;font-size:14px;color:var(--muted)} .metric .value{font-size:20px;font-weight:700;color:#102433}
+  .projects-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px}
+  .project-tile{position:relative; overflow:hidden; border-radius:12px; padding:14px; background:linear-gradient(180deg,#fff,#FBFDFF); transition:transform .22s}
+  .project-tile:hover{transform:translateY(-6px)}
+  .thumb{height:110px;border-radius:8px;background:linear-gradient(135deg,#E6F0FF,#FFF8EE); display:flex;align-items:center;justify-content:center;color:var(--muted); font-weight:600}
+  .phead{display:flex; justify-content:space-between; align-items:center; margin-top:10px}
+  .pname{font-weight:700; font-size:15px}
+  .ptags{font-size:12px;color:var(--muted)}
+  .progress{height:8px;background:#EEF3FB;border-radius:8px; margin-top:8px; overflow:hidden}
+  .progress > i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .small{font-size:12px;color:var(--muted)}
+  .grid-2col{display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:start}
+  .chart{height:220px; display:flex;align-items:center;justify-content:center;color:var(--muted); font-weight:700}
+  .feed{display:flex;flex-direction:column; gap:10px}
+  .feed-item{display:flex; gap:10px; align-items:flex-start}
+  .avatar{width:36px;height:36px;border-radius:8px;background:#E6EEF6;display:flex;align-items:center;justify-content:center;color:var(--accent)}
+  .btn-primary{background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:10px; cursor:pointer}
+  .fab{position:fixed; right:36px; bottom:36px; background:var(--accent); color:white; border-radius:999px; padding:14px 18px; box-shadow:0 8px 24px rgba(43,108,176,0.22); cursor:pointer}
+  /* right column cards */
+  .right .card{margin-bottom:12px}
+  .small-muted{font-size:12px;color:var(--muted)}
+  /* project drawer */
+  .drawer{position:fixed; right:18px; top:84px; width:520px; bottom:18px; transform:translateX(104%); transition:transform .28s; z-index:50}
+  .drawer.open{transform:translateX(0)}
+  .tile-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .chip{display:inline-block;padding:6px 8px;border-radius:999px;background:#F1F6FB;color:var(--accent); font-weight:600; font-size:12px}
+  /* responsive */
+  @media (max-width:1100px){
+    .app{grid-template-columns: 1fr; grid-template-rows:64px 1fr 360px; padding:12px}
+    .right{grid-column:1}
+    .sidebar{display:none}
+    .drawer{right:0; width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M3 12h18" stroke="#2B6CB0" stroke-width="2" stroke-linecap="round"/></svg> Ofivio Studio</div>
+    <div class="search">
+      <input id="globalSearch" placeholder="Search projects, tasks, clients..." />
+    </div>
+    <div class="icon-btn" title="Create">
+      <button class="icon-btn" onclick="openCreate()"><strong>＋ Create</strong></button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="icon-btn">🔔</div>
+      <div class="icon-btn">⚙️</div>
+      <div class="icon-btn" title="Profile"> <img src="" alt="" style="width:28px;height:28px;border-radius:8px;background:#CBD5E0" /></div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <nav class="nav card">
+      <a class="active">🏠 Dashboard</a>
+      <a>🏗️ Projects</a>
+      <a>👥 Clients</a>
+      <a>👷 Employees</a>
+      <a>🧾 Procurement</a>
+      <a>💼 Accounts</a>
+      <a>🗓️ Meetings</a>
+      <a>🧩 Tasks</a>
+      <a>📊 Reports</a>
+      <a>⚙️ Admin</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- top summary -->
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><h2 style="margin:0">Studio Control — Overview</h2><div class="small-muted">All projects & live pipelines</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-primary" onclick="openNewProject()">New Project</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- metrics and projects -->
+    <section style="display:flex; gap:14px;">
+      <div style="flex:1">
+        <div class="summary">
+          <div class="metric card">
+            <h3>Total Active Projects</h3>
+            <div class="value">14</div>
+            <div class="small">3 new this week</div>
+          </div>
+          <div class="metric card">
+            <h3>Pending Approvals</h3>
+            <div class="value">7</div>
+            <div class="small">Awaiting client responses</div>
+          </div>
+          <div class="metric card">
+            <h3>Tasks Due Today</h3>
+            <div class="value">23</div>
+            <div class="small">Critical: 5</div>
+          </div>
+          <div class="metric card">
+            <h3>Monthly Revenue</h3>
+            <div class="value">PKR 12.3M</div>
+            <div class="small">Invoice due: PKR 2.1M</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px" class="card">
+          <h3 style="margin:0 0 10px 0">Projects</h3>
+          <div class="projects-grid" id="projectsGrid">
+            <!-- Project tiles will be injected -->
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 10px 0">Insights</h3>
+          <div class="grid-2col">
+            <div class="card">
+              <div class="chart">Project Health — Donut (placeholder)</div>
+            </div>
+            <div class="card">
+              <div class="chart">Revenue Trend — Line (placeholder)</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- right column -->
+      <aside class="right">
+        <div class="card">
+          <h4 style="margin:0 0 10px 0">Upcoming Meetings</h4>
+          <div class="feed">
+            <div class="feed-item">
+              <div class="avatar">M</div>
+              <div><strong>Site Walk — DHA Villa</strong><div class="small-muted">Apr 14 • On-site</div></div>
+            </div>
+            <div class="feed-item">
+              <div class="avatar">S</div>
+              <div><strong>Approval Call — MEP</strong><div class="small-muted">Apr 16 • ARKA Office</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h4 style="margin:0 0 10px 0">Recent Activity</h4>
+          <div class="feed">
+            <div class="feed-item"><div class="avatar">A</div><div><b>Ayesha</b> commented on <i>DHA Villa</i></div></div>
+            <div class="feed-item"><div class="avatar">C</div><div><b>Client</b> approved BOQ item #B-33</div></div>
+            <div class="feed-item"><div class="avatar">P</div><div><b>Procurement</b> marked orders received</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h4 style="margin:0 0 10px 0">Quick Actions</h4>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn-primary" onclick="openNewProject()">Create Project</button>
+            <button class="btn-primary" style="background:#2b8047" onclick="openCreate('client')">Add Client</button>
+            <button style="padding:10px;border-radius:8px;border:1px solid #eee" onclick="openCreate('employee')">Add Employee</button>
+          </div>
+        </div>
+
+      </aside>
+    </section>
+  </main>
+
+  <!-- Drawer / Project detail -->
+  <aside class="drawer card" id="projectDrawer" role="dialog" aria-hidden="true">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+        <h3 id="drawerTitle" style="margin:0">Project Title</h3>
+        <div class="small-muted" id="drawerSubtitle">Client • Type • Area</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="closeDrawer()" class="icon-btn">✕</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="flex:1">
+        <div class="chip">Design: 68%</div>
+        <div class="chip">Procurement: 40%</div>
+        <div class="chip">Construction: 0%</div>
+      </div>
+      <div style="width:120px;text-align:right">
+        <div class="small-muted">Budget</div>
+        <div style="font-weight:700">PKR 95M</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr; gap:12px">
+      <div class="card">
+        <strong>Overview</strong>
+        <div class="small-muted" style="margin-top:8px">Address, start date, status, approving body (locked)</div>
+        <div style="margin-top:8px" class="small">Start: 2025-03-01 • Status: Active</div>
+      </div>
+      <div class="card">
+        <strong>Milestones</strong>
+        <ul style="margin-top:8px;padding-left:16px">
+          <li>Concept Submission — 2025-04-10 — <span class="small-muted">Pending</span></li>
+          <li>MEP Approval — 2025-04-20 — <span style="color:var(--accent)">Waiting client</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="card">
+      <strong>Approvals & Client Feedback</strong>
+      <div style="margin-top:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><b>MEP Drawing - Level 2</b><div class="small-muted">Requested by: Aamir • Apr 1</div></div>
+          <div><button class="btn-primary" onclick="fakeApprove()">Approve</button></div>
+        </div>
+        <div style="margin-top:10px" class="small-muted">Client Response: <i>Not yet responded</i></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="card">
+      <strong>BOQ Highlights</strong>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <div style="flex:1">
+          <div class="small-muted">Top cost drivers</div>
+          <ul style="padding-left:16px;margin-top:6px">
+            <li>Concrete works — PKR 12M</li>
+            <li>MEP — PKR 9.2M</li>
+            <li>Finishes — PKR 7.5M</li>
+          </ul>
+        </div>
+        <div style="width:160px;text-align:right">
+          <div class="small-muted">Progress</div>
+          <div class="progress" style="margin-top:8px"><i style="width:60%"></i></div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Floating action -->
+  <div class="fab" onclick="openNewProject()">＋ New Project</div>
+</div>
+
+<script>
+  // Sample data
+  const projects = [
+    { id:'p1', name:'DHA Residence Tower', client:'Imran', type:'New-Build', area:4200, unit:'sqft', progress:65, img:''},
+    { id:'p2', name:'Bakhtiar Renovation', client:'Sara', type:'Renovation', area:650, unit:'sqm', progress:42, img:''},
+    { id:'p3', name:'Mall Retail Fitout', client:'RetailX', type:'Design-Only', area:3200, unit:'sqm', progress:82, img:''},
+    { id:'p4', name:'Corporate HQ Mid-Rise', client:'ZenTech', type:'Construction', area:15000, unit:'sqft', progress:19, img:''},
+  ];
+
+  const grid = document.getElementById('projectsGrid');
+  function renderTiles(){
+    grid.innerHTML = '';
+    projects.forEach(p=>{
+      const el = document.createElement('div');
+      el.className='project-tile card';
+      el.innerHTML = `
+        <div class="thumb">${p.type}</div>
+        <div class="phead">
+          <div>
+            <div class="pname">${p.name}</div>
+            <div class="ptags small">${p.client} • ${p.area} ${p.unit}</div>
+          </div>
+          <div style="text-align:right"><div class="small-muted">Due 2025-09-15</div><div style="font-weight:700;color:#1F6F9A">${p.progress}%</div></div>
+        </div>
+        <div class="progress" aria-hidden><i style="width:${p.progress}%"></i></div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center">
+          <div class="small-muted">Tasks: 32</div>
+          <div><button onclick="openProject('${p.id}')" class="btn-primary" style="padding:8px 10px;border-radius:8px">Open</button></div>
+        </div>
+      `;
+      grid.appendChild(el);
+    });
+  }
+  renderTiles();
+
+  // Drawer controls
+  const drawer = document.getElementById('projectDrawer');
+  function openProject(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('drawerTitle').innerText = p.name;
+    document.getElementById('drawerSubtitle').innerText = `${p.client} • ${p.type} • ${p.area} ${p.unit}`;
+    drawer.classList.add('open');
+  }
+  function closeDrawer(){ drawer.classList.remove('open'); }
+
+  function openNewProject(){ alert('Open Create Project modal (placeholder)'); }
+  function openCreate(type){ alert('Create ' + (type||'item')); }
+  function openCreate(){ alert('Create new item'); }
+  function openCreateClient(){ alert('Add Client (placeholder)'); }
+  function fakeApprove(){ alert('Client Approved — sample'); }
+
+  // Simple search (client-side)
+  document.getElementById('globalSearch').addEventListener('input', e=>{
+    const q = e.target.value.toLowerCase();
+    const filtered = projects.filter(p=>p.name.toLowerCase().includes(q) || p.client.toLowerCase().includes(q));
+    // render filtered
+    grid.innerHTML='';
+    filtered.forEach(p=>{
+      const el = document.createElement('div'); el.className='project-tile card';
+      el.innerHTML = `<div class="thumb">${p.type}</div>
+        <div class="phead"><div><div class="pname">${p.name}</div><div class="ptags small">${p.client} • ${p.area} ${p.unit}</div></div>
+        <div style="text-align:right"><div class="small-muted">Due 2025-09-15</div><div style="font-weight:700;color:#1F6F9A">${p.progress}%</div></div></div>
+        <div class="progress"><i style="width:${p.progress}%"></i></div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center"><div class="small-muted">Tasks: 32</div><div><button onclick="openProject('${p.id}')" class="btn-primary" style="padding:8px 10px;border-radius:8px">Open</button></div></div>`;
+      grid.appendChild(el);
+    });
+  });
+</script>
+</body>
+</html>

@@ -193,7 +193,7 @@ export function OverviewRightSidebar({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-[1000px] bg-background border-l border-border shadow-2xl transition-all duration-300 z-30">
+    <div className="fixed right-0 top-[52px] h-[calc(100vh-52px)] w-[1000px] bg-background border-l border-border shadow-2xl transition-all duration-300 z-30">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
         <h3 className="text-lg font-semibold capitalize">{section.replace('-', ' ')}</h3>

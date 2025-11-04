@@ -191,7 +191,7 @@ export function ComprehensiveOverview({ projects, users, tasks }: Props) {
   ];
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="flex h-full w-full overflow-hidden bg-background">
       {/* Left Sidebar */}
       <OverviewLeftSidebar
         activeSection={activeSection}

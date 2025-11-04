@@ -15,6 +15,7 @@ import {
   DollarSign,
   Settings,
   Home,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -86,8 +87,19 @@ export function OverviewLeftSidebar({ activeSection, onSectionChange }: Overview
         })}
       </div>
 
-      {/* Settings at Bottom */}
-      <div className="border-t border-border p-3">
+      {/* Admin & Settings at Bottom */}
+      <div className="border-t border-border p-3 space-y-1">
+        <Button
+          variant={activeSection === "admin" ? "default" : "ghost"}
+          onClick={() => onSectionChange("admin")}
+          className={cn(
+            "w-full justify-start gap-3",
+            isCollapsed && "justify-center px-2"
+          )}
+        >
+          <Shield className="h-5 w-5 flex-shrink-0" />
+          {!isCollapsed && <span className="truncate">Admin</span>}
+        </Button>
         <Button
           variant={activeSection === "settings" ? "default" : "ghost"}
           onClick={() => onSectionChange("settings")}

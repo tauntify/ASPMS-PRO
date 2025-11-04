@@ -27,12 +27,15 @@ import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import NotFound from "@/pages/not-found";
 import SettingsPage from "@/pages/settings";
+import Profile from "@/pages/profile";
 import BlogHome from "@/pages/blog";
 import BlogPostView from "@/pages/blog/[slug]";
 import BlogEditor from "@/pages/blog/editor";
+import BlogAdmin from "@/pages/blog-admin";
 import HeaderSleek from "@/components/HeaderSleek";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
 import { useSubscription } from "@/hooks/use-subscription";
 import { CookieConsent } from "@/components/cookie-consent";
 import { setupGlobalErrorHandlers, setTrackingUserId } from "@/lib/error-tracking";
@@ -157,6 +160,11 @@ function Router() {
         {() => <ProtectedRoute component={PackageBuilder} />}
       </Route>
 
+      {/* Profile Route */}
+      <Route path="/profile">
+        {() => <ProtectedRoute component={Profile} />}
+      </Route>
+
       {/* Ofivio Routes */}
       <Route path="/settings">
         {() => <ProtectedRoute component={SettingsPage} />}
@@ -164,6 +172,9 @@ function Router() {
       <Route path="/blog" component={BlogHome} />
       <Route path="/blog/editor">
         {() => <ProtectedRoute component={BlogEditor} />}
+      </Route>
+      <Route path="/blog-admin">
+        {() => <ProtectedRoute component={BlogAdmin} />}
       </Route>
       <Route path="/blog/:slug" component={BlogPostView} />
 
@@ -175,6 +186,7 @@ function Router() {
 
 function AppContent() {
   const { user, isAuthenticated } = useAuth();
+  const [location] = useLocation();
 
   // Set user ID for tracking when user logs in
   useEffect(() => {
@@ -183,11 +195,16 @@ function AppContent() {
     }
   }, [user?.id]);
 
+  // Public routes that should NOT show the header
+  const publicRoutes = ['/', '/about', '/features', '/pricing', '/pricing-old', '/terms', '/privacy', '/login', '/signup', '/forgot-password', '/blog'];
+  const isPublicRoute = publicRoutes.includes(location) || location.startsWith('/blog/');
+  const shouldShowHeader = isAuthenticated && !isPublicRoute;
+
   return (
     <TooltipProvider>
       <Toaster />
       <CookieConsent />
-      {isAuthenticated && <HeaderSleek />}
+      {shouldShowHeader && <HeaderSleek />}
       <Router />
     </TooltipProvider>
   );

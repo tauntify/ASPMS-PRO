@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ofivio — Dashboard & Admin Settings Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F7F8FA; --card:#FFFFFF; --muted:#6B7280; --accent:#2B6CB0;
+    --accent-2:#60A5FA; --success:#16A34A; --danger:#EF4444;
+    --glass: rgba(255,255,255,0.65);
+    --radius:12px; --shadow: 0 8px 24px rgba(16,24,40,0.06);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  /* Themes, will be toggled via data-theme on body */
+  body[data-theme="default"] { --accent:#2B6CB0; --bg:#F7F8FA; --card:#FFFFFF; color:#0f172a; }
+  body[data-theme="modern-slate"] { --accent:#7C3AED; --bg:#0F172A; --card:#0b1220; color:#E6EEF6; }
+  body[data-theme="warm-architect"] { --accent:#B9452B; --bg:#FFF8F5; --card:#FFFDF9; color:#2b2b2b; }
+
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; background:var(--bg); color:var(--text,inherit); -webkit-font-smoothing:antialiased;}
+  .app{display:grid; grid-template-columns:260px 1fr 360px; grid-template-rows:72px 1fr; gap:18px; height:100vh; padding:18px;}
+  header.top{grid-column:1/-1; display:flex; align-items:center; gap:12px; padding:12px 18px; background:transparent; position:sticky; top:0; z-index:40}
+  .logo{display:flex; gap:10px; align-items:center; font-weight:700; color:var(--accent)}
+  .logo .badge{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+  .global-search{flex:1}
+  .global-search input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:rgba(255,255,255,0.8)}
+  .header-actions{display:flex;gap:8px;align-items:center}
+  .header-actions select, .header-actions button{padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06); background:var(--card); cursor:pointer}
+
+  .sidebar{background:transparent;padding:8px}
+  .nav{background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.8)); border-radius:12px; padding:14px; box-shadow:var(--shadow)}
+  .nav a{display:flex; gap:10px; padding:10px; border-radius:10px; color:inherit; text-decoration:none; align-items:center; margin-bottom:4px}
+  .nav a.active{background:linear-gradient(90deg,var(--accent-2),var(--accent)); color:white; font-weight:600}
+
+  .main{padding:6px 0 24px 0; overflow:auto}
+  .right{align-self:start;padding:8px; overflow:auto}
+  .card{background:var(--card); border-radius:12px; padding:14px; box-shadow:var(--shadow)}
+  .summary-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px}
+  .metric{padding:12px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.9));}
+  .projects-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px}
+  .project-tile{padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,255,0.97)); cursor:pointer; transition:transform .18s}
+  .project-tile:hover{transform:translateY(-6px)}
+  .thumb{height:90px;border-radius:8px;background:linear-gradient(135deg,#e8f3ff,#fff3e8);display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:700}
+  .ptitle{font-weight:700}
+  .small{font-size:13px;color:var(--muted)}
+  .progress{height:8px;background:rgba(0,0,0,0.05);border-radius:8px;margin-top:8px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+  /* Right column */
+  .feed-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+  .avatar{width:36px;height:36px;border-radius:8px;background:rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:center;color:var(--accent)}
+
+  /* drawer/detail */
+  .drawer{position:fixed; right:18px; top:96px; width:520px; bottom:18px; transform:translateX(104%); transition:transform .2s; z-index:50; overflow:auto}
+  .drawer.open{transform:translateX(0)}
+
+  /* admin settings layout */
+  .settings-layout{display:grid; grid-template-columns:260px 1fr; gap:12px}
+  .settings-nav{background:transparent;padding:8px}
+  .settings-nav .item{padding:12px;border-radius:10px;margin-bottom:6px;cursor:pointer}
+  .settings-nav .item.active{background:linear-gradient(90deg,var(--accent-2),var(--accent)); color:white}
+  .setting-content h3{margin-top:0}
+  .form-row{display:flex;gap:8px;margin-bottom:10px}
+  .form-row .col{flex:1}
+  input[type="text"], input[type="url"], input[type="email"], select, textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)}
+  .btn{background:var(--accent); color:white; border:none; padding:10px 12px; border-radius:8px; cursor:pointer}
+  .muted{color:var(--muted); font-size:13px}
+
+  footer.app-footer{grid-column:1/-1;text-align:center;color:var(--muted); font-size:13px; padding:8px}
+
+  /* responsive */
+  @media (max-width:1100px){
+    .app{grid-template-columns:1fr; grid-template-rows:72px 1fr 360px; padding:12px}
+    .sidebar{display:none}
+    .drawer{right:0;width:100%}
+    .right{grid-column:1}
+  }
+</style>
+</head>
+<body data-theme="default">
+<div class="app">
+  <!-- Header -->
+  <header class="top">
+    <div class="logo">
+      <div class="badge">O</div>
+      <div>
+        <div style="font-size:14px">Ofivio</div>
+        <div class="muted" id="headerProjectName">Studio Control</div>
+      </div>
+    </div>
+
+    <div class="global-search">
+      <input id="search" placeholder="Search projects, tasks, clients..." />
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center" class="header-actions">
+      <!-- News ticker -->
+      <div id="newsTicker" style="width:420px; white-space:nowrap; overflow:hidden; padding:8px 12px; border-radius:10px; background:var(--card); display:inline-block"></div>
+
+      <select id="langSelect" title="Language" onchange="setLang(this.value)">
+        <option value="en">EN</option>
+        <option value="ur">اردو</option>
+        <option value="ar">عربي</option>
+        <option value="fr">Fr</option>
+        <option value="es">Es</option>
+        <option value="it">It</option>
+        <option value="nl">Nl</option>
+        <option value="zh">中文</option>
+      </select>
+
+      <select id="themeSelect" onchange="setTheme(this.value)" title="Theme">
+        <option value="default">Default</option>
+        <option value="modern-slate">Modern Slate</option>
+        <option value="warm-architect">Warm Architect</option>
+      </select>
+
+      <button onclick="openPage('dashboard')" title="Dashboard" class="muted">🏠</button>
+      <button onclick="openPage('settings')" title="Settings" class="muted">⚙️</button>
+      <button onclick="openPage('blog')" title="Blog" class="muted">✍️</button>
+      <div style="width:10px"></div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <nav class="nav card">
+      <a class="active" onclick="openPage('dashboard')">🏠 Dashboard</a>
+      <a onclick="openPage('projects')">🏗️ Projects</a>
+      <a onclick="openPage('clients')">👥 Clients</a>
+      <a onclick="openPage('employees')">👷 Employees</a>
+      <a onclick="openPage('procurement')">🧾 Procurement</a>
+      <a onclick="openPage('settings')">⚙️ Settings</a>
+      <a onclick="openPage('blog')">✍️ Blog</a>
+    </nav>
+  </aside>
+
+  <!-- Main content holder -->
+  <main class="main" id="pageContainer">
+    <!-- Dashboard Page -->
+    <section id="page-dashboard">
+      <div class="card" style="margin-bottom:12px; display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h2 style="margin:0" id="studioTitle">Ofivio Studio Dashboard</h2>
+          <div class="muted" id="studioSubtitle">Control room for projects & clients</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn" onclick="openNewProject()">＋ New Project</button>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="card metric">
+          <div class="muted">Active Projects</div>
+          <div style="font-weight:700;font-size:20px" id="metricProjects">12</div>
+          <div class="small muted">3 new this week</div>
+        </div>
+        <div class="card metric">
+          <div class="muted">Pending Approvals</div>
+          <div style="font-weight:700;font-size:20px" id="metricApprovals">4</div>
+          <div class="small muted">Awaiting client responses</div>
+        </div>
+        <div class="card metric">
+          <div class="muted">Tasks Due Today</div>
+          <div style="font-weight:700;font-size:20px" id="metricTasks">21</div>
+          <div class="small muted">Critical: 6</div>
+        </div>
+        <div class="card metric">
+          <div class="muted">Monthly Revenue</div>
+          <div style="font-weight:700;font-size:20px" id="metricRevenue">PKR 8.2M</div>
+          <div class="small muted">Invoice due: PKR 1.2M</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <h3 style="margin:0 0 10px 0">Projects</h3>
+        <div class="projects-grid" id="projectsGrid"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Insights</h3>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1" class="card"><div class="muted">Project Health (placeholder chart)</div></div>
+          <div style="width:360px" class="card"><div class="muted">Revenue Trend (placeholder chart)</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings Page -->
+    <section id="page-settings" style="display:none;">
+      <div class="card" style="margin-bottom:12px">
+        <h2 style="margin:0">Settings — Studio & Administration</h2>
+        <div class="muted">Manage studio profile, users, themes, languages, social integrations and blog</div>
+      </div>
+
+      <div class="settings-layout">
+        <aside class="settings-nav card">
+          <div class="item active" data-key="profile" onclick="selectSetting('profile')">🏢 Studio Profile</div>
+          <div class="item" data-key="users" onclick="selectSetting('users')">👥 Users & Roles</div>
+          <div class="item" data-key="billing" onclick="selectSetting('billing')">💳 Billing</div>
+          <div class="item" data-key="branding" onclick="selectSetting('branding')">📩 Branding & Communication</div>
+          <div class="item" data-key="security" onclick="selectSetting('security')">🔐 Security & Access</div>
+          <div class="item" data-key="integrations" onclick="selectSetting('integrations')">🧱 Integrations</div>
+          <div class="item" data-key="themes" onclick="selectSetting('themes')">🎨 Themes & Appearance</div>
+          <div class="item" data-key="languages" onclick="selectSetting('languages')">🌐 Languages</div>
+          <div class="item" data-key="blog" onclick="selectSetting('blog')">✍️ Blog & Content</div>
+          <div class="item" data-key="projects" onclick="selectSetting('projects')">🗂️ Project Settings (Rename)</div>
+        </aside>
+
+        <div class="setting-content card" id="settingContent">
+          <!-- dynamic content injected here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Blog Home / Editor -->
+    <section id="page-blog" style="display:none;">
+      <div class="card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center">
+        <div>
+          <h2 style="margin:0">Ofivio Blog</h2>
+          <div class="muted">Stories, news & ARKA highlights</div>
+        </div>
+        <div><button class="btn" onclick="openEditor()">＋ New Post</button></div>
+      </div>
+
+      <div id="blogList" class="card"></div>
+    </section>
+
+  </main>
+
+  <!-- Right column -->
+  <aside class="right">
+    <div class="card">
+      <h4 style="margin:0 0 8px 0">Upcoming Meetings</h4>
+      <div id="meetingsFeed">
+        <!-- items -->
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h4 style="margin:0 0 8px 0">Recent Activity</h4>
+      <div id="activityFeed"></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h4 style="margin:0 0 8px 0">Social Connections</h4>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="connectSocial('github')" class="btn">Connect GitHub</button>
+        <button onclick="connectSocial('google')" class="btn" style="background:#DB4437">Connect Google</button>
+        <button onclick="connectSocial('facebook')" class="btn" style="background:#1877F2">Connect Facebook</button>
+        <button onclick="connectSocial('instagram')" class="btn" style="background:linear-gradient(45deg,#feda75,#d62976)">Connect Instagram</button>
+      </div>
+    </div>
+  </aside>
+
+  <footer class="app-footer card" style="margin-top:6px">
+    Ofivio Prototype • Demo • Local only — Save changes in Settings to localStorage.
+  </footer>
+</div>
+
+<!-- DRAWER for project details -->
+<aside class="drawer card" id="drawer" aria-hidden="true">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div><h3 id="drawerTitle" style="margin:0">Project</h3><div class="muted" id="drawerSub">Client • Type • Area</div></div>
+    <div><button onclick="closeDrawer()">Close</button></div>
+  </div>
+  <div id="drawerBody"></div>
+</aside>
+
+<!-- BLOG EDITOR MODAL -->
+<div id="editorModal" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:90">
+  <div class="card" style="width:820px;max-width:95%;max-height:90%;overflow:auto;padding:18px">
+    <h3>New Blog Post</h3>
+    <div style="display:flex;gap:8px">
+      <input id="postTitle" placeholder="Title" style="flex:1" />
+      <input id="postTag" placeholder="Tags (comma)" style="width:160px" />
+    </div>
+    <textarea id="postContent" style="width:100%;height:320px;margin-top:8px" placeholder="Write post (HTML allowed)"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button onclick="closeEditor()" class="muted">Cancel</button>
+      <button class="btn" onclick="publishPost()">Publish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // -- initial mock data and helpers --
+  const defProjects = [
+    {id:'p1',displayName:'DHA Residence Tower',client:'Imran',type:'New-Build',area:4200,unit:'sqft',progress:65},
+    {id:'p2',displayName:'Bakhtiar Renovation',client:'Sara',type:'Renovation',area:650,unit:'sqm',progress:42},
+    {id:'p3',displayName:'Mall Retail Fitout',client:'RetailX',type:'Design-Only',area:3200,unit:'sqm',progress:82},
+    {id:'p4',displayName:'Corporate HQ Mid-Rise',client:'ZenTech',type:'Construction',area:15000,unit:'sqft',progress:19},
+  ];
+  const meetings = [
+    {id:'m1',title:'Site Walk — DHA Villa',when:'Apr 14',loc:'On-site'},
+    {id:'m2',title:'Approval Call — MEP',when:'Apr 16',loc:'ARKA Office'},
+  ];
+  const activity = [
+    {id:'a1',txt:'Ayesha commented on DHA Residence Tower'},
+    {id:'a2',txt:'Client approved BOQ item #B-33'},
+    {id:'a3',txt:'Procurement marked orders received'}
+  ];
+  const sampleNews = [
+    {title:'ARKA: New trends in facade design',link:'#'},
+    {title:'ARKA: Sustainable materials guide',link:'#'},
+    {title:'ARKA: How to brief an architect',link:'#'}
+  ];
+
+  // load persisted or default
+  let projects = JSON.parse(localStorage.getItem('ofivio_projects') || 'null') || defProjects;
+  let posts = JSON.parse(localStorage.getItem('ofivio_posts') || 'null') || [
+    {id:'b1',title:'Welcome to Ofivio',slug:'welcome',summary:'Intro to Ofivio',content:'<p>This is a demo blog post.</p>',published:true,publishedAt:Date.now()}
+  ];
+
+  // initialize UI
+  function renderProjects(){
+    document.getElementById('metricProjects').innerText = projects.length;
+    const grid = document.getElementById('projectsGrid');
+    grid.innerHTML = '';
+    projects.forEach(p=>{
+      const el = document.createElement('div'); el.className='project-tile card';
+      el.innerHTML = `<div class="thumb">${p.type}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div><div class="ptitle">${p.displayName}</div><div class="small">${p.client} • ${p.area} ${p.unit}</div></div>
+          <div style="text-align:right"><div class="muted">Due 2025-09-15</div><div style="font-weight:700;color:var(--accent)">${p.progress}%</div></div>
+        </div>
+        <div class="progress" aria-hidden><i style="width:${p.progress}%"></i></div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center"><div class="small muted">Tasks: 32</div><div><button class="btn" onclick="openDrawer('${p.id}')">Open</button></div></div>`;
+      grid.appendChild(el);
+    });
+  }
+  function renderMeetings(){ const el=document.getElementById('meetingsFeed'); el.innerHTML=''; meetings.forEach(m=>{ el.innerHTML+=`<div class="feed-item"><div class="avatar">M</div><div><b>${m.title}</b><div class="muted">${m.when} • ${m.loc}</div></div></div>`})}
+  function renderActivity(){ const el=document.getElementById('activityFeed'); el.innerHTML=''; activity.forEach(a=> el.innerHTML+=`<div class="muted small" style="margin-bottom:8px">${a.txt}</div>`)}
+  function renderBlog(){ const el=document.getElementById('blogList'); el.innerHTML=''; posts.filter(p=>p.published).forEach(p=>{ el.innerHTML+=`<div style="padding:12px;border-radius:10px;margin-bottom:8px;background:var(--card)"><h3 style="margin:0">${p.title}</h3><div class="muted small">${new Date(p.publishedAt).toLocaleString()}</div><div style="margin-top:8px">${p.summary||''}</div><div style="margin-top:8px"><button class="btn" onclick="openPost('${p.id}')">Open</button></div></div>` })}
+
+  function openDrawer(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('drawerTitle').innerText = p.displayName;
+    document.getElementById('drawerSub').innerText = `${p.client} • ${p.type} • ${p.area} ${p.unit}`;
+    document.getElementById('drawerBody').innerHTML = `<div class="card"><b>Overview</b><div class="muted small">Address: Sample • Start: 2025-03-01 • Status: Active</div></div>
+      <div class="card" style="margin-top:10px"><b>Approvals</b><div class="muted small">MEP drawing pending client review</div></div>
+      <div class="card" style="margin-top:10px"><b>BOQ Highlights</b><ul><li>Concrete — PKR 12M</li><li>MEP — PKR 9.2M</li></ul></div>`;
+    document.getElementById('drawer').classList.add('open');
+  }
+  function closeDrawer(){ document.getElementById('drawer').classList.remove('open') }
+
+  // pages
+  function openPage(key){
+    ['dashboard','settings','blog'].forEach(k=> document.getElementById('page-'+k).style.display = (k===key ? '' : 'none'));
+    if(key==='dashboard') renderProjects();
+    if(key==='blog') renderBlog();
+    if(key==='settings') loadSettings('profile');
+  }
+
+  // news ticker
+  function initNewsTicker(){
+    const el = document.getElementById('newsTicker');
+    const html = sampleNews.map(n=>`<a href="${n.link}" style="margin-right:36px;color:var(--accent);text-decoration:none">${n.title}</a>`).join('');
+    el.innerHTML = `<div style="display:inline-block;padding-left:6px">${html}</div>`;
+    // basic scroll
+    let pos=0;
+    setInterval(()=>{ pos = (pos - 1) % 10000; el.scrollLeft = Math.abs(pos); }, 80);
+  }
+
+  // Settings: dynamic panels
+  function selectSetting(key){
+    document.querySelectorAll('.settings-nav .item').forEach(it=> it.classList.toggle('active', it.dataset.key===key));
+    loadSettings(key);
+  }
+  function loadSettings(key){
+    const container = document.getElementById('settingContent');
+    container.innerHTML = '';
+    if(key==='profile'){
+      container.innerHTML = `
+        <h3>Studio Profile</h3>
+        <div class="form-row"><div class="col"><input id="studioName" placeholder="Studio Name" value="${localStorage.getItem('ofivio_studioName') || 'Ofivio Studio'}" /></div><div class="col"><input id="studioTag" placeholder="Tagline" value="${localStorage.getItem('ofivio_tag') || 'Architectural Project Platform'}" /></div></div>
+        <div class="form-row"><div class="col"><input id="contactEmail" placeholder="Contact Email" value="${localStorage.getItem('ofivio_email') || 'contact@ofivio.app'}" /></div><div class="col"><input id="contactPhone" placeholder="Phone" value="${localStorage.getItem('ofivio_phone') || ''}" /></div></div>
+        <div style="display:flex;gap:8px"><button class="btn" onclick="saveProfile()">Save Studio Profile</button><button onclick="previewHeader()" class="muted">Preview Header</button></div>
+        <div style="margin-top:12px" class="muted small">You can set default currency, area units, working hours and domain here (saved locally in prototype).</div>
+      `;
+    } else if(key==='users'){
+      container.innerHTML = `<h3>Users & Roles</h3><div class="muted small">User management UI placeholder (create users, roles, permissions). For demo you can simulate user actions here.</div>
+        <div style="margin-top:12px"><button class="btn" onclick="alert('Open User Manager (placeholder)')">Open User Manager</button></div>`;
+    } else if(key==='billing'){
+      container.innerHTML = `<h3>Billing & Subscription</h3><div class="muted small">Card & invoice management placeholder. Integrate Stripe in production.</div>`;
+    } else if(key==='branding'){
+      container.innerHTML = `<h3>Branding & Communication</h3>
+        <div class="form-row"><div class="col"><input id="logoUrl" placeholder="Logo URL" value="${localStorage.getItem('ofivio_logo')||''}" /></div><div class="col"><input id="favUrl" placeholder="Favicon URL" value="${localStorage.getItem('ofivio_favicon')||''}" /></div></div>
+        <div style="display:flex;gap:8px"><button class="btn" onclick="saveBranding()">Save</button></div>`;
+    } else if(key==='security'){
+      container.innerHTML = `<h3>Security & Access</h3>
+        <div class="form-row"><div class="col"><label>Require 2FA for admins</label><br/><select id="twofa"><option value="on">On</option><option value="off">Off</option></select></div><div class="col"><label>Session Timeout (mins)</label><input id="sessionTimeout" type="text" value="${localStorage.getItem('ofivio_session')||'30'}" /></div></div>
+        <div style="margin-top:8px"><button class="btn" onclick="saveSecurity()">Save Security</button></div>`;
+    } else if(key==='integrations'){
+      container.innerHTML = `<h3>Integrations</h3>
+        <div class="muted small">Connect GitHub, Google, and social accounts. For demo, clicking connect will simulate flow and save a placeholder token.</div>
+        <div style="margin-top:12px;display:flex;gap:8px"><button class="btn" onclick="connectSocial('github')">Connect GitHub</button><button class="btn" onclick="connectSocial('google')">Connect Google</button></div>`;
+    } else if(key==='themes'){
+      container.innerHTML = `<h3>Themes & Appearance</h3>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button onclick="setTheme('default')" class="btn">Default</button>
+          <button onclick="setTheme('modern-slate')" class="muted">Modern Slate</button>
+          <button onclick="setTheme('warm-architect')" class="muted">Warm Architect</button>
+        </div>
+        <div class="muted small">You can also pick custom colors (not in prototype).</div>`;
+    } else if(key==='languages'){
+      const enabled = JSON.parse(localStorage.getItem('ofivio_langs')||'["en"]');
+      container.innerHTML = `<h3>Languages & i18n</h3>
+        <div class="muted small">Enable languages for the client portal and admin UI.</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          ${['en','ur','ar','fr','es','it','nl','zh'].map(l=>`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" ${enabled.includes(l)?'checked':''} onchange="toggleLang('${l}',this.checked)" /> ${l}</label>`).join('')}
+        </div>
+        <div style="margin-top:10px"><button class="btn" onclick="saveLangs()">Save Languages</button></div>`;
+    } else if(key==='blog'){
+      container.innerHTML = `<h3>Blog & Content</h3><div class="muted small">Enable blog on homepage, manage posts and featured post.</div>
+        <div style="margin-top:8px"><label><input type="checkbox" id="blogHome" ${localStorage.getItem('ofivio_blogHome')==='true'?'checked':''}/> Show latest blog posts on homepage</label></div>
+        <div style="margin-top:8px"><button class="btn" onclick="toggleBlogHome()">Save</button> <button onclick="openEditor()" class="muted">New Post</button></div>`;
+    } else if(key==='projects'){
+      container.innerHTML = `<h3>Project Settings & Rename</h3>
+        <div class="muted small">Change the permanent display name of any project (used in header & deep-links).</div>
+        <div style="margin-top:10px" id="projectRenameList"></div>`;
+      renderProjectRenameList();
+    }
+  }
+
+  function saveProfile(){
+    localStorage.setItem('ofivio_studioName', document.getElementById('studioName').value);
+    localStorage.setItem('ofivio_tag', document.getElementById('studioTag').value);
+    localStorage.setItem('ofivio_email', document.getElementById('contactEmail').value);
+    localStorage.setItem('ofivio_phone', document.getElementById('contactPhone').value);
+    alert('Studio profile saved (local demo).');
+    updateHeader();
+  }
+  function saveBranding(){
+    localStorage.setItem('ofivio_logo', document.getElementById('logoUrl').value);
+    localStorage.setItem('ofivio_favicon', document.getElementById('favUrl').value);
+    alert('Branding saved (local).');
+    updateHeader();
+  }
+  function saveSecurity(){ localStorage.setItem('ofivio_twofa', document.getElementById('twofa').value); localStorage.setItem('ofivio_session', document.getElementById('sessionTimeout').value); alert('Security saved (local).') }
+  function toggleBlogHome(){ localStorage.setItem('ofivio_blogHome', document.getElementById('blogHome').checked); alert('Saved.'); }
+  function saveLangs(){ alert('Languages saved (local).'); }
+  function previewHeader(){ alert('Header preview (top of page).'); }
+
+  function renderProjectRenameList(){
+    const el = document.getElementById('projectRenameList');
+    el.innerHTML = projects.map(p=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input id="rename_${p.id}" value="${p.displayName}" style="flex:1"/><button class="btn" onclick="renameProject('${p.id}')">Rename</button></div>`).join('');
+  }
+  function renameProject(id){
+    const val = document.getElementById('rename_'+id).value.trim();
+    if(!val) { alert('Enter a name'); return; }
+    const p = projects.find(x=>x.id===id); p.displayName = val;
+    localStorage.setItem('ofivio_projects', JSON.stringify(projects));
+    alert('Project renamed. Header & UI updated.');
+    updateHeader(); renderProjects(); renderProjectRenameList();
+    // store history (permanent) - prototype simple
+    const hist = JSON.parse(localStorage.getItem('ofivio_rename_hist')||'[]'); hist.push({id,old:p.displayName,new:val,at:Date.now()}); localStorage.setItem('ofivio_rename_hist', JSON.stringify(hist));
+  }
+
+  // Social connect placeholder
+  function connectSocial(name){ localStorage.setItem('ofivio_social_'+name, 'connected'); alert(name+' connected (placeholder).'); }
+
+  // Blog editor
+  function openEditor(){ document.getElementById('editorModal').style.display='flex'; }
+  function closeEditor(){ document.getElementById('editorModal').style.display='none'; }
+  function publishPost(){
+    const title = document.getElementById('postTitle').value.trim();
+    if(!title){ alert('Enter title'); return; }
+    const id = 'b'+(Math.random().toString(36).slice(2,9));
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    posts.push({id, title, slug, summary: document.getElementById('postTag').value, content: document.getElementById('postContent').value, published:true, publishedAt: Date.now()});
+    localStorage.setItem('ofivio_posts', JSON.stringify(posts));
+    closeEditor(); renderBlog(); alert('Post published (local demo).');
+  }
+  function openPost(id){
+    const p = posts.find(x=>x.id===id);
+    if(!p) return alert('Post not found');
+    const w = window.open('about:blank','_blank');
+    w.document.write(`<h2>${p.title}</h2><div class="muted">${new Date(p.publishedAt).toLocaleString()}</div><div>${p.content}</div>`);
+  }
+
+  // theme/lang handlers
+  function setTheme(key){ document.body.setAttribute('data-theme', key); localStorage.setItem('ofivio_theme', key); }
+  function setLang(l){ localStorage.setItem('ofivio_lang', l); alert('Language switched to '+l+' (demo).'); }
+
+  // header project name update
+  function updateHeader(){ const studio = localStorage.getItem('ofivio_studioName') || 'Ofivio Studio'; document.getElementById('studioTitle').innerText = studio; const active = projects[0] || {}; document.getElementById('headerProjectName').innerText = active.displayName || 'Studio Control'; localStorage.setItem('ofivio_studio', studio); }
+
+  // drawer open helper
+  function openNewProject(){ const id = 'p'+(Math.random().toString(36).slice(2,6)); projects.unshift({id,displayName:'New Project '+id,client:'Client',type:'Design-Only',area:1200,unit:'sqm',progress:0}); localStorage.setItem('ofivio_projects', JSON.stringify(projects)); renderProjects(); renderProjectRenameList(); alert('New project created (local demo).'); }
+
+  // small helpers
+  function openSettingsTab(key){ openPage('settings'); selectSetting(key); }
+
+  // init
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const theme = localStorage.getItem('ofivio_theme') || 'default'; document.body.setAttribute('data-theme', theme); document.getElementById('themeSelect').value = theme;
+    renderProjects(); renderMeetings(); renderActivity(); initNewsTicker(); updateHeader(); renderBlog();
+    // set language from storage
+    const lang = localStorage.getItem('ofivio_lang') || 'en'; document.getElementById('langSelect').value = lang;
+  });
+
+  // quick open functions
+  function openEditorPost(){ openEditor(); }
+</script>
+</body>
+</html>
