@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HRManagement } from "@/components/HRManagement";
 import { AccountsManagement } from "@/components/AccountsManagement";
@@ -27,8 +26,6 @@ export function OverviewRightSidebar({
   users = [],
   tasks = []
 }: OverviewRightSidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
   if (!section) return null;
 
   const clients = users.filter(u => u.role === "client");
@@ -140,6 +137,47 @@ export function OverviewRightSidebar({
           </div>
         );
 
+      case "tasks":
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Tasks</h2>
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <Card key={task.id} className="p-4 hover:shadow-md transition-shadow">
+                  <h3 className="font-semibold text-lg">{task.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className={cn(
+                      "text-xs px-2 py-1 rounded-full",
+                      task.status === "completed" ? "bg-green-100 text-green-700" :
+                      task.status === "in-progress" ? "bg-blue-100 text-blue-700" :
+                      "bg-gray-100 text-gray-700"
+                    )}>
+                      {task.status}
+                    </span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "attendance":
+      case "meetings":
+      case "activities":
+      case "approvals":
+      case "approval-board":
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold capitalize">{section.replace('-', ' ')}</h2>
+            <Card className="p-6">
+              <p className="text-muted-foreground">
+                Detailed {section} view coming soon. This feature is currently under development.
+              </p>
+            </Card>
+          </div>
+        );
+
       default:
         return (
           <div className="space-y-4">
@@ -155,26 +193,10 @@ export function OverviewRightSidebar({
   };
 
   return (
-    <div
-      className={cn(
-        "fixed right-0 top-0 h-full bg-background border-l border-border shadow-2xl transition-all duration-300 z-30",
-        isCollapsed ? "w-0 opacity-0" : "w-[500px] opacity-100"
-      )}
-    >
+    <div className="fixed right-0 top-0 h-full w-[1000px] bg-background border-l border-border shadow-2xl transition-all duration-300 z-30">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="h-8 w-8"
-        >
-          {isCollapsed ? (
-            <ChevronLeft className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
+        <h3 className="text-lg font-semibold capitalize">{section.replace('-', ' ')}</h3>
         <Button
           variant="ghost"
           size="icon"
