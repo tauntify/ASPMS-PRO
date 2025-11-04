@@ -8,15 +8,15 @@ import {
   Settings,
   LogOut,
   Globe,
-  Palette,
   User,
   ChevronDown,
   BookOpen,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/hooks/useTheme";
-import { themes } from "@/lib/themes";
 import type { OrganizationSettings, NewsItem } from "@shared/schema";
 import {
   DropdownMenu,
@@ -94,73 +94,14 @@ export default function HeaderSleek() {
 
   return (
     <div className="w-full">
-      {/* Fixed Ofivio Header - Cannot be removed or edited by users */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white border-b border-blue-700">
-        <div className="w-full px-6 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="font-bold text-lg tracking-wide">OFIVIO</div>
-            {newsItems && newsItems.length > 0 && (
-              <div className="hidden md:flex items-center gap-2 ml-4">
-                <span className="text-xs text-blue-200 uppercase tracking-wider">
-                  {t("header.newsTicker")}:
-                </span>
-                <div className="overflow-hidden max-w-xl">
-                  <div className="animate-marquee whitespace-nowrap">
-                    {newsItems.map((item, idx) => (
-                      <span key={idx} className="mx-6 text-sm">
-                        {item.url ? (
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-blue-200 transition-colors"
-                          >
-                            {item.title}
-                          </a>
-                        ) : (
-                          item.title
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="text-xs text-blue-200">
-            Powered by ARKA Technologies
-          </div>
-        </div>
-      </div>
-
-      {/* User-specific Header */}
-      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+      {/* Main Header */}
+      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200 shadow-sm">
         <div className="w-full px-6 py-3">
           <div className="flex items-center justify-between gap-4">
-            {/* Left: Organization/User Info */}
+            {/* Left: Studio Control Center */}
             <div className="flex items-center gap-3">
-              {user?.role === "principle" && orgSettings?.logoURL ? (
-                <img
-                  src={orgSettings.logoURL}
-                  alt="Organization Logo"
-                  className="h-10 w-10 rounded-lg object-cover"
-                />
-              ) : (
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-blue-100 text-blue-700">
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div>
-                <div className="font-semibold text-gray-900">
-                  {getOrgDisplayName()}
-                </div>
-                {orgSettings?.tagline && user?.role === "principle" && (
-                  <div className="text-xs text-gray-500">
-                    {orgSettings.tagline}
-                  </div>
-                )}
+              <div className="font-bold text-xl text-gray-900">
+                Studio Control Center
               </div>
             </div>
 
@@ -180,34 +121,15 @@ export default function HeaderSleek() {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
-              {/* Theme Selector */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Palette className="h-4 w-4" />
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{t("common.theme")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {Object.entries(themes).map(([key, value]) => (
-                    <DropdownMenuItem
-                      key={key}
-                      onClick={() => setTheme(key as any)}
-                      className={theme === key ? "bg-blue-50" : ""}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-4 w-4 rounded border"
-                          style={{ backgroundColor: value.colors.primary }}
-                        />
-                        <span>{value.name}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Theme Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
 
               {/* Language Selector */}
               <DropdownMenu>

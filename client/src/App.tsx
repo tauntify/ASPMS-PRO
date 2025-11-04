@@ -19,12 +19,16 @@ import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import ForgotPassword from "@/pages/forgot-password";
 import Landing from "@/pages/landing";
+import Home from "@/pages/Home";
 import About from "@/pages/about";
 import Features from "@/pages/features";
+import FeaturesNew from "@/pages/FeaturesNew";
 import Pricing from "@/pages/pricing";
 import PricingNew from "@/pages/pricing-new";
 import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
+import Contact from "@/pages/Contact";
+import FAQ from "@/pages/FAQ";
 import NotFound from "@/pages/not-found";
 import SettingsPage from "@/pages/settings";
 import Profile from "@/pages/profile";
@@ -33,6 +37,8 @@ import BlogPostView from "@/pages/blog/[slug]";
 import BlogEditor from "@/pages/blog/editor";
 import BlogAdmin from "@/pages/blog-admin";
 import HeaderSleek from "@/components/HeaderSleek";
+import MainSidebar from "@/components/MainSidebar";
+import { PublicNav } from "@/components/PublicNav";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
@@ -122,13 +128,17 @@ function Router() {
   return (
     <Switch>
       {/* Public Routes */}
-      <Route path="/" component={Landing} />
+      <Route path="/" component={Home} />
+      <Route path="/landing" component={Landing} />
       <Route path="/about" component={About} />
       <Route path="/features" component={Features} />
+      <Route path="/features-compare" component={FeaturesNew} />
       <Route path="/pricing" component={PricingNew} />
       <Route path="/pricing-old" component={Pricing} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/contact" component={Contact} />
+      <Route path="/faq" component={FAQ} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />
@@ -196,7 +206,7 @@ function AppContent() {
   }, [user?.id]);
 
   // Public routes that should NOT show the header
-  const publicRoutes = ['/', '/about', '/features', '/pricing', '/pricing-old', '/terms', '/privacy', '/login', '/signup', '/forgot-password', '/blog'];
+  const publicRoutes = ['/', '/landing', '/about', '/features', '/features-compare', '/pricing', '/pricing-old', '/terms', '/privacy', '/contact', '/faq', '/login', '/signup', '/forgot-password', '/blog'];
   const isPublicRoute = publicRoutes.includes(location) || location.startsWith('/blog/');
   const shouldShowHeader = isAuthenticated && !isPublicRoute;
 
@@ -204,8 +214,21 @@ function AppContent() {
     <TooltipProvider>
       <Toaster />
       <CookieConsent />
-      {shouldShowHeader && <HeaderSleek />}
-      <Router />
+      {shouldShowHeader && (
+        <>
+          <MainSidebar />
+          <div className="ml-64 transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 16rem)' }}>
+            <HeaderSleek />
+            <Router />
+          </div>
+        </>
+      )}
+      {!shouldShowHeader && (
+        <>
+          <PublicNav />
+          <Router />
+        </>
+      )}
     </TooltipProvider>
   );
 }

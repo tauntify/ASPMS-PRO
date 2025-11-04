@@ -1,70 +1,140 @@
-import type { ThemeKey } from "@shared/schema";
-
 export interface ThemeColors {
-  primary: string;
-  accent: string;
+  // Sidebar colors
+  sidebarBg: string;
+  sidebarText: string;
+  sidebarTextHover: string;
+  sidebarActive: string;
+
+  // Main content colors
   background: string;
-  text: string;
+  foreground: string;
+
+  // Card colors
   cardBg: string;
-  borderColor: string;
+  cardBorder: string;
+  cardShadow: string;
+
+  // Accent colors (purple/blue theme from Asana)
+  primary: string;
+  primaryHover: string;
+  secondary: string;
+  accent: string;
+
+  // Text colors
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+
+  // Border and divider
+  border: string;
+  divider: string;
+
+  // Status colors
+  success: string;
+  warning: string;
+  error: string;
+  info: string;
+
+  // Chart colors (purple/blue gradient)
+  chartPrimary: string;
+  chartSecondary: string;
+  chartTertiary: string;
+  chartQuaternary: string;
 }
 
-export const themes: Record<ThemeKey, { name: string; colors: ThemeColors }> = {
-  default: {
-    name: "Default",
-    colors: {
-      primary: "#7e8987",
-      accent: "#8db580",
-      background: "#ddd1c7",
-      text: "#4b4a67",
-      cardBg: "#d0d0bd",
-      borderColor: "#c2cfb2",
-    },
-  },
-  interior: {
-    name: "Interior Mode",
-    colors: {
-      primary: "#b97375",
-      accent: "#c4929a",
-      background: "#f1e4e8",
-      text: "#2d2d34",
-      cardBg: "#d8c7ce",
-      borderColor: "#ceb1be",
-    },
-  },
-  architect: {
-    name: "Architect Mode",
-    colors: {
-      primary: "#ff7f11",
-      accent: "#ffbf87",
-      background: "#414141",
-      text: "#ffefdf",
-      cardBg: "#80807e",
-      borderColor: "#ffdfc2",
-    },
-  },
-  workload: {
-    name: "Work Load",
-    colors: {
-      primary: "#80b6cc",
-      accent: "#9fb9c2",
-      background: "#bd9391",
-      text: "#414141",
-      cardBg: "#b5a7a7",
-      borderColor: "#adbabd",
-    },
-  },
-  corporate: {
-    name: "Corporate",
-    colors: {
-      primary: "#5d5c90",
-      accent: "#b497d6",
-      background: "#e1e2ef",
-      text: "#05122b",
-      cardBg: "#cbbde3",
-      borderColor: "#b497d6",
-    },
-  },
+export type ThemeMode = 'light' | 'dark';
+
+export const lightTheme: ThemeColors = {
+  // Sidebar - Dark navy (like Asana)
+  sidebarBg: '#1f2937',
+  sidebarText: '#9ca3af',
+  sidebarTextHover: '#f3f4f6',
+  sidebarActive: '#8b5cf6',
+
+  // Main content - Clean white
+  background: '#ffffff',
+  foreground: '#f9fafb',
+
+  // Cards - White with subtle shadows
+  cardBg: '#ffffff',
+  cardBorder: '#e5e7eb',
+  cardShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+
+  // Primary colors - Purple theme
+  primary: '#8b5cf6',
+  primaryHover: '#7c3aed',
+  secondary: '#6366f1',
+  accent: '#06b6d4',
+
+  // Text colors
+  textPrimary: '#111827',
+  textSecondary: '#4b5563',
+  textMuted: '#9ca3af',
+
+  // Borders
+  border: '#e5e7eb',
+  divider: '#f3f4f6',
+
+  // Status colors
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  info: '#3b82f6',
+
+  // Chart colors - Purple/blue gradient
+  chartPrimary: '#8b5cf6',
+  chartSecondary: '#6366f1',
+  chartTertiary: '#a78bfa',
+  chartQuaternary: '#c4b5fd',
+};
+
+export const darkTheme: ThemeColors = {
+  // Sidebar - Darker navy
+  sidebarBg: '#111827',
+  sidebarText: '#9ca3af',
+  sidebarTextHover: '#f3f4f6',
+  sidebarActive: '#8b5cf6',
+
+  // Main content - Dark gray
+  background: '#1f2937',
+  foreground: '#111827',
+
+  // Cards - Slightly lighter than background
+  cardBg: '#374151',
+  cardBorder: '#4b5563',
+  cardShadow: '0 1px 3px 0 rgb(0 0 0 / 0.3)',
+
+  // Primary colors - Same purple theme
+  primary: '#8b5cf6',
+  primaryHover: '#7c3aed',
+  secondary: '#6366f1',
+  accent: '#06b6d4',
+
+  // Text colors - Inverted
+  textPrimary: '#f9fafb',
+  textSecondary: '#d1d5db',
+  textMuted: '#9ca3af',
+
+  // Borders
+  border: '#4b5563',
+  divider: '#374151',
+
+  // Status colors
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  info: '#3b82f6',
+
+  // Chart colors - Purple/blue gradient (same as light)
+  chartPrimary: '#8b5cf6',
+  chartSecondary: '#6366f1',
+  chartTertiary: '#a78bfa',
+  chartQuaternary: '#c4b5fd',
+};
+
+export const themes: Record<ThemeMode, ThemeColors> = {
+  light: lightTheme,
+  dark: darkTheme,
 };
 
 // Helper to convert hex to HSL
@@ -99,35 +169,47 @@ function hexToHSL(hex: string): string {
   return `${h} ${s}% ${l}%`;
 }
 
-export function applyTheme(themeKey: ThemeKey) {
-  const theme = themes[themeKey];
+export function applyTheme(mode: ThemeMode) {
+  const theme = themes[mode];
   if (!theme) return;
 
   const root = document.documentElement;
-  const { colors } = theme;
 
-  // Convert colors to HSL format for Tailwind CSS variables
-  root.style.setProperty("--primary", hexToHSL(colors.primary));
-  root.style.setProperty("--accent", hexToHSL(colors.accent));
-  root.style.setProperty("--background", hexToHSL(colors.background));
-  root.style.setProperty("--foreground", hexToHSL(colors.text));
-  root.style.setProperty("--card", hexToHSL(colors.cardBg));
-  root.style.setProperty("--border", hexToHSL(colors.borderColor));
+  // Apply all theme colors as CSS variables
+  Object.entries(theme).forEach(([key, value]) => {
+    const cssVarName = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+    root.style.setProperty(cssVarName, value);
 
-  // Also set the legacy variables for backwards compatibility
-  root.style.setProperty("--color-primary", colors.primary);
-  root.style.setProperty("--color-accent", colors.accent);
-  root.style.setProperty("--color-background", colors.background);
-  root.style.setProperty("--color-text", colors.text);
-  root.style.setProperty("--color-card-bg", colors.cardBg);
-  root.style.setProperty("--color-border", colors.borderColor);
+    // Also set HSL version for some colors (for Tailwind compatibility)
+    if (key.includes('primary') || key.includes('background') || key.includes('card') || key.includes('text')) {
+      root.style.setProperty(`${cssVarName}-hsl`, hexToHSL(value));
+    }
+  });
+
+  // Set Tailwind CSS variables
+  root.style.setProperty("--primary", hexToHSL(theme.primary));
+  root.style.setProperty("--accent", hexToHSL(theme.accent));
+  root.style.setProperty("--background", hexToHSL(theme.background));
+  root.style.setProperty("--foreground", hexToHSL(theme.textPrimary));
+  root.style.setProperty("--card", hexToHSL(theme.cardBg));
+  root.style.setProperty("--border", hexToHSL(theme.border));
+
+  // Set data attribute for CSS usage
+  root.setAttribute('data-theme', mode);
 }
 
-export function getCurrentTheme(): ThemeKey {
-  return (localStorage.getItem("ofivio-theme") as ThemeKey) || "default";
+export function getCurrentTheme(): ThemeMode {
+  return (localStorage.getItem("ofivio-theme-mode") as ThemeMode) || "light";
 }
 
-export function setTheme(themeKey: ThemeKey) {
-  localStorage.setItem("ofivio-theme", themeKey);
-  applyTheme(themeKey);
+export function setTheme(mode: ThemeMode) {
+  localStorage.setItem("ofivio-theme-mode", mode);
+  applyTheme(mode);
+}
+
+export function toggleTheme(): ThemeMode {
+  const currentTheme = getCurrentTheme();
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  setTheme(newTheme);
+  return newTheme;
 }

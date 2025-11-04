@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ofivio — Project Management for Architects</title>
+<meta name="description" content="Ofivio — Architecture project management: planning, client portals, procurement, construction tracking, and more." />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#ffffff; --muted:#5b6b7a; --text:#0b1b2b;
+    --accent:#0b6ef6; --accent-2:#00bfa6; --accent-3:#ff7a59;
+    --glass: rgba(11,27,43,0.03); --radius:14px; --maxw:1200px;
+    --shadow: 0 10px 30px rgba(11,27,43,0.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial; color:var(--text); background:linear-gradient(180deg,#f8fbff, #f6f8fb);}
+  a{color:inherit}
+  .container{max-width:var(--maxw); margin:0 auto; padding:28px;}
+  header{
+    position:sticky; top:0; z-index:40;
+    backdrop-filter: blur(6px); background:rgba(255,255,255,0.6);
+    border-bottom:1px solid rgba(11,27,43,0.04);
+  }
+  .topbar{display:flex; align-items:center; gap:16px; justify-content:space-between; max-width:var(--maxw); margin:0 auto; padding:12px 28px;}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;display:flex;align-items:center;justify-content:center;font-weight:700}
+  nav a{margin:0 10px; color:var(--muted); text-decoration:none; font-weight:600}
+  nav a:hover{color:var(--text)}
+  .actions{display:flex; gap:10px; align-items:center}
+  .btn{padding:9px 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+  .btn-outline{background:transparent;border:1px solid rgba(11,27,43,0.06); color:var(--text)}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:white; box-shadow:0 6px 18px rgba(11,110,246,0.14)}
+
+  /* Hero */
+  .hero{display:grid;grid-template-columns:1fr 420px; gap:28px; align-items:center; padding:40px 0}
+  .hero-left h1{font-size:40px;line-height:1.02;margin:0 0 12px}
+  .lead{color:var(--muted); margin-bottom:18px}
+  .cta-row{display:flex; gap:12px; margin-top:18px}
+  .features-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:20px}
+  .feature{background:var(--card); border-radius:12px; padding:16px; box-shadow:var(--shadow)}
+  .feature h4{margin:8px 0 0}
+
+  /* Right panel */
+  .panel{background:linear-gradient(180deg,white, #fcfdff); padding:18px; border-radius:12px; box-shadow:var(--shadow)}
+  .stat{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px}
+  .stat strong{font-size:20px}
+  .progress{height:8px;background:#eef3ff;border-radius:12px; overflow:hidden}
+  .bar{height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-3)); width:68%}
+
+  /* Sections */
+  section{padding:40px 0; border-top:1px solid rgba(11,27,43,0.03)}
+  .section-head{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  .section-head h2{margin:0}
+
+  /* Pricing */
+  .pricing{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:18px}
+  .card{background:var(--card); border-radius:12px; padding:20px; box-shadow:var(--shadow); border:1px solid rgba(11,27,43,0.02)}
+  .price-big{font-size:30px; font-weight:800}
+  .price-caption{color:var(--muted); margin-top:6px}
+  .features-list{margin-top:12px; color:var(--muted); font-size:14px}
+  .badge{display:inline-block; padding:6px 8px; background:linear-gradient(90deg,var(--accent-2),var(--accent)); color:white; border-radius:999px; font-weight:700; font-size:13px}
+
+  /* Testimonials */
+  .testimonials{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px}
+  .testimonial{background:linear-gradient(180deg,#ffffff,#fbfcff); padding:18px;border-radius:12px; box-shadow:var(--shadow)}
+  .stars{color:#ffb400; margin-bottom:8px}
+
+  /* Contact & Support */
+  .contact-grid{display:grid; grid-template-columns:1fr 420px; gap:18px}
+  .support-card{background:linear-gradient(180deg,#fff,#fcfdff); padding:18px;border-radius:12px; box-shadow:var(--shadow)}
+
+  /* FAQs */
+  .faq{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px}
+  .faq-item{background:var(--card); padding:14px; border-radius:10px; border:1px solid rgba(11,27,43,0.03)}
+  .faq-item h4{margin:0; font-size:15px; cursor:pointer}
+
+  /* Subscribers / Loved by */
+  .loved{display:flex; gap:12px; align-items:center; margin-top:18px; flex-wrap:wrap}
+  .logo-blob{background:#fff; padding:10px;border-radius:8px; box-shadow:var(--shadow)}
+
+  /* Footer */
+  footer{margin-top:40px;background:#0b1220;color:#dbe9f7;padding:40px 0;border-top:6px solid rgba(255,255,255,0.02)}
+  .footer-grid{display:grid; grid-template-columns: repeat(5,1fr); gap:18px; max-width:var(--maxw); margin:0 auto; padding:0 28px}
+  .footer-grid h5{margin:0 0 8px;color:#cfe8ff}
+  .footer-links a{display:block;color:rgba(219,233,247,0.85); margin:6px 0; text-decoration:none}
+  .footer-bottom{max-width:var(--maxw); margin:28px auto 0; padding:0 28px; display:flex; justify-content:space-between; align-items:center; color:rgba(219,233,247,0.7); font-size:14px}
+
+  /* responsive */
+  @media (max-width:1100px){
+    .hero{grid-template-columns:1fr}
+    .pricing{grid-template-columns:repeat(2,1fr)}
+    .testimonials{grid-template-columns:1fr}
+    .contact-grid{grid-template-columns:1fr}
+    .footer-grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:600px){
+    nav{display:none}
+    .pricing{grid-template-columns:1fr}
+    .footer-grid{grid-template-columns:1fr}
+    .brand-mark{width:36px;height:36px}
+    .hero-left h1{font-size:28px}
+  }
+
+  /* small utilities */
+  .muted{color:var(--muted)}
+  .pill{background:#f0f6ff; padding:8px 12px; border-radius:999px; font-weight:700; color:var(--accent-3)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">O</div>
+        <div>
+          <div style="font-weight:800">Ofivio</div>
+          <div style="font-size:12px;color:var(--muted)">Architecture Project Management</div>
+        </div>
+      </div>
+
+      <nav aria-label="Main navigation">
+        <a href="#home">Home</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#testimonials">Customers</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <div class="actions">
+        <select id="lang" aria-label="Language selector" title="Change language" onchange="changeLang(this.value)">
+          <option value="en">EN</option>
+          <option value="ur">اردو</option>
+          <option value="ar">العربية</option>
+          <option value="fr">FR</option>
+          <option value="es">ES</option>
+        </select>
+        <button class="btn btn-outline" onclick="location.hash='#login'">Log in</button>
+        <button class="btn btn-primary" onclick="location.hash='#signup'">Get started</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="home">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-left">
+        <h1>Designed for architects — deliver projects, delight clients</h1>
+        <p class="lead">Ofivio combines project planning, client portals, procurement, and construction tracking into one visual platform tailored for architecture studios and construction teams.</p>
+
+        <div class="cta-row">
+          <button class="btn btn-primary" onclick="location.hash='#signup'">Start free — no card</button>
+          <button class="btn btn-outline" onclick="location.hash='#pricing'">Compare plans</button>
+        </div>
+
+        <div class="features-grid" id="features" style="margin-top:20px">
+          <div class="feature">
+            <strong>Design & Procurement</strong>
+            <h4>Link BOQs and procurement to budgets and progress — keep architects and contractors aligned.</h4>
+          </div>
+          <div class="feature">
+            <strong>Client Portal</strong>
+            <h4>Invite clients to review, approve or object — comment and sign off milestones.</h4>
+          </div>
+          <div class="feature">
+            <strong>Project Workflows</strong>
+            <h4>Milestones, stages, and automated notifications keep teams on schedule.</h4>
+          </div>
+        </div>
+
+        <div style="margin-top:18px; display:flex; gap:12px; align-items:center">
+          <div class="pill">Trusted by studios & firms</div>
+          <div class="muted" style="margin-left:6px">Used by 3000+ architecture teams</div>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <div><div class="muted">Active projects</div><strong style="font-size:22px">48</strong></div>
+          <div style="text-align:right"><div class="muted">Open tasks</div><strong style="font-size:22px">1,142</strong></div>
+        </div>
+
+        <div style="margin-top:16px"><div class="muted">Overall progress</div>
+          <div class="progress" style="margin-top:8px"><div class="bar"></div></div>
+        </div>
+
+        <div style="margin-top:14px; border-top:1px dashed rgba(11,27,43,0.04); padding-top:12px">
+          <div class="muted">Recent activity</div>
+          <ul style="padding-left:16px; margin:8px 0; color:var(--muted)">
+            <li>Design submitted — ARKA HQ</li>
+            <li>Procurement approved — Bravo Retail</li>
+            <li>Invoice AB-0923 sent</li>
+          </ul>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px">
+          <button class="btn btn-outline" style="flex:1">View dashboard</button>
+          <button class="btn btn-primary" style="flex:1">Invite team</button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- features deep-dive -->
+    <section>
+      <div class="section-head">
+        <h2>Why Ofivio is best for architecture</h2>
+        <div class="muted">A single system to manage design, procurement and construction.</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px">
+        <div class="card">
+          <h3>Built for design workflows</h3>
+          <p class="muted">From schematic to construction documents — manage handoffs between architects, engineers, and contractors with versioned submissions and comment threads.</p>
+          <ul class="muted" style="margin-top:12px">
+            <li>Versioned drawing uploads & approvals</li>
+            <li>Integrated comments and redlines</li>
+            <li>3D model link attachments</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>Procurement & BOQ</h3>
+          <p class="muted">Track procurement items, link invoices and delivery status to project milestones. Assign procurement managers and set approval workflows.</p>
+          <ul class="muted" style="margin-top:12px">
+            <li>Supplier tracking & purchase requests</li>
+            <li>Cost tracking and comparisons</li>
+            <li>Attach bills and receipts</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing">
+      <div class="section-head">
+        <h2>Pricing plans — choose what fits</h2>
+        <div>
+          <span class="muted">Monthly</span>
+          <label style="margin-left:10px"><input type="radio" name="billing" value="monthly" checked onchange="renderPricing()"> Monthly</label>
+          <label style="margin-left:8px"><input type="radio" name="billing" value="annual" onchange="renderPricing()"> Annual (save 20%)</label>
+        </div>
+      </div>
+
+      <div class="pricing" id="pricing-grid">
+        <!-- Personal -->
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <div><h4>Personal</h4><div class="muted">Individuals & small teams</div></div>
+            <div><span class="badge">Free</span></div>
+          </div>
+          <div style="margin-top:12px" class="price-big" data-month="0" data-year="0">$0</div>
+          <div class="price-caption">Free forever • 1–3 users</div>
+          <div class="features-list">
+            <div>• Up to 3 active projects</div>
+            <div>• Unlimited tasks & basic boards</div>
+            <div>• Activity logs & mobile apps</div>
+            <div>• 100 MB max file</div>
+          </div>
+          <div style="margin-top:14px"><button class="btn btn-primary" style="width:100%" onclick="location.hash='#signup'">Get started</button></div>
+        </div>
+
+        <!-- Starter -->
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <div><h4>Starter</h4><div class="muted">Growing teams</div></div>
+            <div><span class="muted">Popular</span></div>
+          </div>
+          <div style="margin-top:12px" class="price-big" data-month="10.99" data-year="105.49">$10.99</div>
+          <div class="price-caption">Per user / month (billed annually)</div>
+          <div class="features-list">
+            <div>• Everything in Personal</div>
+            <div>• Timeline & Gantt</div>
+            <div>• Workflow builder & templates</div>
+            <div>• Procurement & BOQ features</div>
+          </div>
+          <div style="margin-top:14px"><button class="btn btn-primary" style="width:100%">Start trial</button></div>
+        </div>
+
+        <!-- Advanced -->
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <div><h4>Advanced</h4><div class="muted">Cross-department portfolio</div></div>
+            <div><span class="muted">Scale</span></div>
+          </div>
+          <div style="margin-top:12px" class="price-big" data-month="24.99" data-year="269.89">$24.99</div>
+          <div class="price-caption">Per user / month (billed annually)</div>
+          <div class="features-list">
+            <div>• Portfolio & goals</div>
+            <div>• Workload & resource planning</div>
+            <div>• Integrations with BI tools</div>
+            <div>• Approval workflows & proofing</div>
+          </div>
+          <div style="margin-top:14px"><button class="btn btn-primary" style="width:100%">Purchase</button></div>
+        </div>
+
+        <!-- Enterprise / Contact -->
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <div><h4>Enterprise</h4><div class="muted">Security & scale</div></div>
+            <div><span class="muted">Custom</span></div>
+          </div>
+          <div style="margin-top:12px" class="price-big">Contact</div>
+          <div class="price-caption">Custom pricing and SLA</div>
+          <div class="features-list">
+            <div>• SAML / SCIM</div>
+            <div>• Data residency & compliance</div>
+            <div>• Dedicated onboarding & support</div>
+            <div>• Custom integrations & SLAs</div>
+          </div>
+          <div style="margin-top:14px"><button class="btn btn-outline" style="width:100%" onclick="alert('Contact sales: sales@ofivio.com')">Contact sales</button></div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; color:var(--muted); font-size:14px">All plans include email support. Enterprise plans include 24/7 support and a dedicated Customer Success Manager.</div>
+    </section>
+
+    <!-- Testimonials -->
+    <section id="testimonials">
+      <div class="section-head">
+        <h2>What customers say</h2>
+        <div class="muted">Architects and studios that trust Ofivio</div>
+      </div>
+
+      <div class="testimonials">
+        <div class="testimonial">
+          <div class="stars">★★★★★</div>
+          <strong>“Ofivio changed how we run projects — from drawings to handover everything is tracked.”</strong>
+          <div class="muted" style="margin-top:10px">— Sara Ahmed, ARKA Studio</div>
+        </div>
+
+        <div class="testimonial">
+          <div class="stars">★★★★★</div>
+          <strong>“Procurement sync and BOQ saved us weeks of admin work.”</strong>
+          <div class="muted" style="margin-top:10px">— Omar Khan, Bravo Retail</div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px" class="loved">
+        <div class="muted">Loved by:</div>
+        <div class="logo-blob">ARKA</div>
+        <div class="logo-blob">Bravo</div>
+        <div class="logo-blob">StudioX</div>
+        <div class="logo-blob">BuildCo</div>
+      </div>
+    </section>
+
+    <!-- Contact & Support -->
+    <section id="contact">
+      <div class="section-head">
+        <h2>Contact & Support</h2>
+        <div class="muted">We offer email, chat and priority support for Enterprise.</div>
+      </div>
+
+      <div class="contact-grid">
+        <div class="support-card">
+          <h3>Need help?</h3>
+          <p class="muted">Sales, onboarding or technical assistance — our team is here to help.</p>
+          <div style="display:flex; gap:8px; margin-top:12px">
+            <div style="flex:1">
+              <strong>Email</strong>
+              <div class="muted">support@ofivio.com</div>
+            </div>
+            <div style="flex:1">
+              <strong>Phone</strong>
+              <div class="muted">+92 300 0000000</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <strong>Live chat</strong>
+            <div class="muted">Available 9:00–18:00 (Mon–Fri)</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Send us a message</h3>
+          <div style="margin-top:8px">
+            <label class="muted">Name</label>
+            <input id="contact-name" type="text" style="width:100%; padding:10px; margin-top:6px; border-radius:8px; border:1px solid rgba(11,27,43,0.06)" />
+            <label class="muted" style="margin-top:8px">Email</label>
+            <input id="contact-email" type="email" style="width:100%; padding:10px; margin-top:6px; border-radius:8px; border:1px solid rgba(11,27,43,0.06)" />
+            <label class="muted" style="margin-top:8px">Message</label>
+            <textarea id="contact-msg" rows="5" style="width:100%; padding:10px; margin-top:6px; border-radius:8px; border:1px solid rgba(11,27,43,0.06)"></textarea>
+            <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end">
+              <button class="btn btn-outline" onclick="clearContact()">Clear</button>
+              <button class="btn btn-primary" onclick="submitContact()">Send message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq">
+      <div class="section-head">
+        <h2>Frequently Asked Questions</h2>
+        <div class="muted">Answers to common questions about Ofivio</div>
+      </div>
+
+      <div class="faq" id="faq-list">
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">1. What is Ofivio and who is it for?</h4><div class="muted" style="margin-top:8px; display:none">Ofivio is a project management platform designed for architects and construction teams. It unites design workflows, procurement, and construction tracking.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">2. How does client approval work?</h4><div class="muted" style="margin-top:8px; display:none">Clients receive notifications, view progress, comment, approve or object to milestones. Approval is recorded in the project timeline.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">3. Can I import BOQs and invoices?</h4><div class="muted" style="margin-top:8px; display:none">Yes — import CSV/Excel BOQs and attach invoices to procurement items. Integration with accounting systems is available for Enterprise plans.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">4. Does Ofivio support multiple currencies?</h4><div class="muted" style="margin-top:8px; display:none">Yes — set project currency in settings. Enterprise accounts can enforce currency rules by region.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">5. How is user access controlled?</h4><div class="muted" style="margin-top:8px; display:none">Role-based access (Admin, Manager, Designer, Supplier, Client) with fine-grained permissions for projects and procurement.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">6. Are my files secure?</h4><div class="muted" style="margin-top:8px; display:none">Files are stored with encrypted storage and optional enterprise key management for compliance plans.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">7. What integrations are available?</h4><div class="muted" style="margin-top:8px; display:none">Popular integrations include Google Drive, GitHub, Slack, and accounting software. More available for Enterprise accounts.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">8. Do you provide onboarding?</h4><div class="muted" style="margin-top:8px; display:none">Yes — paid onboarding and training packages are available for medium and enterprise customers.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">9. Can I host Ofivio on my own infra?</h4><div class="muted" style="margin-top:8px; display:none">We offer a cloud SaaS and an on-premise option for large enterprise customers with compliance needs.</div></div>
+
+        <div class="faq-item"><h4 onclick="toggleFAQ(this)">10. How do I get support?</h4><div class="muted" style="margin-top:8px; display:none">Email support@ofivio.com or use the in-app chat. Enterprise customers have 24/7 priority support.</div></div>
+      </div>
+    </section>
+
+    <!-- Active subscribers panel -->
+    <section>
+      <div class="section-head">
+        <h2>Active subscribers</h2>
+        <div class="muted">Thousands of design teams and construction firms use Ofivio daily.</div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center; margin-top:12px; flex-wrap:wrap">
+        <div style="background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:white; padding:18px; border-radius:12px; min-width:220px; box-shadow:var(--shadow)">
+          <div style="font-size:24px; font-weight:800">3,210</div>
+          <div class="muted" style="opacity:0.9">Active teams</div>
+        </div>
+
+        <div style="background:#fff; padding:18px; border-radius:12px; box-shadow:var(--shadow); min-width:220px">
+          <div style="font-size:20px; font-weight:700">98%</div>
+          <div class="muted">Satisfaction score</div>
+        </div>
+
+        <div style="background:#fff; padding:18px; border-radius:12px; box-shadow:var(--shadow); min-width:220px">
+          <div style="font-size:20px; font-weight:700">1,142</div>
+          <div class="muted">Open tasks per day</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <div style="display:flex; gap:10px; align-items:center">
+          <div class="brand-mark" style="width:48px;height:48px">O</div>
+          <div>
+            <div style="font-weight:800">Ofivio</div>
+            <div style="color:#bfe6ff; font-size:13px">Architecture Project Management • Powered by ARKA SERVICES</div>
+          </div>
+        </div>
+        <p style="margin-top:12px; color:rgba(219,233,247,0.8)">Ofivio helps architects and construction teams deliver projects on time — from design to procurement to completion.</p>
+        <div style="margin-top:12px">
+          <strong>Contact:</strong>
+          <div class="muted">support@ofivio.com • +92 300 0000000</div>
+        </div>
+      </div>
+
+      <div class="footer-links">
+        <h5>Product</h5>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#testimonials">Customers</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Demo</a>
+      </div>
+
+      <div class="footer-links">
+        <h5>Resources</h5>
+        <a href="#">Blog (ARKA)</a>
+        <a href="#">Case Studies</a>
+        <a href="#">Docs</a>
+        <a href="#">Integrations</a>
+        <a href="#">API</a>
+      </div>
+
+      <div class="footer-links">
+        <h5>Company</h5>
+        <a href="#">About Us</a>
+        <a href="#">Careers</a>
+        <a href="#">Partners</a>
+        <a href="#">Press</a>
+        <a href="#">Security</a>
+      </div>
+
+      <div class="footer-links">
+        <h5>Legal & Support</h5>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">SLA & Compliance</a>
+        <a href="#">Contact Support</a>
+        <a href="#">Report a Bug</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>© <span id="year"></span> Ofivio — Built for architects • Powered by ARKA SERVICES</div>
+      <div style="display:flex; gap:12px; align-items:center">
+        <div class="muted">Follow</div>
+        <a href="#" style="color:#cfe8ff">LinkedIn</a>
+        <a href="#" style="color:#cfe8ff">Instagram</a>
+        <a href="#" style="color:#cfe8ff">Twitter</a>
+      </div>
+    </div>
+  </footer>
+
+<script>
+  // year
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // pricing render
+  function renderPricing(){
+    const mode = document.querySelector('input[name="billing"]:checked').value;
+    document.querySelectorAll('.price-big').forEach(el=>{
+      const m = parseFloat(el.dataset.month || 0);
+      const y = parseFloat(el.dataset.year || Math.round(m * 12 * 0.8));
+      if(mode === 'monthly'){
+        el.innerHTML = `$${m}${m===0?'':''} <div style="font-size:12px; color:var(--muted); font-weight:600; margin-top:6px">per user / month</div>`;
+      } else {
+        el.innerHTML = `$${y} <div style="font-size:12px; color:var(--muted); font-weight:600; margin-top:6px">per user / year (save 20%)</div>`;
+      }
+    });
+  }
+  renderPricing();
+
+  // contact handlers
+  function clearContact(){
+    document.getElementById('contact-name').value='';
+    document.getElementById('contact-email').value='';
+    document.getElementById('contact-msg').value='';
+  }
+  function submitContact(){
+    const n = document.getElementById('contact-name').value.trim();
+    const e = document.getElementById('contact-email').value.trim();
+    const m = document.getElementById('contact-msg').value.trim();
+    if(!n || !e || !m){ alert('Please fill all fields'); return; }
+    // replace with real API call (POST to functions)
+    alert('Message sent. Our team will respond within 24 hours.');
+    clearContact();
+  }
+
+  // FAQ toggle
+  function toggleFAQ(h){
+    const p = h.nextElementSibling;
+    if(!p) return;
+    const showing = p.style.display === 'block';
+    p.style.display = showing ? 'none' : 'block';
+  }
+
+  // language change (mock)
+  function changeLang(code){
+    alert('Language switched to: ' + code + ' (mock — integrate i18n in the app)');
+  }
+
+  // hash navigation smooth (optional)
+  (function(){
+    if(location.hash) {
+      const id = location.hash.replace('#','');
+      const el = document.getElementById(id);
+      if(el) el.scrollIntoView({behavior:'smooth'});
+    }
+  })();
+</script>
+</body>
+</html>

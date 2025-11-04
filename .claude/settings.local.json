@@ -63,7 +63,12 @@
       "Bash(timeout 10 bash:*)",
       "Bash(copy /Y \"server\\routes-lifecycle.ts\" \"functions\\src\\server\\routes-lifecycle.ts\")",
       "Bash(copy /Y \"server\\index.ts\" \"functions\\src\\index.ts\")",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(copy /Y \"logo\\OFIVIO LOGO.png\" \"client\\public\\assets\\ofivio-logo.png\")",
+      "Bash(copy /Y \"logo\\White Ofivio LOGO.png\" \"client\\public\\assets\\ofivio-logo-white.png\")",
+      "Bash(firebase login:list:*)",
+      "Bash(del clientsrcstylesasana-theme.css)",
+      "Bash(client/src/components/AdminPanelView.tsx.tmp)"
     ],
     "deny": [],
     "ask": []

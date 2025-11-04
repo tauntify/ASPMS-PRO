@@ -1,19 +1,23 @@
 import { useState, useEffect } from "react";
-import type { ThemeKey } from "@shared/schema";
-import { applyTheme, getCurrentTheme, setTheme as saveTheme } from "@/lib/themes";
+import { applyTheme, getCurrentTheme, setTheme as saveTheme, toggleTheme as toggle, type ThemeMode } from "@/lib/themes";
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemeKey>(getCurrentTheme());
+  const [theme, setThemeState] = useState<ThemeMode>(getCurrentTheme());
 
   useEffect(() => {
     // Apply theme on mount
     applyTheme(theme);
   }, [theme]);
 
-  const setTheme = (newTheme: ThemeKey) => {
+  const setTheme = (newTheme: ThemeMode) => {
     setThemeState(newTheme);
     saveTheme(newTheme);
   };
 
-  return { theme, setTheme };
+  const toggleTheme = () => {
+    const newTheme = toggle();
+    setThemeState(newTheme);
+  };
+
+  return { theme, setTheme, toggleTheme, isDark: theme === 'dark' };
 }
