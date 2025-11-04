@@ -749,52 +749,205 @@ export function AdminPanelView({ projects, users, tasks, onOpenProject, onCreate
 
             {drawerType === "summary" && (
               <div className="space-y-6">
+                {/* Project Overview Header */}
+                <Card className="p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-2xl font-bold">{selectedProject?.name}</h3>
+                      <p className="text-blue-100 mt-1 text-sm">{selectedProject?.clientName}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold">65%</div>
+                      <div className="text-xs text-blue-100">Overall Progress</div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Quick Stats Grid */}
                 <div className="grid grid-cols-2 gap-4">
-                  <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100">
-                    <div className="text-xs text-gray-600">Total Items</div>
-                    <div className="text-2xl font-bold text-gray-900 mt-1">156</div>
+                  <Card className="p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-600 font-medium">Total Tasks</div>
+                        <div className="text-2xl font-bold text-gray-900 mt-1">156</div>
+                      </div>
+                    </div>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100">
-                    <div className="text-xs text-gray-600">Completed</div>
-                    <div className="text-2xl font-bold text-gray-900 mt-1">98</div>
+                  <Card className="p-5 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-green-600 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-600 font-medium">Completed</div>
+                        <div className="text-2xl font-bold text-gray-900 mt-1">98</div>
+                      </div>
+                    </div>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-amber-50 to-amber-100">
-                    <div className="text-xs text-gray-600">In Progress</div>
-                    <div className="text-2xl font-bold text-gray-900 mt-1">42</div>
+                  <Card className="p-5 bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-amber-600 flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-600 font-medium">In Progress</div>
+                        <div className="text-2xl font-bold text-gray-900 mt-1">42</div>
+                      </div>
+                    </div>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-red-50 to-red-100">
-                    <div className="text-xs text-gray-600">Pending</div>
-                    <div className="text-2xl font-bold text-gray-900 mt-1">16</div>
+                  <Card className="p-5 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-red-600 flex items-center justify-center">
+                        <AlertCircle className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-600 font-medium">Pending</div>
+                        <div className="text-2xl font-bold text-gray-900 mt-1">16</div>
+                      </div>
+                    </div>
                   </Card>
                 </div>
 
-                <Card className="p-4">
-                  <h4 className="font-bold text-sm mb-3">Progress Distribution</h4>
-                  <div className="flex items-center justify-center h-40 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-                    <div className="text-center">
-                      <BarChart3 className="w-12 h-12 text-blue-600 mx-auto mb-2" />
-                      <div className="text-sm text-gray-600">Chart Placeholder</div>
+                {/* Phase Progress */}
+                <Card className="p-6">
+                  <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    Project Phases
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Design Phase</span>
+                        <span className="text-sm font-bold text-blue-600">68%</span>
+                      </div>
+                      <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600" style={{ width: "68%" }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Procurement</span>
+                        <span className="text-sm font-bold text-purple-600">40%</span>
+                      </div>
+                      <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-purple-600" style={{ width: "40%" }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Construction</span>
+                        <span className="text-sm font-bold text-green-600">12%</span>
+                      </div>
+                      <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-green-500 to-green-600" style={{ width: "12%" }} />
+                      </div>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-4">
-                  <h4 className="font-bold text-sm mb-3">Cost Analysis</h4>
-                  <div className="flex items-center justify-center h-40 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg">
-                    <div className="text-center">
-                      <DollarSign className="w-12 h-12 text-green-600 mx-auto mb-2" />
-                      <div className="text-sm text-gray-600">Chart Placeholder</div>
+                {/* Team & Timeline */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Card className="p-5">
+                    <h4 className="font-bold text-sm mb-3 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      Team Members
+                    </h4>
+                    <div className="text-3xl font-bold text-gray-900">12</div>
+                    <div className="text-xs text-gray-500 mt-1">Active Contributors</div>
+                  </Card>
+                  <Card className="p-5">
+                    <h4 className="font-bold text-sm mb-3 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                      Timeline
+                    </h4>
+                    <div className="text-3xl font-bold text-gray-900">90</div>
+                    <div className="text-xs text-gray-500 mt-1">Days Remaining</div>
+                  </Card>
+                </div>
+
+                {/* Budget Overview */}
+                <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
+                  <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    Budget Overview
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-xs text-gray-600 mb-1">Total Budget</div>
+                      <div className="text-xl font-bold text-gray-900">PKR 95M</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600 mb-1">Spent</div>
+                      <div className="text-xl font-bold text-orange-600">PKR 38M</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600 mb-1">Remaining</div>
+                      <div className="text-xl font-bold text-green-600">PKR 57M</div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-orange-500 to-orange-600" style={{ width: "40%" }} />
                     </div>
                   </div>
                 </Card>
 
-                <Button
-                  onClick={() => onOpenProject(selectedProject?.id.toString() || "")}
-                  className="w-full"
-                >
-                  <ChevronRight className="w-4 h-4 mr-2" />
-                  Go to Project Details
-                </Button>
+                {/* Recent Milestones */}
+                <Card className="p-6">
+                  <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    Recent Milestones
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm">Concept Design Approved</div>
+                        <div className="text-xs text-gray-500 mt-1">Completed 5 days ago</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm">MEP Drawings Review</div>
+                        <div className="text-xs text-gray-500 mt-1">In progress - Due in 3 days</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm">BOQ Finalization</div>
+                        <div className="text-xs text-gray-500 mt-1">Pending client approval</div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={() => onOpenProject(selectedProject?.id.toString() || "")}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    size="lg"
+                  >
+                    <FolderOpen className="w-4 h-4 mr-2" />
+                    Full Details
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setDrawerType("tasks");
+                    }}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    View Tasks
+                  </Button>
+                </div>
               </div>
             )}
 
